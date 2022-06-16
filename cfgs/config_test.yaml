@@ -1,0 +1,53 @@
+seed: 0
+device: "cpu:0"
+experiment: intersection
+
+# WANDB things
+wandb: false
+
+# TODO(eugenevinitsky) don't hardcode this
+episode_length: 100
+scenario_path: "../scenarios/twenty_car_intersection.json"
+dt: 1.0
+# TODO(eugenevinitsky) actually implement this
+sims_per_step: 10
+initial_speed: 0.0
+img_as_state: False
+randomize_goals: True
+rew_cfg:
+    shared_reward: False # agents get the collective reward instead of individual rewards
+    goal_tolerance: 30.0
+    collision_penalty: 0.0
+    shaped_goal_distance: True
+    goal_achieved_bonus: 50.0
+    speed_rew: False
+    speed_rew_coef: 0.01
+    # find a dense set of waypoints and reward for getting closer to them
+    dense_waypoints: true
+    dense_waypoint_spacing: 10.0
+    num_visible_waypoints: 5
+subscriber:
+    view_angle: 3.14
+    view_dist: 120 # the distance which the cone extends before agents are not visible
+    use_local_coordinates: True
+    include_ego_state: True
+    # TODO(eugenevinitsky) this should be true
+    include_visible_object_state: True
+    include_road_edges: True
+    object_subscriber:
+        include_speed: True
+        include_pos: True
+        include_heading: True
+    ego_subscriber:
+        img_view: ${img_as_state}
+        view_angle: ${view_angle}
+        include_speed: True
+        include_heading: True
+        include_pos: True
+        include_goal_pos: True
+        include_goal_img: ${img_as_state}
+        # include_lane_pos: True
+
+hydra:
+    run:
+        dir: /Users/nathan/Desktop/projects/nocturne/checkpoint/test/${now:%Y.%m.%d}/${now:%H%M%S}_${hydra.job.override_dirname}

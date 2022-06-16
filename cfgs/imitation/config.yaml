@@ -1,0 +1,42 @@
+defaults:
+  - override hydra/launcher: submitit_local
+
+experiment: test
+path: '/checkpoint/eugenevinitsky/waymo_open/motion_v1p1/uncompressed/scenario/formatted_json_v2_no_tl_train'
+num_files: 1000
+n_cpus: 9
+lr: 3e-4
+samples_per_epoch: 50000
+max_visible_road_points: 500
+batch_size: 512
+epochs: 700
+device: cuda
+n_stacked_states: 5
+view_dist: 80
+view_angle: 3.14
+actions_are_positions: False
+discrete: True
+seed: 0
+
+# WANDB things
+wandb: True
+wandb_project: nocturne
+wandb_group: ${experiment}
+
+# tensorboard logs
+write_to_tensorboard: True
+
+hydra:
+  run:
+    dir: /checkpoint/eugenevinitsky/nocturne/test/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}/${hydra.job.override_dirname}
+  sweep:
+    dir: /checkpoint/eugenevinitsky/nocturne/sweep/imitation/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}
+    subdir: ${hydra.job.num}
+  launcher:
+    timeout_min: 2880
+    cpus_per_task: 80
+    gpus_per_node: 1
+    tasks_per_node: 1
+    mem_gb: 160
+    nodes: 1
+    submitit_folder: /checkpoint/eugenevinitsky/nocturne/sweep/imitation/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}/.slurm

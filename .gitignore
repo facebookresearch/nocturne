@@ -1,0 +1,45 @@
+# CMake
+build/
+bin/
+
+# OS X
+.DS_STORE
+.DS_Store
+
+# IDE
+.vscode
+
+# media
+*.mov
+*.png
+
+# Python
+__pycache__/
+*.pyc
+
+# packaging
+*.egg-info/
+
+# experiment_files
+*.mp4
+*exp_local*
+algos/gcsl/exp_local/*
+*.xml
+
+# log files
+checkpoint/
+
+# binary
+*.so
+
+# waymo dataset
+dataset/
+
+# trained models
+*.pth
+
+# tensorboard
+*tfevents*
+
+# configs
+configs.json

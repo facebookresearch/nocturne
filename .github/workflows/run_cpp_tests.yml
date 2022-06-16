@@ -1,0 +1,30 @@
+name: C++ tests
+on:
+  pull_request:
+jobs:
+    build_cpp:
+        runs-on: ubuntu-latest
+        steps:
+            - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
+            - run: echo "This job is now running on a ${{ runner.os }} server."
+            - run: echo "Running on branch ${{ github.ref }} of repository ${{ github.repository }}."
+            - name: Check out repository code.
+              uses: actions/checkout@v2
+            - name: Install dependencies.
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install libsfml-dev
+                  git submodule sync
+                  git submodule update --init --recursive
+            - name: Build C++ nocturne library.
+              run: |
+                  cd ${{ github.workspace }}/nocturne/cpp
+                  mkdir build
+                  cd build
+                  cmake ..
+                  make
+            - name: Run C++ tests.
+              run: |
+                  cd ${{ github.workspace }}/nocturne/cpp/build/tests
+                  ./nocturne_test
+            - run: echo "Job finished with status ${{ job.status }}."
