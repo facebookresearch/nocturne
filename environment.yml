@@ -1,0 +1,29 @@
+name: nocturne
+channels:
+  - defaults
+dependencies:
+  - python=3.8
+  - pip=21.1.3
+  - numpy=1.19.2
+  - jupyterlab=3.0.14
+  - pip:
+    - hydra-core==1.1.0
+    - hydra-submitit-launcher==1.1.5
+    - ipdb==0.13.9
+    - seaborn
+    - imageio==2.10.1
+    - moviepy==1.0.3
+    - opencv-python==4.5.5.64
+    - gym==0.20.0
+    - wandb==0.12.15
+    - imageio==2.10.1
+    - setproctitle==1.2.3
+    - tensorboardX==2.5
+    - pytest==7.1.1
+    - flake8==4.0.1
+    - pydocstyle==6.1.1
+    - pyvirtualdisplay
+    - ray==1.11.0
+    - dm-tree
+    - tabulate
+    - torch
