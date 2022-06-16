@@ -106,15 +106,15 @@ void Object::SetActionFromKeyboard() {
 }
 
 // Kinematic Bicycle Model
-// https://thef1clan.com/2020/09/21/vehicle-dynamics-the-kinematic-bicycle-model/
+// https://www.coursera.org/lecture/intro-self-driving-cars/lesson-2-the-kinematic-bicycle-model-Bi8yE
 void Object::KinematicBicycleStep(float dt) {
   const float v =
-      ClipSpeed(speed_ + acceleration_ * dt * 0.5f);  // Average speed
-  const float tan_zeta = std::tan(steering_);
+      ClipSpeed(speed_ + 0.5f * acceleration_ * dt);  // Average speed
+  const float tan_delta = std::tan(steering_);
   // Assume center of mass lies at the middle of length, then l / L == 0.5.
-  const float beta = std::atan(tan_zeta * 0.5f);
+  const float beta = std::atan(0.5f * tan_delta);
   const geometry::Vector2D d = geometry::PolarToVector2D(v, heading_ + beta);
-  const float w = v * tan_zeta * std::cos(beta) / length_;
+  const float w = v * std::cos(beta) * tan_delta / length_;
   position_ += d * dt;
   heading_ = geometry::utils::AngleAdd(heading_, w * dt);
   speed_ = ClipSpeed(speed_ + acceleration_ * dt);
