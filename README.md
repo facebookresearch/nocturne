@@ -4,7 +4,10 @@ It is currently designed to handle traffic scenarios from the [Waymo Open Datase
 
 Using this rich data source, Nocturne contains a wide range of scenarios whose solution requires the formation of complex coordination and theory of mind:
 
-https://user-images.githubusercontent.com/3357667/174224683-ca23339c-0bc3-42d9-b229-bc3fcd4a48bb.mp4
+
+
+https://user-images.githubusercontent.com/3357667/174226012-dd4b01d9-7d22-4543-94c9-1d0649a42ba1.mp4
+
 
 
 The paper is in submission but an early draft of it is available: [Draft](./docs/nocturne_draft.pdf)
