@@ -23,11 +23,11 @@ constexpr float kTol = 1e-4;
 
 std::pair<geometry::Vector2D, float> KinematicBicycleModel(
     const geometry::Vector2D& position, float length, float heading,
-    float speed, float zeta, float dt) {
-  const float beta = std::atan(std::tan(zeta) * 0.5f);
+    float speed, float delta, float dt) {
+  const float beta = std::atan(std::tan(delta) * 0.5f);
   const float dx = speed * std::cos(heading + beta);
   const float dy = speed * std::sin(heading + beta);
-  const float dtheta = speed * std::tan(zeta) * std::cos(beta) / length;
+  const float dtheta = speed * std::tan(delta) * std::cos(beta) / length;
   return std::make_pair(position + geometry::Vector2D(dx * dt, dy * dt),
                         geometry::utils::NormalizeAngle(heading + dtheta * dt));
 }
