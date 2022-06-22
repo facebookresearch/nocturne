@@ -25,7 +25,6 @@ contact:
   given-names: "Xiaomeng"
 
 tile: "Nocturne"
-version: 0.0.1
 date-released: 2022-06-21
 url: "https://github.com/facebookresearch/nocturne"
 license: "MIT"
@@ -51,5 +50,4 @@ preferred-citation:
   url: "https://arxiv.org/abs/2206.09889"
   title: "Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world"
   year: 2022
-  journal: "arXiv:2206.09889"
-  repository-code: "https://github.com/facebookresearch/nocturne"
+  journal: "arXiv preprint arXiv:2206.09889"

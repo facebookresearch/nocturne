@@ -21,9 +21,9 @@ The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](http
 ```
 @article{nocturne2022,
   author  = {Vinitsky, Eugene and Lichtlé, Nathan and Yang, Xiaomeng and Amos, Brandon and Foerster, Jakob},
-  journal = {arXiv:2206.09889},
+  journal = {arXiv preprint arXiv:2206.09889},
   title   = {{Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world}},
-  url     = {https://github.com/facebookresearch/nocturne},
+  url     = {https://arxiv.org/abs/2206.09889},
   year    = {2022}
 }
 ```
