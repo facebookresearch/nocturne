@@ -116,14 +116,16 @@ To get a sense of available functionality in Nocturne, we have provided a few ex
 
 ## Running the RL Algorithms
 ---
+Nocturne comes shipped with a default Gym environment in ```nocturne/envs/base_env.py```. Atop this we build integration for a few popular RL libraries.
+
 Nocturne by default comes with support for three versions of Proximal Policy Optimization:
 1. Sample Factory, a high throughput asynchronous PPO implementation (https://github.com/alex-petrenko/sample-factory)
 2. RLlib's PPO (https://github.com/ray-project/ray/tree/master/rllib)
 3. Multi-Agent PPO from (https://github.com/marlbenchmark/on-policy)
 Each algorithm is in its corresponding folder in examples and has a corresponding config file in cfgs/
 *Warning:* only the sample factory code has been extensively swept and tested. The default hyperparameters in there
-should work for training a basic agent, if not a perfectly performant one. The other versions are provided for convenience
-but are not guaranteed to train a basic agent with the current hyperparameter settings.
+should work for training the agents from the corresponding paper. The other versions are provided for convenience
+but are not guaranteed to train a performant agent with the current hyperparameter settings.
 
 ### Important hyperparameters to be aware of
 There are a few key hyperparameters that we expect users to care quite a bit about. Each of these can be toggled by adding
@@ -142,8 +144,12 @@ Once you have a trained checkpoint, you can visualize the results and make a mov
 operating on a fixed horizon. To enable this, we use the config parameter ```max_num_vehicles``` which initializes the environment with only scenes that have fewer controllable agents than ```max_num_vehicles```. Additionally, if there are fewer than ```max_num_vehicles``` in the scene we add dummy agents that receive a vector of -1 at all timesteps. When a vehicle exits the scene we continue providing it a vector of -1 as an observation and a reward of 0.
 
 ### Running RLlib
+Files from RLlib examples can be run from examples/rllib_files and should work by default by running
+```python examples/rllib_files/run_rllib.py```
 
 ### Running on-policy PPO
+Files from [MAPPO](https://github.com/marlbenchmark/on-policy) examples can be run from examples/rllib_files and should work by default by running
+```python examples/on_policy_files/nocturne_runner.py algorithm=ppo```
 
 ## Running the IL Algorithms
 Nocturne comes with a baseline implementation of behavioral cloning and a corresponding
