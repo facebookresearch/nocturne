@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 cff-version: 1.2.0
-message: "If you use Nocturne, please cite the Nocturne paper as below and not the GitHub repository."
+message: "If you use Nocturne, please cite it as below."
 
 authors:
 - family-names: "Vinitsky"
