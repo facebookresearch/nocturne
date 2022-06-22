@@ -133,7 +133,7 @@ There are a few key hyperparameters that we expect users to care quite a bit abo
 
 ### Running sample factory
 Files from sample factory can be run from examples/sample_factory_files and should work by default by running
-```python examples/sample_factory_files/run_sample_factory.py algorithm=APPO```
+```python examples/sample_factory_files/visualize_sample_factory.py algorithm=APPO```
 Additional config options for hyperparameters can be found in the config file.
 
 Once you have a trained checkpoint, you can visualize the results and make a movie of them by running ```python examples/sample_factory_files/run_sample_factory.py <PATH TO OUTPUT MODEL>```.
