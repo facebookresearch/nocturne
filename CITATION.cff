@@ -1,37 +1,55 @@
 cff-version: 1.2.0
 message: "If you use Nocturne, please cite the Nocturne paper as below and not the GitHub repository."
+
+authors:
+- family-names: "Vinitsky"
+  given-names: "Eugene"
+- family-names: "Lichtlé"
+  given-names: "Nathan"
+- family-names: "Yang"
+  given-names: "Xiaomeng"
+- family-names: "Amos"
+  given-names: "Brandon"
+- family-names: "Foerster"
+  given-names: "Jakob"
+
+contact:
+- email: "vinitsky.eugene@gmail.com"
+  family-names: "Vinitsky"
+  given-names: "Eugene"
+- email: "nathan.lichtle@gmail.com"
+  family-names: "Lichtlé"
+  given-names: "Nathan"
+- email: "yangxm@fb.com"
+  family-names: "Yang"
+  given-names: "Xiaomeng"
+
+tile: "Nocturne"
+version: 0.0.1
+date-released: 2022-06-21
+url: "https://github.com/facebookresearch/nocturne"
+license: "MIT"
+
 preferred-citation:
   type: article
   abstract: "We introduce Nocturne, a new 2D driving simulator for investigating multi-agent coordination under partial observability. The focus of Nocturne is to enable research into inference and theory of mind in real-world multi-agent settings without the computational overhead of computer vision and feature extraction from images. Agents in this simulator only observe an obstructed view of the scene, mimicking human visual sensing constraints. Unlike existing benchmarks that are bottlenecked by rendering human-like observations directly using a camera input, Nocturne uses efficient intersection methods to compute a vectorized set of visible features in a C++ back-end, allowing the simulator to run at 2000+ steps-per-second. Using open-source trajectory and map data, we construct a simulator to load and replay arbitrary trajectories and scenes from real-world driving data. Using this environment, we benchmark reinforcement-learning and imitation-learning agents and demonstrate that the agents are quite far from human-level coordination ability and deviate significantly from the expert trajectories."
   authors:
-  - family-names: Vinitsky
-    given-names: Eugene
-  - family-names: Lichtlé
-    given-names: Nathan
-  - family-names: Yang
-    given-names: Xiaomeng
-  - family-names: Amos
-    given-names: Brandon
-  - family-names: Foerster
-    given-names: Jakob
-  contact:
-  - email: vinitsky.eugene@gmail.com
-    family-names: Vinitsky
-    given-names: Eugene
-  - email: nathan.lichtle@gmail.com
-    family-names: Lichtlé
-    given-names: Nathan
-  - email: yangxm@fb.com
-    family-names: Yang
-    given-names: Xiaomeng
-  date-released: 2022-06-20
+  - family-names: "Vinitsky"
+    given-names: "Eugene"
+  - family-names: "Lichtlé"
+    given-names: "Nathan"
+  - family-names: "Yang"
+    given-names: "Xiaomeng"
+  - family-names: "Amos"
+    given-names: "Brandon"
+  - family-names: "Foerster"
+    given-names: "Jakob"
   keywords:
   - "driving simulator"
   - "multiagent coordination"
   - "partial observability"
-  repository-code: "https://github.com/facebookresearch/nocturne"
   url: "https://arxiv.org/abs/2206.09889"
   title: "Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world"
-  version: 1.0.0
-  license: MIT
+  year: 2022
   journal: "arXiv:2206.09889"
+  repository-code: "https://github.com/facebookresearch/nocturne"
