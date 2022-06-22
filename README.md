@@ -1,3 +1,5 @@
+# Nocturne
+
 Nocturne is a 2D driving simulator, built in C++ for speed and exported as a Python library.
 
 It is currently designed to handle traffic scenarios from the [Waymo Open Dataset](https://github.com/waymo-research/waymo-open-dataset), and with some work could be extended to support different driving datasets. Using the Python library `nocturne`, one is able to train controllers for AVs to solve various tasks from the Waymo dataset, which we provide as a benchmark, then use the tools we offer to evaluate the designed controllers.
@@ -14,7 +16,17 @@ Nocturne features a rich variety of scenes, ranging from parking lots, to merges
 
 ![Intersection Scene with Obscured View](./docs/readme_files/nocturne_3_by_3_scenes.gif)
 
-The corresponding paper is available at: [arxiv link](https://arxiv.org/abs/2206.09889)
+The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](https://arxiv.org/abs/2206.09889). Please cite the paper and not the GitHub repository, using the following citation:
+
+```
+@article{nocturne2022,
+  author  = {Vinitsky, Eugene and Lichtlé, Nathan and Yang, Xiaomeng and Amos, Brandon and Foerster, Jakob},
+  journal = {arXiv:2206.09889},
+  title   = {{Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world}},
+  year    = {2022}
+  url     = {https://github.com/facebookresearch/nocturne},
+}
+```
 
 # Installation
 
@@ -80,6 +92,14 @@ Resetting simulation.
 
 Python tests can be ran with `pytest`.
 
+<details>
+<summary><b>Click here for a list of common installation errors</b></summary>
+
+### pybind11 installation errors
+
+If you are getting errors with pybind11, install it directly in your conda environment (eg. `conda install -c conda-forge pybind11` or `pip install pybind11`, cf. https://pybind11.readthedocs.io/en/latest/installing.html for more info).
+</details>
+
 ## Dataset
 
 ### Downloading the dataset
@@ -111,11 +131,15 @@ make install
 
 Subsequently, the C++ tests can be ran with `./tests/nocturne_test` from within the `nocturne/cpp/build` directory.
 
-## Examples of Nocturne Usage
-To get a sense of available functionality in Nocturne, we have provided a few examples  in the examples folder of how to construct the env (create_env.py), how to construct particular observations (nocturne_functions.py), and how to render results (rendering.py).
 
-## Running the RL Algorithms
----
+# Usage 
+
+To get a sense of available functionality in Nocturne, we have provided a few examples  in the `examples` folder of how to construct the env (`create_env.py`), how to construct particular observations (`nocturne_functions.py`), and how to render results (`rendering.py`).
+
+The following goes over how to use training algorithms using the Nocturne environment.
+
+## Running the RL algorithms
+
 Nocturne by default comes with support for three versions of Proximal Policy Optimization:
 1. Sample Factory, a high throughput asynchronous PPO implementation (https://github.com/alex-petrenko/sample-factory)
 2. RLlib's PPO (https://github.com/ray-project/ray/tree/master/rllib)
@@ -149,25 +173,47 @@ operating on a fixed horizon. To enable this, we use the config parameter ```max
 Nocturne comes with a baseline implementation of behavioral cloning and a corresponding
 DataLoader. This can be run via ```python examples/imitation_learning/train.py```.
 
-## Common installation errors
----
+# Contributors
 
-### pybind11 installation errors
+<table>
+<tbody>
+<tr>
+<td align="center">
+  <a href="https://github.com/eugenevinitsky">
+    <img src="https://avatars.githubusercontent.com/u/7660397?v=4" width="100px;" alt="Eugene Vinitsky" style="border-radius: 50%" />
+  </a>
+</td>
+<td align="center">
+  <a href="https://github.com/nathanlct">
+    <img src="https://avatars.githubusercontent.com/u/33672752?v=4"  width="100px;" alt="Nathan Lichtlé" style="border-radius: 50%" />
+  </a>
+</td>
+<td align="center">
+  <a href="https://github.com/xiaomengy">
+    <img src="https://avatars.githubusercontent.com/u/3357667?v=4" width="100px;" alt="Xiaomeng Yang" style="border-radius: 50%" />
+  </a>
+</td>
+</tr>
+<tr>
+<td align="center">
+  <a href="https://eugenevinitsky.github.io/">
+    Eugene Vinitsky
+  </a>
+</td>
+<td align="center">
+  <a href="https://nathanlct.com/">
+    Nathan Lichtlé
+  </a>
+</td>
+<td align="center">
+  <a href="https://github.com/xiaomengy">
+    Xiaomeng Yang
+  </a>
+</td>
+</tr>
+</tbody>
+</table>
 
-If you are getting errors with pybind11, install it directly in your conda environment (eg. `conda install -c conda-forge pybind11` or `pip install pybind11`, cf. https://pybind11.readthedocs.io/en/latest/installing.html for more info).
+# License
 
-### CMake can't find SFML library.
-
-Make sure the path to SFML is included in CMAKE_PREFIX_PATH.
-
-### ImportError: libsfml-graphics.so.2.5: cannot open shared object file: No such file or directory
-
-Make sure SFML/lib is included in LD_LIBRARY_PATH if you're on a linux machine 
-
-### ImportError: libudev.so.0: cannot open shared object file
-
-Do this really dumb thing. Make a folder, run ```ln -s /usr/lib/x86_64-linux-gnu/libudev.so.1 libudev.so.0``` then add that folder to the LD_LIBRARY_PATH
-
-## License
----
-The majority of Nocturne is licensed under the MIT license, however portions of the project are available under separate license terms: the Waymo Motion Dataset License can be found at https://waymo.com/open/terms/.
+The majority of Nocturne is licensed under the MIT license, however portions of the project are available under separate license terms. The Waymo Motion Dataset License can be found at https://waymo.com/open/terms/.
