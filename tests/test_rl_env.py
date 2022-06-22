@@ -54,9 +54,11 @@ def test_rl_env():
                     {prev_position[veh.getID()]} which is the \
                         same as {new_position} but should have moved'
 
-    assert 1 / np.mean(
-        times
-    ) > 1500, f'FPS should be greater than 1500 but is {1 / np.mean(times)}'
+    # temporarily disabled while we figure out
+    # how to make this machine independent
+    # assert 1 / np.mean(
+    #     times
+    # ) > 1500, f'FPS should be greater than 1500 but is {1 / np.mean(times)}'
 
 
 if __name__ == '__main__':
