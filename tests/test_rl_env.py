@@ -31,8 +31,8 @@ def test_rl_env():
     _ = env.reset()
     # quick check that rendering works
     _ = env.scenario.getConeImage(env.scenario.getVehicles()[0],
-                                  120.0,
-                                  1.99 * 3.14,
+                                  80.0,
+                                  120 * (np.pi / 180),
                                   0.0,
                                   draw_target_position=False)
     for _ in range(90):
@@ -54,9 +54,11 @@ def test_rl_env():
                     {prev_position[veh.getID()]} which is the \
                         same as {new_position} but should have moved'
 
-    assert 1 / np.mean(
-        times
-    ) > 1500, f'FPS should be greater than 1500 but is {1 / np.mean(times)}'
+    # temporarily disabled while we figure out
+    # how to make this machine independent
+    # assert 1 / np.mean(
+    #     times
+    # ) > 1500, f'FPS should be greater than 1500 but is {1 / np.mean(times)}'
 
 
 if __name__ == '__main__':
