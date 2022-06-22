@@ -1,0 +1,84 @@
+{
+    "name": "test.json",
+    "objects": [
+        {
+            "position": [
+                {
+                    "x": 0.0,
+                    "y": 0.0
+                }
+            ],
+            "width": 1,
+            "length": 2,
+            "heading": [
+                90.0
+            ],
+            "velocity": [
+                {
+                    "x": 0.0,
+                    "y": 5.0
+                }
+            ],
+            "valid": [
+                true
+            ],
+            "goalPosition": {
+                "x": -100.0,
+                "y": -100.0
+            },
+            "type": "vehicle"
+        },
+        {
+            "position": [
+                {
+                    "x": 0.0,
+                    "y": 10.0
+                }
+            ],
+            "width": 1,
+            "length": 2,
+            "heading": [
+                0.0
+            ],
+            "velocity": [
+                {
+                    "x": 5.0,
+                    "y": 0.0
+                }
+            ],
+            "valid": [
+                true
+            ],
+            "goalPosition": {
+                "x": 100.0,
+                "y": -100.0
+            },
+            "type": "vehicle"
+        }
+    ],
+    "roads": [
+        {
+            "geometry": [
+                {
+                    "x": 10.0,
+                    "y": 10.0
+                },
+                {
+                    "x": 11.0,
+                    "y": 11.0
+                }
+            ],
+            "type": "road_edge"
+        },
+        {
+            "geometry": [
+                {
+                    "x": 8.0,
+                    "y": 8.0
+                }
+            ],
+            "type": "stop_sign"
+        }
+    ],
+    "traffic_lights": []
+}

@@ -1,0 +1,23 @@
+name: Documentation
+on:
+  pull_request:
+jobs:
+    pydocstyle:
+        runs-on: ubuntu-latest
+        steps:
+            - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
+            - run: echo "This job is now running on a ${{ runner.os }} server."
+            - run: echo "Running on branch ${{ github.ref }} of repository ${{ github.repository }}."
+            - name: Check out repository code.
+              uses: actions/checkout@v2
+            - name: Setup Conda environment.
+              uses: conda-incubator/setup-miniconda@v2
+              with:
+                  activate-environment: nocturne
+                  environment-file: environment.yml
+                  python-version: 3.8.11
+            - name: Run documentation check.
+              shell: bash -l {0}
+              run: |
+                  cd ${{ github.workspace }}
+                  pydocstyle

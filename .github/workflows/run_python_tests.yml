@@ -1,0 +1,42 @@
+name: Python tests
+on:
+  pull_request:
+jobs:
+    build_py:
+        runs-on: ubuntu-latest
+        steps:
+            - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
+            - run: echo "This job is now running on a ${{ runner.os }} server."
+            - run: echo "Running on branch ${{ github.ref }} of repository ${{ github.repository }}."
+            - name: Check out repository code.
+              uses: actions/checkout@v2
+            - name: Install dependencies.
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install libsfml-dev
+                  git submodule sync
+                  git submodule update --init --recursive
+            - name: Setup Conda environment.
+              uses: conda-incubator/setup-miniconda@v2
+              with:
+                  activate-environment: nocturne
+                  environment-file: environment.yml
+                  python-version: 3.8.11
+            - name: Test Conda environment.
+              shell: bash -l {0}
+              run: |
+                  conda info
+                  conda env list
+                  which python
+            - name: Build Python nocturne library.
+              shell: bash -l {0}
+              run: |
+                  cd ${{ github.workspace }}
+                  python setup.py develop
+            - name: Run Python tests.
+              shell: bash -l {0}
+              run: |
+                  cd ${{ github.workspace }}
+                  pytest
+                  # find ./tests -name test_\*.py -print0 | xargs -d $'\n' sh -c 'for arg do printf "\n\nRunning Python test at $arg\n\n"; python $arg; done' _
+            - run: echo "Job finished with status ${{ job.status }}."
