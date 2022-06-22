@@ -31,8 +31,8 @@ def test_rl_env():
     _ = env.reset()
     # quick check that rendering works
     _ = env.scenario.getConeImage(env.scenario.getVehicles()[0],
-                                  120.0,
-                                  1.99 * 3.14,
+                                  80.0,
+                                  120 * (np.pi / 180),
                                   0.0,
                                   draw_target_position=False)
     for _ in range(90):
