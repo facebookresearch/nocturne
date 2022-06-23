@@ -145,6 +145,7 @@ Nocturne by default comes with support for three versions of Proximal Policy Opt
 2. RLlib's PPO (https://github.com/ray-project/ray/tree/master/rllib)
 3. Multi-Agent PPO from (https://github.com/marlbenchmark/on-policy)
 Each algorithm is in its corresponding folder in examples and has a corresponding config file in cfgs/
+
 *Warning:* only the sample factory code has been extensively swept and tested. The default hyperparameters in there
 should work for training the agents from the corresponding paper. The other versions are provided for convenience
 but are not guaranteed to train a performant agent with the current hyperparameter settings.
