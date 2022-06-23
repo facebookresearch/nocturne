@@ -137,7 +137,7 @@ Subsequently, the C++ tests can be ran with `./tests/nocturne_test` from within 
 # Usage 
 To get a sense of available functionality in Nocturne, we have provided a few examples  in the `examples` folder of how to construct the env (`create_env.py`), how to construct particular observations (`nocturne_functions.py`), and how to render results (`rendering.py`).
 
-**Note**: by default, Nocturne will log to ```$NOCTURNE_LOG_DIR``` which is set in ```nocturne/__init__.py``` and defaults to ```<PROJECT_PATH>/logs```. If you'd like to log somewhere else, simply change this variable.
+**Note**: by default, Nocturne will log to ```$NOCTURNE_LOG_DIR``` which is set in ```nocturne/__init__.py``` and defaults to ```<PROJECT_PATH>/logs```. If you'd like to log somewhere else, go to ```nocturne/__init__.py``` and change ```$NOCTURNE_LOG_DIR``` to a different path.
 
 The following goes over how to use training algorithms using the Nocturne environment.
 
