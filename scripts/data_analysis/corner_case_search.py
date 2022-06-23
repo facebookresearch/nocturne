@@ -17,17 +17,16 @@ import hydra
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
-from pyvirtualdisplay import Display
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, get_scenario_dict
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, \
+    get_scenario_dict, set_display_window
 from nocturne import Simulation
 
 
 @hydra.main(config_path="../../cfgs/", config_name="config")
 def main(cfg):
     """See file docstring."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     SAVE_IMAGES = False
     MAKE_MOVIES = False
     output_folder = 'corner_case_vis'

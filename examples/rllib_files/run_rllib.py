@@ -7,7 +7,7 @@ import os
 
 import hydra
 from omegaconf import OmegaConf
-from pyvirtualdisplay import Display
+from cfgs.config import set_display_window
 import ray
 from ray import tune
 from ray.tune.registry import register_env
@@ -70,8 +70,7 @@ def create_rllib_env(cfg):
 @hydra.main(config_path="../../cfgs/", config_name="config")
 def main(cfg):
     """Run RLlib example."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     cfg = OmegaConf.to_container(cfg, resolve=True)
     # TODO(eugenevinitsky) move these into a config
     if cfg['debug']:

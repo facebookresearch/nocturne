@@ -111,6 +111,8 @@ Place the dataset at a folder of your choosing, unzip the folders inside of it, 
 downloaded it.
 
 ### Constructing the Dataset
+First, go to [Waymo Open](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) and follow the instructions to install required packages. This may require additional steps if you are not on a Linux machine.
+
 If you do want to rebuild the dataset, download the Waymo Motion version 1.1 files.
 - Open ```cfgs/config.py``` and change ```DATA_FOLDER``` to be the path to your Waymo motion files
 - Run ```python scripts/json_generation/run_waymo_constructor.py --parallel --no_tl --all_files --datatype train valid```. This will construct, in parallel, a dataset of all the train and validation files in the waymo motion data. It should take on the order of 5 minutes with 20 cpus. If you want to include traffic lights scenes, remove the ```--no_tl``` flag.

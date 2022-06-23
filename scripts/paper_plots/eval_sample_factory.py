@@ -19,7 +19,6 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pyvirtualdisplay import Display
 import torch
 
 from sample_factory.algorithms.appo.actor_worker import transform_dict_observations
@@ -34,7 +33,8 @@ from sample_factory.envs.create_env import create_env
 from sample_factory.utils.utils import log, AttrDict
 from examples.sample_factory_files.run_sample_factory import register_custom_components
 
-from cfgs.config import PROCESSED_VALID_NO_TL, PROCESSED_TRAIN_NO_TL, ERR_VAL
+from cfgs.config import PROCESSED_VALID_NO_TL, PROCESSED_TRAIN_NO_TL, \
+    ERR_VAL, set_display_window
 
 CB_color_cycle = [
     '#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3',
@@ -835,8 +835,7 @@ def eval_generalization(output_folder,
 
 def main():
     """Script entry point."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     register_custom_components()
     RUN_EVAL = False
     TEST_ZSC = False

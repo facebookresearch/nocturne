@@ -13,7 +13,6 @@ import os
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
-from pyvirtualdisplay import Display
 import torch
 
 from sample_factory.algorithms.appo.actor_worker import transform_dict_observations
@@ -29,7 +28,7 @@ from sample_factory.utils.utils import log, AttrDict
 
 from run_sample_factory import register_custom_components
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, PROJECT_PATH  # noqa: F401
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, PROJECT_PATH, set_display_window  # noqa: F401
 
 
 def run_eval(cfg_dict, max_num_frames=1e9):
@@ -232,8 +231,7 @@ def run_eval(cfg_dict, max_num_frames=1e9):
 
 def main():
     """Script entry point."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     register_custom_components()
 
     parser = argparse.ArgumentParser()
