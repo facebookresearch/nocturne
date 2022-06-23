@@ -24,7 +24,7 @@ def test_rl_env():
     cfg.scenario_path = os.path.join(PROJECT_PATH, 'tests')
     cfg.max_num_vehicles = 50
     env = create_env(cfg)
-    env.files = [str(PROJECT_PATH / "tests/large_file.json")]
+    env.files = [str(PROJECT_PATH / "tests/large_file_tfrecord.json")]
     times = []
     _ = env.reset()
     # quick check that rendering works
