@@ -18,7 +18,7 @@ Nocturne features a rich variety of scenes, ranging from parking lots, to merges
 
 The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](https://arxiv.org/abs/2206.09889). Please cite the paper and not the GitHub repository, using the following citation:
 
-```
+```bibtex
 @article{nocturne2022,
   author  = {Vinitsky, Eugene and Lichtlé, Nathan and Yang, Xiaomeng and Amos, Brandon and Foerster, Jakob},
   journal = {arXiv preprint arXiv:2206.09889},
