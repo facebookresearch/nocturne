@@ -117,4 +117,4 @@ hydra:
     tasks_per_node: 1
     mem_gb: 160
     nodes: 1
-    submitit_folder: /checkpoint//${oc.env:USER}/nocturne/sweep/${now:%Y.%m.%d}/${now:%H%M}_${experiment}/.slurm
+    submitit_folder: /checkpoint/${oc.env:USER}/nocturne/sweep/${now:%Y.%m.%d}/${now:%H%M}_${experiment}/.slurm

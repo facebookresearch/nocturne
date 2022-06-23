@@ -6,6 +6,8 @@
 import os
 from pathlib import Path
 
+from hydra import compose, initialize
+from hydra.core.global_hydra import GlobalHydra
 from omegaconf import OmegaConf
 
 VERSION_NUMBER = 2
@@ -32,3 +34,10 @@ def get_scenario_dict(hydra_cfg):
         return hydra_cfg['scenario']
     else:
         return OmegaConf.to_container(hydra_cfg['scenario'], resolve=True)
+
+
+def get_default_scenario_dict():
+    GlobalHydra.instance().clear()
+    initialize(config_path="./")
+    cfg = compose(config_name="config")
+    return get_scenario_dict(cfg)

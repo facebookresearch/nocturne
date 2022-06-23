@@ -17,11 +17,11 @@ import hydra
 import numpy as np
 from pyvirtualdisplay import Display
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, get_scenario_dict
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, get_default_scenario_dict
 from nocturne import Simulation
 
 
-def is_file_valid(file_list, output_file, output_file_invalid, cfg, lock=None):
+def is_file_valid(file_list, output_file, output_file_invalid, lock=None):
     """Test if file requires an agent to collide with a road edge to get to goal.
 
     We test for this by making the agent have very thin width. If an agent
@@ -42,10 +42,11 @@ def is_file_valid(file_list, output_file, output_file_invalid, cfg, lock=None):
     """
     file_valid_dict = {}
     file_invalid_dict = {}
+    cfg = get_default_scenario_dict()
     cfg['start_time'] = 0
     cfg['allow_non_vehicles'] = False
     for i, file in enumerate(file_list):
-        sim = Simulation(str(file), get_scenario_dict(cfg))
+        sim = Simulation(str(file), cfg)
         vehs = sim.scenario().getObjectsThatMoved()
         for veh in vehs:
             # we shrink the vehicle width and length to tiny values.
@@ -93,8 +94,7 @@ def is_file_valid(file_list, output_file, output_file_invalid, cfg, lock=None):
             lock.release()
 
 
-@hydra.main(config_path="../../cfgs/", config_name="config")
-def main(cfg):
+def main():
     """See file docstring."""
     disp = Display()
     disp.start()
@@ -153,7 +153,7 @@ def main(cfg):
                             args=[
                                 files[i * num_files // num_cpus:(i + 1) *
                                       num_files // num_cpus], output_file,
-                                output_file_invalid, cfg, lock
+                                output_file_invalid, lock
                             ])
                 p.start()
                 process_list.append(p)
@@ -161,11 +161,7 @@ def main(cfg):
             for process in process_list:
                 process.join()
         else:
-            is_file_valid(files,
-                          output_file,
-                          output_file_invalid,
-                          cfg,
-                          lock=None)
+            is_file_valid(files, output_file, output_file_invalid, lock=None)
 
 
 if __name__ == '__main__':
