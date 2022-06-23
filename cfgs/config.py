@@ -9,6 +9,7 @@ from pathlib import Path
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import OmegaConf
+from pyvirtualdisplay import Display
 
 VERSION_NUMBER = 2
 
@@ -41,3 +42,9 @@ def get_default_scenario_dict():
     initialize(config_path="./")
     cfg = compose(config_name="config")
     return get_scenario_dict(cfg)
+
+
+def set_display_window():
+    if "DISPLAY" not in os.environ:
+        disp = Display()
+        disp.start()

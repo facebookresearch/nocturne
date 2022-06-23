@@ -17,7 +17,8 @@ import hydra
 import numpy as np
 from pyvirtualdisplay import Display
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, get_default_scenario_dict
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, \
+    get_default_scenario_dict, set_display_window
 from nocturne import Simulation
 
 
@@ -96,8 +97,7 @@ def is_file_valid(file_list, output_file, output_file_invalid, lock=None):
 
 def main():
     """See file docstring."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     parser = argparse.ArgumentParser(
         description="Load and show waymo scenario data.")
     parser.add_argument(

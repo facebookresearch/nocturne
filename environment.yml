@@ -27,5 +27,3 @@ dependencies:
     - dm-tree
     - tabulate
     - torch
-    - tensorflow==2.4.0
-    - waymo-open-dataset-tf-2-4-0
