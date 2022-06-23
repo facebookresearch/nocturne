@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, get_scenario_dict, set_display_window
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, \
+    get_scenario_dict, set_display_window
 from nocturne import Simulation
 
 
