@@ -113,10 +113,10 @@ downloaded it.
 ### Constructing the Dataset
 First, go to [Waymo Open](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) and follow the instructions to install required packages. This may require additional steps if you are not on a Linux machine.
 
-Next, download the Waymo Motion version 1.1 files.
-- Open ```nocturne_utils/config.py``` and change ```DATA_FOLDER``` to be the path to your Waymo motion files
-- Run ```python nocturne_utils/run_waymo_constructor.py --parallel --no_tl --all_files --datatype train valid```. This will construct, in parallel, a dataset of all the train and validation files in the waymo motion data. It should take on the order of 5 minutes with 20 cpus. If you want to include traffic lights scenes, remove the ```--no_tl``` flag.
-- To ensure that only files that have a guaranteed solution are included (for example, that there are no files where the agent goal is across an apparently uncrossable road edge), run ```python nocturne_utils/make_solvable_files.py --datatype train valid```.
+If you do want to rebuild the dataset, download the Waymo Motion version 1.1 files.
+- Open ```cfgs/config.py``` and change ```DATA_FOLDER``` to be the path to your Waymo motion files
+- Run ```python scripts/json_generation/run_waymo_constructor.py --parallel --no_tl --all_files --datatype train valid```. This will construct, in parallel, a dataset of all the train and validation files in the waymo motion data. It should take on the order of 5 minutes with 20 cpus. If you want to include traffic lights scenes, remove the ```--no_tl``` flag.
+- To ensure that only files that have a guaranteed solution are included (for example, that there are no files where the agent goal is across an apparently uncrossable road edge), run ```python scripts/json_generation/make_solvable_files.py --datatype train valid```.
 
 ## C++ build instructions
 
