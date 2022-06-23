@@ -21,7 +21,8 @@ __all__ = [
 ]
 
 import os
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, PROJECT_PATH
 
 os.environ["PROCESSED_TRAIN_NO_TL"] = str(PROCESSED_TRAIN_NO_TL)
 os.environ["PROCESSED_VALID_NO_TL"] = str(PROCESSED_VALID_NO_TL)
+os.environ["NOCTURNE_RESULTS_DIR"] = str(os.path.join(PROJECT_PATH, 'logs'))
