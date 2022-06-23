@@ -13,9 +13,7 @@ import multiprocessing
 from multiprocessing import Process, Lock
 import os
 
-import hydra
 import numpy as np
-from pyvirtualdisplay import Display
 
 from cfgs.config import PROCESSED_TRAIN_NO_TL, PROCESSED_VALID_NO_TL, \
     get_default_scenario_dict, set_display_window

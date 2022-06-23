@@ -9,17 +9,15 @@ import os
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
 import numpy as np
-from pyvirtualdisplay import Display
 
-from cfgs.config import PROJECT_PATH
+from cfgs.config import PROJECT_PATH, set_display_window
 from nocturne import Action
 from nocturne.envs.wrappers import create_env
 
 
 def test_rl_env():
     """Test step and rendering functions."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     GlobalHydra.instance().clear()
     initialize(config_path="../cfgs/")
     cfg = compose(config_name="config")
