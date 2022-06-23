@@ -19,7 +19,7 @@ def test_scenario_functions():
     GlobalHydra.instance().clear()
     initialize(config_path="../cfgs/")
     cfg = compose(config_name="config")
-    file_path = str(PROJECT_PATH / 'tests/large_file.json')
+    file_path = str(PROJECT_PATH / 'tests/large_file_tfrecord.json')
     os.environ["DISPLAY"] = ":0.0"
     ################################
     # Vehicle Collision checking
