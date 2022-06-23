@@ -104,7 +104,7 @@ subscriber:
   # for values greater than 1, we will stack inputs together
   n_frames_stacked: 1
 
-results_dir: ${oc.env:NOCTURNE_RESULTS_DIR}
+results_dir: ${oc.env:NOCTURNE_LOG_DIR}
 
 hydra:
   run:
