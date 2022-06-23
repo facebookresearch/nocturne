@@ -137,6 +137,8 @@ Subsequently, the C++ tests can be ran with `./tests/nocturne_test` from within 
 # Usage 
 To get a sense of available functionality in Nocturne, we have provided a few examples  in the `examples` folder of how to construct the env (`create_env.py`), how to construct particular observations (`nocturne_functions.py`), and how to render results (`rendering.py`).
 
+**Note**: by default, Nocturne will log to ```$NOCTURNE_LOG_DIR``` which is set in ```nocturne/__init__.py``` and defaults to ```<PROJECT_PATH>/logs```. If you'd like to log somewhere else, go to ```nocturne/__init__.py``` and change ```$NOCTURNE_LOG_DIR``` to a different path.
+
 The following goes over how to use training algorithms using the Nocturne environment.
 
 ## Running the RL algorithms
@@ -148,7 +150,7 @@ Nocturne by default comes with support for three versions of Proximal Policy Opt
 3. Multi-Agent PPO from (https://github.com/marlbenchmark/on-policy)
 Each algorithm is in its corresponding folder in examples and has a corresponding config file in cfgs/
 
-*Warning:* only the sample factory code has been extensively swept and tested. The default hyperparameters in there
+**Warning:** only the sample factory code has been extensively swept and tested. The default hyperparameters in there
 should work for training the agents from the corresponding paper. The other versions are provided for convenience
 but are not guaranteed to train a performant agent with the current hyperparameter settings.
 
