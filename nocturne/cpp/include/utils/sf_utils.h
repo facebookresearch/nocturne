@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <SFML/Graphics.hpp>
 
 #include "geometry/geometry_utils.h"
