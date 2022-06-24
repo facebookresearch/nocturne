@@ -4,7 +4,7 @@ Nocturne is a 2D driving simulator, built in C++ for speed and exported as a Pyt
 
 It is currently designed to handle traffic scenarios from the [Waymo Open Dataset](https://github.com/waymo-research/waymo-open-dataset), and with some work could be extended to support different driving datasets. Using the Python library `nocturne`, one is able to train controllers for AVs to solve various tasks from the Waymo dataset, which we provide as a benchmark, then use the tools we offer to evaluate the designed controllers.
 
-Using this rich data source, Nocturne contains a wide range of scenarios whose solution requires the formation of complex coordination, theory of mind, and handling of partial observability. Below we show replays of the expert data, scentered on the light blue agent, with the corresponding view of the agent on the right.
+Using this rich data source, Nocturne contains a wide range of scenarios whose solution requires the formation of complex coordination, theory of mind, and handling of partial observability. Below we show replays of the expert data, centered on the light blue agent, with the corresponding view of the agent on the right.
 <!-- <p float="left" align="center">
   <img src="https://user-images.githubusercontent.com/33672752/174244303-91fb597a-0d3e-4a92-8901-46e1134c28b4.gif" width="250" height="250"/>
   <img src="https://user-images.githubusercontent.com/33672752/174244860-65865e95-0592-4279-ab5d-f40842092cc7.gif" width="250" height="250"/>
