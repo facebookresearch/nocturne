@@ -110,7 +110,9 @@ Two versions of the dataset are available:
 Place the dataset at a folder of your choosing, unzip the folders inside of it, and change the DATA_FOLDER in ```cfgs/config.py``` to point to where you have
 downloaded it.
 
-### Constructing the Dataset
+### (Optional) Rebuilding the Dataset
+**Warning** this step is not necessary, the dataset has already been downloaded in the prior step. This is only needed if you want to rebuild the dataset from scratch.
+
 First, go to [Waymo Open](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) and follow the instructions to install required packages. This may require additional steps if you are not on a Linux machine.
 
 If you do want to rebuild the dataset, download the Waymo Motion version 1.1 files.
