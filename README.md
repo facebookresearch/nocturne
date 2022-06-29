@@ -104,7 +104,7 @@ If you are getting errors with pybind11, install it directly in your conda envir
 
 ### Downloading the dataset
 Two versions of the dataset are available:
-- a mini-one that is about 1 GB and consists of 1000 training files and 100 validation / test files at: [Link](https://drive.google.com/drive/folders/1URK27v78gKAVirvUahaXK_pT2KeJkBM3?usp=sharing).
+- a mini-one that is about 1 GB and consists of 1000 training files and 100 validation / test files at: [Link](https://www.dropbox.com/sh/8mxue9rdoizen3h/AADGRrHYBb86pZvDnHplDGvXa?dl=0).
 - the full dataset (150 GB) and consists of 134453 training files and 12205 validation / test files: [Dropbox Link](https://www.dropbox.com/sh/wv75pjd8phxizj3/AABfNPWfjQdoTWvdVxsAjUL_a?dl=0)
 
 Place the dataset at a folder of your choosing, unzip the folders inside of it, and change the DATA_FOLDER in ```cfgs/config.py``` to point to where you have

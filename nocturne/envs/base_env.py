@@ -36,12 +36,6 @@ class BaseEnv(Env):
                                'valid_files.json')) as file:
             self.valid_veh_dict = json.load(file)
             self.files = list(self.valid_veh_dict.keys())
-            # the user might not have all the files so check
-            # if the files exists
-            self.files = [
-                file for file in self.files
-                if os.path.exists(os.path.join(cfg['scenario_path'], file))
-            ]
             # sort the files so that we have a consistent order
             self.files = sorted(self.files)
         if cfg['num_files'] != -1:
