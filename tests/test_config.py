@@ -30,7 +30,7 @@ def test_custom_config():
         'max_visible_traffic_lights': 15,
         'max_visible_stop_signs': 92,
     })
-    scenario_path = str(PROJECT_PATH / 'tests/large_file.json')
+    scenario_path = str(PROJECT_PATH / 'tests/large_file_tfrecord.json')
     sim = Simulation(scenario_path=scenario_path,
                      config=get_scenario_dict(cfg))
     scenario = sim.getScenario()

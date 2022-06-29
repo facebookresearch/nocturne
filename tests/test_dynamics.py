@@ -30,7 +30,7 @@ def _create_sim(file_path, expert_control):
 
 def test_inverse_dynamics():
     """Check that expert actions are computed correctly from inverse dynamics."""
-    file_path = str(PROJECT_PATH / 'tests/large_file.json')
+    file_path = str(PROJECT_PATH / 'tests/large_file_tfrecord.json')
 
     # create a ground truth sim that will replay expert actions
     sim_ground_truth, objects_ground_truth = _create_sim(file_path,

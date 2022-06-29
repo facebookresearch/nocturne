@@ -9,17 +9,15 @@ import hydra
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
-from pyvirtualdisplay import Display
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, get_scenario_dict
+from cfgs.config import PROCESSED_TRAIN_NO_TL, get_scenario_dict, set_display_window
 from nocturne import Simulation
 
 
 @hydra.main(config_path="../../cfgs/", config_name="config")
 def main(cfg):
     """See file docstring."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     _ = plt.figure()
     files = os.listdir(PROCESSED_TRAIN_NO_TL)
     file = os.path.join(PROCESSED_TRAIN_NO_TL,

@@ -104,11 +104,13 @@ subscriber:
   # for values greater than 1, we will stack inputs together
   n_frames_stacked: 1
 
+results_dir: ${oc.env:NOCTURNE_LOG_DIR}
+
 hydra:
   run:
-    dir: /checkpoint/${oc.env:USER}/nocturne/test/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}/${hydra.job.override_dirname}
+    dir: ${results_dir}/test/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}/${hydra.job.override_dirname}
   sweep:
-    dir: /checkpoint/${oc.env:USER}/nocturne/sweep/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}
+    dir: ${results_dir}/${oc.env:USER}/nocturne/sweep/${now:%Y.%m.%d}/${experiment}/${now:%H.%M.%S}
     subdir: ${hydra.job.num}
   launcher:
     timeout_min: 2880
@@ -117,4 +119,4 @@ hydra:
     tasks_per_node: 1
     mem_gb: 160
     nodes: 1
-    submitit_folder: /checkpoint//${oc.env:USER}/nocturne/sweep/${now:%Y.%m.%d}/${now:%H%M}_${experiment}/.slurm
+    submitit_folder: ${results_dir}/sweep/${now:%Y.%m.%d}/${now:%H%M}_${experiment}/.slurm

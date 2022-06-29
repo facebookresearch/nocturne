@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 """Test step and rendering functions."""
 import hydra
-from pyvirtualdisplay import Display
 
+from cfgs.config import set_display_window
 from nocturne import Action
 from nocturne.envs.wrappers import create_env
 
@@ -13,8 +13,7 @@ from nocturne.envs.wrappers import create_env
 @hydra.main(config_path="../cfgs/", config_name="config")
 def create_rl_env(cfg):
     """Test step and rendering functions."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     env = create_env(cfg)
     _ = env.reset()
     # quick check that rendering works

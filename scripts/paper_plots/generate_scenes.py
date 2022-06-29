@@ -8,9 +8,9 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from pyvirtualdisplay import Display
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, get_scenario_dict
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, \
+    get_scenario_dict, set_display_window
 from nocturne import Simulation
 
 
@@ -64,8 +64,7 @@ def make_image(sim, scenario_file, scenario_fn, output_path='./img.png'):
 @hydra.main(config_path="../../cfgs/", config_name="config")
 def main(cfg):
     """See file docstring."""
-    disp = Display()
-    disp.start()
+    set_display_window()
 
     # files = ['tfrecord-00358-of-01000_{}.json'.format(i) for i in range(500)]
 

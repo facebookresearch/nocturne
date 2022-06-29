@@ -34,7 +34,7 @@ preferred-citation:
     given-names: "Brandon"
   - family-names: "Foerster"
     given-names: "Jakob"
-  url: "https://arxiv.org/abs/2206.09889"
-  title: "Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world"
-  year: 2022
   journal: "arXiv preprint arXiv:2206.09889"
+  title: "Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world"
+  url: "https://arxiv.org/abs/2206.09889"
+  year: 2022
