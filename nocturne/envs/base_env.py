@@ -35,10 +35,7 @@ class BaseEnv(Env):
         with open(os.path.join(cfg['scenario_path'],
                                'valid_files.json')) as file:
             self.valid_veh_dict = json.load(file)
-            self.files = [
-                file for file in os.listdir(cfg['scenario_path'])
-                if 'tfrecord' in file
-            ]
+            self.files = list(self.valid_veh_dict.keys())
             # sort the files so that we have a consistent order
             self.files = sorted(self.files)
         if cfg['num_files'] != -1:
