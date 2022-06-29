@@ -79,8 +79,8 @@ python setup.py develop
 
 If you are not using Conda, simply run the last command to build and install Nocturne at your default Python path.
 
-You should then be all set to use the library. To find an example of constructing the environment and rendering scenes, go to 
-```examples``` and run either ```create_env.py``` or ```rendering.py```.
+You should then be all set to use the library. To find an example of constructing a Gym environment, using a basic Simulation, or rendering scenes, go to 
+```examples``` and run respectively, ```create_env.py```, ```nocturne_functions.py``` or ```rendering.py```.
 
 Python tests can be ran with `pytest`.
 
