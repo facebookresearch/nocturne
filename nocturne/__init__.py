@@ -4,7 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 """Import file for Nocturne objects."""
 from nocturne_cpp import (Action, CollisionType, ObjectType, Object, RoadLine,
-                          RoadType, Scenario, Simulation, Vector2D, Vehicle)
+                          RoadType, Scenario, Simulation, Vector2D, Vehicle,
+                          Pedestrian, Cyclist)
 
 __all__ = [
     "Action",
@@ -17,6 +18,8 @@ __all__ = [
     "Simulation",
     "Vector2D",
     "Vehicle",
+    "Pedestrian",
+    "Cyclist",
     "envs",
 ]
 
