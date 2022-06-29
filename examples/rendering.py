@@ -113,7 +113,7 @@ def main(cfg):
             img_height=1600,
             draw_target_positions=True,
             padding=50.0,
-            source=scenario.getObjectsThatMoved()[3],
+            source=scenario.getObjectsThatMoved()[0],
             view_width=120,
             view_height=120,
             rotate_with_source=False,
@@ -126,7 +126,7 @@ def main(cfg):
     make_movie(
         cfg,
         scenario_fn=lambda scenario, _: scenario.getConeImage(
-            source=scenario.getObjectsThatMoved()[6],
+            source=scenario.getObjectsThatMoved()[0],
             view_dist=80,
             view_angle=np.pi * (120 / 180),
             head_angle=0.0,
