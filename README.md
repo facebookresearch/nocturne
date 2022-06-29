@@ -22,7 +22,7 @@ The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](http
 @article{nocturne2022,
   author  = {Vinitsky, Eugene and Lichtlé, Nathan and Yang, Xiaomeng and Amos, Brandon and Foerster, Jakob},
   journal = {arXiv preprint arXiv:2206.09889},
-  title   = {{Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world}},
+  title   = {Nocturne: a scalable driving benchmark for bringing multi-agent learning one step closer to the real world},
   url     = {https://arxiv.org/abs/2206.09889},
   year    = {2022}
 }
@@ -82,7 +82,7 @@ If you are not using Conda, simply run the last command to build and install Noc
 You should then be all set to use the library. To find an example of constructing a Gym environment, using a basic Simulation, or rendering scenes, go to 
 ```examples``` and run respectively, ```create_env.py```, ```nocturne_functions.py``` or ```rendering.py```.
 
-Python tests can be ran with `pytest`.
+Python tests can be run with `pytest`.
 
 <details>
 <summary><b>Click here for a list of common installation errors</b></summary>
@@ -96,20 +96,20 @@ If you are getting errors with pybind11, install it directly in your conda envir
 
 ### Downloading the dataset
 Two versions of the dataset are available:
-- a mini-one that is about 1 GB and consists of 1000 training files and 100 validation / test files at: [Link](https://drive.google.com/drive/folders/1URK27v78gKAVirvUahaXK_pT2KeJkBM3?usp=sharing).
-- the full dataset (150 GB) and consists of 134453 training files and 12205 validation / test files: [Dropbox Link](https://www.dropbox.com/sh/wv75pjd8phxizj3/AABfNPWfjQdoTWvdVxsAjUL_a?dl=0)
+- a mini-one that is about 1 GB and consists of 1000 training files and 100 validation / test files at: [Google Drive link](https://drive.google.com/drive/folders/1URK27v78gKAVirvUahaXK_pT2KeJkBM3?usp=sharing),
+- the full dataset (150 GB) and consists of 134453 training files and 12205 validation / test files: [Dropbox link](https://www.dropbox.com/sh/wv75pjd8phxizj3/AABfNPWfjQdoTWvdVxsAjUL_a?dl=0).
 
-Place the dataset at a folder of your choosing, unzip the folders inside of it, and change the DATA_FOLDER in ```cfgs/config.py``` to point to where you have
+Place the dataset in a folder of your choosing, unzip the folders inside of it, and change the DATA_FOLDER in ```cfgs/config.py``` to point to where you have
 downloaded it.
 
 ### (Optional) Rebuilding the Dataset
 **Warning** this step is not necessary, the dataset has already been downloaded in the prior step. This is only needed if you want to rebuild the dataset from scratch.
 
-First, go to [Waymo Open](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) and follow the instructions to install required packages. This may require additional steps if you are not on a Linux machine.
+First, go to [Waymo Open](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) and follow the instructions to install the required packages. This may require additional steps if you are not on a Linux machine.
 
 If you do want to rebuild the dataset, download the Waymo Motion version 1.1 files.
 - Open ```cfgs/config.py``` and change ```DATA_FOLDER``` to be the path to your Waymo motion files
-- Run ```python scripts/json_generation/run_waymo_constructor.py --parallel --no_tl --all_files --datatype train valid```. This will construct, in parallel, a dataset of all the train and validation files in the waymo motion data. It should take on the order of 5 minutes with 20 cpus. If you want to include traffic lights scenes, remove the ```--no_tl``` flag.
+- Run ```python scripts/json_generation/run_waymo_constructor.py --parallel --no_tl --all_files --datatype train valid```. This will construct, in parallel, a dataset of all the train and validation files in the waymo motion data. It should take on the order of 5 minutes with 20 CPUs. If you want to include traffic lights scenes, remove the ```--no_tl``` flag.
 - To ensure that only files that have a guaranteed solution are included (for example, that there are no files where the agent goal is across an apparently uncrossable road edge), run ```python scripts/json_generation/make_solvable_files.py --datatype train valid```.
 
 ## C++ build instructions
@@ -127,16 +127,16 @@ make install
 
 Subsequently, the C++ tests can be ran with `./tests/nocturne_test` from within the `nocturne/cpp/build` directory.
 
+# Usage
 
-# Usage 
-To get a sense of available functionality in Nocturne, we have provided a few examples  in the `examples` folder of how to construct the env (`create_env.py`), how to construct particular observations (`nocturne_functions.py`), and how to render results (`rendering.py`).
+To get a sense of available functionality in Nocturne, we have provided a few examples in the `examples` folder of how to construct the env (`create_env.py`), how to construct particular observations (`nocturne_functions.py`), and how to render results (`rendering.py`).
 
 **Note**: by default, Nocturne will log to ```$NOCTURNE_LOG_DIR``` which is set in ```nocturne/__init__.py``` and defaults to ```<PROJECT_PATH>/logs```. If you'd like to log somewhere else, go to ```nocturne/__init__.py``` and change ```$NOCTURNE_LOG_DIR``` to a different path.
 
 The following goes over how to use training algorithms using the Nocturne environment.
 
 ## Running the RL algorithms
-Nocturne comes shipped with a default Gym environment in ```nocturne/envs/base_env.py```. Atop this we build integration for a few popular RL libraries.
+Nocturne comes shipped with a default Gym environment in ```nocturne/envs/base_env.py```. Atop this, we build integration for a few popular RL libraries.
 
 Nocturne by default comes with support for three versions of Proximal Policy Optimization:
 1. Sample Factory, a high throughput asynchronous PPO implementation (https://github.com/alex-petrenko/sample-factory)
@@ -144,7 +144,7 @@ Nocturne by default comes with support for three versions of Proximal Policy Opt
 3. Multi-Agent PPO from (https://github.com/marlbenchmark/on-policy)
 Each algorithm is in its corresponding folder in examples and has a corresponding config file in cfgs/
 
-**Warning:** only the sample factory code has been extensively swept and tested. The default hyperparameters in there
+**Warning:** only the Sample Factory code has been extensively swept and tested. The default hyperparameters in there
 should work for training the agents from the corresponding paper. The other versions are provided for convenience
 but are not guaranteed to train a performant agent with the current hyperparameter settings.
 
@@ -154,14 +154,14 @@ There are a few key hyperparameters that we expect users to care quite a bit abo
 - ```num_files```: this controls how many training scenarios are used. Set to -1 to use all of them.
 - ```max_num_vehicles```: this controls the maximum number of controllable agents in a scenario. If there are more than ```max_num_vehicles``` controllable agents in the scene, we sample ```max_num_vehicles``` randomly from them and set the remainder to be experts. If you want to ensure that all agents are controllable, simply pick a large number like 100.
 
-### Running sample factory
-Files from sample factory can be run from examples/sample_factory_files and should work by default by running
+### Running Sample Factory
+Files from Sample Factory can be run from examples/sample_factory_files and should work by default by running
 ```python examples/sample_factory_files/visualize_sample_factory.py algorithm=APPO```
 Additional config options for hyperparameters can be found in the config file.
 
 Once you have a trained checkpoint, you can visualize the results and make a movie of them by running ```python examples/sample_factory_files/run_sample_factory.py <PATH TO OUTPUT MODEL>```.
 
-*Warning*: because of how the algorithm is configured, sample-factory works best with a fixed number of agents
+*Warning*: because of how the algorithm is configured, Sample Factory works best with a fixed number of agents
 operating on a fixed horizon. To enable this, we use the config parameter ```max_num_vehicles``` which initializes the environment with only scenes that have fewer controllable agents than ```max_num_vehicles```. Additionally, if there are fewer than ```max_num_vehicles``` in the scene we add dummy agents that receive a vector of -1 at all timesteps. When a vehicle exits the scene we continue providing it a vector of -1 as an observation and a reward of 0.
 
 ### Running RLlib
