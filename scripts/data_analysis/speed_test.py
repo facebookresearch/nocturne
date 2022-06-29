@@ -9,9 +9,8 @@ import time
 
 import hydra
 import numpy as np
-from pyvirtualdisplay import Display
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, get_scenario_dict
+from cfgs.config import PROCESSED_TRAIN_NO_TL, get_scenario_dict, set_display_window
 from nocturne import Simulation, Action
 
 
@@ -53,6 +52,5 @@ def analyze_accels(cfg):
 
 
 if __name__ == '__main__':
-    disp = Display()
-    disp.start()
+    set_display_window()
     analyze_accels()

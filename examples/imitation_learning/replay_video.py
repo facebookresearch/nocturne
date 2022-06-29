@@ -10,11 +10,10 @@ import sys
 
 import imageio
 import numpy as np
-from pyvirtualdisplay import Display
 import subprocess
 import torch
 
-from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH
+from cfgs.config import PROCESSED_TRAIN_NO_TL, PROJECT_PATH, set_display_window
 from nocturne import Simulation, Vector2D
 
 OUTPUT_PATH = str(PROJECT_PATH / 'vids')
@@ -27,8 +26,7 @@ CONFIG_PATH = MODEL_PATH.parent / 'configs.json'
 GOAL_TOLERANCE = 1.0
 
 if __name__ == '__main__':
-    disp = Display()
-    disp.start()
+    set_display_window()
     output_dir = Path(OUTPUT_PATH)
     output_dir.mkdir(exist_ok=True)
 

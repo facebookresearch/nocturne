@@ -8,9 +8,8 @@ import os
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
-from pyvirtualdisplay import Display
 
-from cfgs.config import PROJECT_PATH, get_scenario_dict
+from cfgs.config import PROJECT_PATH, get_scenario_dict, set_display_window
 from nocturne import Simulation, Action
 
 
@@ -29,8 +28,7 @@ def save_image(img, output_path='./img.png'):
 @hydra.main(config_path="../cfgs/", config_name="config")
 def main(cfg):
     """Initialize the scenario."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     if not os.path.exists(PROJECT_PATH / 'examples/rendering'):
         os.makedirs(PROJECT_PATH / 'examples/rendering')
     # load scenario. by default this won't have pedestrians or cyclists

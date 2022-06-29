@@ -9,9 +9,9 @@ import os
 import time
 
 import hydra
+from cfgs.config import set_display_window
 import imageio
 import numpy as np
-from pyvirtualdisplay import Display
 import setproctitle
 import torch
 import wandb
@@ -453,8 +453,7 @@ class NocturneSharedRunner(Runner):
 @hydra.main(config_path='../../cfgs/', config_name='config')
 def main(cfg):
     """Run the on-policy code."""
-    disp = Display()
-    disp.start()
+    set_display_window()
     logdir = Path(os.getcwd())
     if cfg.wandb_id is not None:
         wandb_id = cfg.wandb_id
