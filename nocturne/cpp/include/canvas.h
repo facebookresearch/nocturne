@@ -16,7 +16,7 @@ class Canvas : public sf::RenderTexture {
          sf::Color background_color = sf::Color(50, 50, 50))
       : height_(height), width_(width) {
     sf::ContextSettings texture_settings;
-    texture_settings.antialiasingLevel = 4;
+    texture_settings.antialiasingLevel = 1;
     create(width, height, texture_settings);
     clear(background_color);
   }
