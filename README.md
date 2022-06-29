@@ -79,16 +79,8 @@ python setup.py develop
 
 If you are not using Conda, simply run the last command to build and install Nocturne at your default Python path.
 
-You should then be all set to use that library from your Python executable:
-
-```python
-> python
-Python 3.8.11
->>> from nocturne import Simulation
->>> sim = Simulation()
->>> sim.reset()
-Resetting simulation.
-```
+You should then be all set to use the library. To find an example of constructing the environment and rendering scenes, go to 
+```examples``` and run either ```create_env.py``` or ```rendering.py```.
 
 Python tests can be ran with `pytest`.
 
