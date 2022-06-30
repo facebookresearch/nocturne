@@ -21,6 +21,8 @@ PYBIND11_MODULE(nocturne_cpp, m) {
   DefineSimulation(m);
   DefineVector2D(m);
   DefineVehicle(m);
+  DefinePedestrian(m);
+  DefineCyclist(m);
 }
 
 }  // namespace

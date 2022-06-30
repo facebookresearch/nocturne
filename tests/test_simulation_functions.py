@@ -131,6 +131,10 @@ def test_scenario_functions():
     assert not np.isclose(np.sum(img1 - img2),
                           0.0), 'adding pedestrians should change the image'
 
+    # check a variety of nocturne functions
+    _ = scenario.getPedestrians()
+    _ = scenario.getCyclists()
+
 
 def main():
     """See file docstring."""

@@ -17,5 +17,7 @@ void DefineScenario(py::module& m);
 void DefineSimulation(py::module& m);
 void DefineVector2D(py::module& m);
 void DefineVehicle(py::module& m);
+void DefinePedestrian(py::module& m);
+void DefineCyclist(py::module& m);
 
 }  // namespace nocturne
