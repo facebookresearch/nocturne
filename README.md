@@ -30,6 +30,8 @@ The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](http
 
 # Installation
 
+**Feel free to [open an issue](https://github.com/facebookresearch/nocturne/issues/new/choose) at any time if you encounter a problem, need some help with installing or using Nocturne, want to ask us any related question, or even propose a new feature. We will be happy to help!**
+
 ## Dependencies
 
 [CMake](https://cmake.org/) is required to compile the C++ library. 
