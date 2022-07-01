@@ -1,0 +1,16 @@
+name: Question
+description: Ask us a question!
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feel free to ask us if you have any question or if you need some help with installing or using Nocturne!
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      placeholder: Ask us anything!
+    validations:
+      required: true
