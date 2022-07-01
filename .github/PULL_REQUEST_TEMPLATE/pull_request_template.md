@@ -6,4 +6,10 @@ _Please try to keep pull requests a reasonable length, make sure tests are passi
 
 Please include a summary of the changes and the related issue if applicable. Please also include relevant motivation and context. List any dependencies or remaining TODOs that are required for this change.
 
+### Changes
+
+...
+
+### Related
+
 Fixes # (issue)
