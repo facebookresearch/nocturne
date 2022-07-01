@@ -1,0 +1,16 @@
+name: Feature Request
+description: Propose a new feature
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping us improve Nocturne!
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature
+      description: Which feature would you like to be added to Nocturne? What could be improved?
+    validations:
+      required: true
