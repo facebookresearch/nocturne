@@ -121,7 +121,7 @@ class RangeTree2d {
     std::sort(
         points_.begin(), points_.end(),
         [](const PointLike* a, const PointLike* b) { return a->X() < b->X(); });
-    for (capacity_ = 1; capacity_ < size_; capacity_ <<= 1)
+    for (capacity_ = 1; capacity_ <= size_; capacity_ <<= 1)
       ;
     nodes_.assign(2 * capacity_, std::vector<const PointLike*>());
     for (int64_t i = 0; i < size_; ++i) {
