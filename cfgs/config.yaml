@@ -9,7 +9,7 @@ experiment: intersection
 env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 
 # WANDB things
-wandb: True
+wandb: False
 wandb_project: nocturne4
 wandb_id: null
 wandb_group: ${experiment}

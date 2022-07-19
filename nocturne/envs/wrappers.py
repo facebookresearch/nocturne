@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 """Wrappers and env constructors for the environments."""
-from gym.spaces import Box, Discrete
+from gym.spaces import Box
 import numpy as np
 
 from nocturne.envs import BaseEnv
@@ -23,11 +23,7 @@ class OnPolicyPPOWrapper(object):
         self._env = env
         self.use_images = use_images
 
-        self.action_discretization = 5
-        self.accel_grid = np.linspace(-1, 1, self.action_discretization)
-        self.steering_grid = np.linspace(-.4, .4, self.action_discretization)
-
-        self.n = len(self.vehicles)
+        self.n = self.cfg.max_num_vehicles
         obs_dict = self.reset()
         # tracker used to match observations to actions
         self.agent_ids = []
@@ -42,39 +38,23 @@ class OnPolicyPPOWrapper(object):
     @property
     def observation_space(self):
         """See superclass."""
-        return [
-            Box(low=-np.inf, high=np.inf, shape=self.feature_shape)
-            for _ in range(self.n)
-        ]
+        return [self._env.observation_space for _ in range(self.n)]
 
     @property
     def action_space(self):
         """See superclass."""
-        return [Discrete(self.action_discretization**2) for _ in range(self.n)]
+        return [self._env.action_space for _ in range(self.n)]
 
     def step(self, actions):
         """Convert returned dicts to lists."""
         agent_actions = {}
         for action_vec, agent_id in zip(actions, self.agent_ids):
-            # during training this is a one-hot vector, during eval this is the argmax
-            if action_vec.shape[0] != 1:
-                action = np.argmax(action_vec)
-            else:
-                action = action_vec[0]
-            accel_action = self.accel_grid[int(action //
-                                               self.action_discretization)]
-            steering_action = self.steering_grid[action %
-                                                 self.action_discretization]
-            agent_actions[agent_id] = {
-                'accel': accel_action,
-                'turn': steering_action
-            }
+            agent_actions[agent_id] = action_vec
         next_obses, rew, done, info = self._env.step(agent_actions)
         obs_n = []
         rew_n = []
         done_n = []
         info_n = []
-        # TODO(eugenevinitsky) I'm a little worried that there's going to be an order mismatch here
         for key in self.agent_ids:
             if isinstance(next_obses[key], dict):
                 obs_n.append(next_obses[key]['features'])
