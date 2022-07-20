@@ -6,7 +6,6 @@
 import torch
 import torch.nn as nn
 from algos.ppo.ppo_utils.util import init, check
-from algos.ppo.ppo_utils.cnn import CNNBase
 from algos.ppo.ppo_utils.mlp import MLPBase
 from algos.ppo.ppo_utils.rnn import RNNLayer
 from algos.ppo.ppo_utils.act import ACTLayer
