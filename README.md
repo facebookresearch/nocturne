@@ -55,7 +55,7 @@ pybind11 is included as a submodule and will be installed in the next step.
 Start by cloning the repo:
 
 ```bash
-git clone https://github.com/nathanlct/nocturne.git
+git clone https://github.com/facebookresearch/nocturne.git
 cd nocturne
 ```
 
