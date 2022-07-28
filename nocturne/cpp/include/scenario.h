@@ -245,6 +245,16 @@ class Scenario : public sf::Drawable {
   NdArray<float> FlattenedVisibleState(const Object& src, float view_dist,
                                        float view_angle,
                                        float head_angle = 0.0f) const;
+  std::tuple<std::vector<const ObjectBase*>,
+             std::vector<const geometry::PointLike*>,
+             std::vector<const ObjectBase*>, std::vector<const ObjectBase*>>
+  VisibleObjects(const Object& src, float view_dist, float view_angle,
+                 float head_angle = 0.0f) const;
+
+//  const std::vector<std::shared_ptr<Vehicle>>&
+  std::vector<const Vehicle*>
+  VisibleVehicles(const Object& src, float view_dist, float view_angle,
+                         float head_angle) const;
 
   int64_t getMaxNumVisibleObjects() const { return max_visible_objects_; }
   int64_t getMaxNumVisibleRoadPoints() const {
@@ -268,12 +278,6 @@ class Scenario : public sf::Drawable {
 
   // Update the collision status of all objects
   void UpdateCollision();
-
-  std::tuple<std::vector<const ObjectBase*>,
-             std::vector<const geometry::PointLike*>,
-             std::vector<const ObjectBase*>, std::vector<const ObjectBase*>>
-  VisibleObjects(const Object& src, float view_dist, float view_angle,
-                 float head_angle = 0.0f) const;
 
   std::vector<const TrafficLight*> VisibleTrafficLights(
       const Object& src, float view_dist, float view_angle,

@@ -57,6 +57,14 @@ void DefineScenario(py::module& m) {
           py::arg("object"), py::arg("view_dist") = 60,
           py::arg("view_angle") = kHalfPi, py::arg("padding") = false)
       .def(
+          "visible_vehicles",
+          [](const Scenario& scenario, const Object& src, float view_dist,
+             float view_angle, bool padding) {
+            return scenario.VisibleVehicles(src, view_dist, view_angle, padding);
+          },
+          py::arg("object"), py::arg("view_dist") = 60,
+          py::arg("view_angle") = kHalfPi, py::arg("padding") = false)
+      .def(
           "flattened_visible_state",
           [](const Scenario& scenario, const Object& src, float view_dist,
              float view_angle, float head_angle) {

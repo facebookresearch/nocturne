@@ -357,6 +357,26 @@ Scenario::VisibleObjects(const Object& src, float view_dist, float view_angle,
   return std::make_tuple(objects, road_points, traffic_lights, stop_signs);
 }
 
+//const std::vector<std::shared_ptr<Vehicle>>&
+std::vector<const Vehicle*>
+Scenario::VisibleVehicles(const Object& src, float view_dist, float view_angle,
+                         float head_angle) const {
+  const float heading = geometry::utils::AngleAdd(src.heading(), head_angle);
+  const geometry::Vector2D& position = src.position();
+  const ViewField vf(position, view_dist, heading, view_angle);
+
+  std::vector<const ObjectBase*> objects =
+      VisibleCandidates(object_bvh_, src, vf);
+  vf.FilterVisibleObjects(objects);
+  const auto o_targets = NearestK(src, objects, max_visible_objects_);
+  std::vector<const Vehicle*> returned_vehicles;
+  for (const auto [obj, dis] : o_targets) {
+    returned_vehicles.push_back(dynamic_cast<const Vehicle*>(obj));
+  }
+
+  return returned_vehicles;
+}
+
 std::vector<const TrafficLight*> Scenario::VisibleTrafficLights(
     const Object& src, float view_dist, float view_angle,
     float head_angle) const {
