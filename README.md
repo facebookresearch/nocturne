@@ -41,6 +41,7 @@ Run `cmake --version` to see whether CMake is already installed in your environm
 - `sudo apt-get -y install cmake` (Linux)
 - `brew install cmake` (MacOS)
 
+### All machines besides OS with Mac M1 chip follow instructions below
 Nocturne uses [SFML](https://github.com/SFML/SFML) for drawing and visualization, as well as on [pybind11](https://pybind11.readthedocs.io/en/latest/) for compiling the C++ code as a Python library.
 
 To install SFML:
@@ -49,6 +50,14 @@ To install SFML:
 - `brew install sfml` (MacOS)
 
 pybind11 is included as a submodule and will be installed in the next step.
+
+### Machines with a Mac M1 chip
+Unfortunately if you have a Mac M1 chip you need to ensure that this is build for x86_64 instead of arm64. The following instructions will help you do this.
+
+1. Make sure you have rosetta2 installed. You can do this by running `softwareupdate --install-rosetta` from the command line.
+2. Build an x86_64 version of brew (which you alias to brow) using the instructions here: [stackoverflow](https://stackoverflow.com/questions/64951024/how-can-i-run-two-isolated-installations-of-homebrew).
+3. Now, run `brow install sfml`
+then everything will compile fine.
 
 ## Installing Nocturne
 
