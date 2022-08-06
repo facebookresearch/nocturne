@@ -52,7 +52,7 @@ To install SFML:
 pybind11 is included as a submodule and will be installed in the next step.
 
 ### Machines with a Mac M1 chip
-Unfortunately if you have a Mac M1 chip you need to ensure that this is build for x86_64 instead of arm64. The following instructions will help you do this.
+Unfortunately if you have a Mac M1 chip you need to ensure that your SFML version is x86_64 instead of arm64; by default brew will install the arm64 variant. The following instructions will help you do this.
 
 1. Make sure you have rosetta2 installed. You can do this by running `softwareupdate --install-rosetta` from the command line.
 2. Build an x86_64 version of brew (which you alias to brow) using the instructions here: [stackoverflow](https://stackoverflow.com/questions/64951024/how-can-i-run-two-isolated-installations-of-homebrew).
