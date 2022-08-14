@@ -135,6 +135,25 @@ def test_scenario_functions():
     _ = scenario.getPedestrians()
     _ = scenario.getCyclists()
 
+    # check that the padding function for visible state is returning the right thing.
+    visible_dict = scenario.visible_state(object=scenario.getVehicles()[0],
+                                          view_dist=80,
+                                          view_angle=120 * (np.pi / 180),
+                                          padding=True)
+    scenario_cfg = cfg['scenario']
+    assert scenario_cfg['max_visible_objects'] == visible_dict['objects'].shape[0], \
+        'visible dict padding returned {} objects but should have been \
+            {}'.format(visible_dict['objects'].shape[0], scenario_cfg['max_visible_objects'])
+    assert scenario_cfg['max_visible_road_points'] == visible_dict['road_points'].shape[0], \
+        'visible dict padding returned {} objects but should have been \
+            {}'.format(visible_dict['road_points'].shape[0], scenario_cfg['max_visible_road_points'])
+    assert scenario_cfg['max_visible_traffic_lights'] == visible_dict['traffic_lights'].shape[0], \
+        'visible dict padding returned {} objects but should have been \
+            {}'.format(visible_dict['traffic_lights'].shape[0], scenario_cfg['max_visible_traffic_lights'])
+    assert scenario_cfg['max_visible_stop_signs'] == visible_dict['stop_signs'].shape[0], \
+        'visible dict padding returned {} objects but should have been \
+            {}'.format(visible_dict['stop_signs'].shape[0], scenario_cfg['max_visible_stop_signs'])
+
 
 def main():
     """See file docstring."""
