@@ -50,12 +50,12 @@ void DefineScenario(py::module& m) {
       .def(
           "visible_state",
           [](const Scenario& scenario, const Object& src, float view_dist,
-             float view_angle, bool padding) {
+             float view_angle, float head_angle, bool padding) {
             return utils::AsNumpyArrayDict(
-                scenario.VisibleState(src, view_dist, view_angle, padding));
+                scenario.VisibleState(src, view_dist, view_angle, head_angle, padding));
           },
           py::arg("object"), py::arg("view_dist") = 60,
-          py::arg("view_angle") = kHalfPi, py::arg("padding") = false)
+          py::arg("view_angle") = kHalfPi, py::arg("head_angle") = 0.0, py::arg("padding") = false)
       .def(
           "flattened_visible_state",
           [](const Scenario& scenario, const Object& src, float view_dist,
