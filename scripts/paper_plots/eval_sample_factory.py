@@ -837,14 +837,16 @@ def main():
     """Script entry point."""
     set_display_window()
     register_custom_components()
-    RUN_EVAL = False
+    RUN_EVAL = True
     TEST_ZSC = False
     PLOT_RESULTS = True
     RELOAD_WANDB = False
     VERSION = 5
     NUM_EVAL_FILES = 200
     NUM_FILE_LOOPS = 1  # the number of times to loop over a fixed set of files
-    experiment_names = ['srt_v27']
+    # experiment_names = ['srt_v27']
+    experiment_names = [<THE NAME YOU GAVE THE EXPERIMENT WHEN YOU RAN IT>]
+    output_folder = [<PATH TO THE OUTER FOLDER WHERE 0, 1, 2, 3, 4 are stored>]
     # output_folder = '/checkpoint/eugenevinitsky/nocturne/sweep/2022.05.20/new_road_sample/18.32.35'
     # output_folder = [
     #     '/checkpoint/eugenevinitsky/nocturne/sweep/2022.05.23/srt_v10/17.02.40/'
@@ -854,9 +856,9 @@ def main():
     #     '/checkpoint/eugenevinitsky/nocturne/sweep/2022.05.28/srt_12/16.43.16/'
     # ]
     # SRT submission results
-    output_folder = [
-        '/checkpoint/eugenevinitsky/nocturne/sweep/2022.06.01/srt_v27/17.35.33'
-    ]
+    # output_folder = [
+    #     '/checkpoint/eugenevinitsky/nocturne/sweep/2022.06.01/srt_v27/17.35.33'
+    # ]
     generalization_dfs = []
 
     cfg_filter = None
