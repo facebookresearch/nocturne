@@ -1085,14 +1085,14 @@ def main():
         #########  load the training dataframes from wandb ######################
         ##############################################################################
         '''
-        global_step_cutoff = 3e9
-        training_dfs = []
-        for experiment_name in experiment_names:
-            load_wandb(experiment_name, cfg_filter, force_reload=RELOAD_WANDB)
-            training_dfs.append(
-                pd.read_csv('wandb_{}.csv'.format(experiment_name)))
+        # global_step_cutoff = 3e9
+        # training_dfs = []
+        # for experiment_name in experiment_names:
+        #     load_wandb(experiment_name, cfg_filter, force_reload=RELOAD_WANDB)
+        #     training_dfs.append(
+        #         pd.read_csv('wandb_{}.csv'.format(experiment_name)))
 
-        num_seeds = len(np.unique(training_dfs[0].seed))
+        num_seeds = 5 #len(np.unique(training_dfs[0].seed))
         # create the goal plot
         plt.figure(dpi=300)
         for i, (df, file_type) in enumerate(
