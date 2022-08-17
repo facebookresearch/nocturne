@@ -16,6 +16,8 @@ Nocturne features a rich variety of scenes, ranging from parking lots, to merges
 
 ![Intersection Scene with Obscured View](./docs/readme_files/nocturne_3_by_3_scenes.gif)
 
+More videos can be found [here](https://www.nathanlct.com/research/nocturne).
+
 The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](https://arxiv.org/abs/2206.09889). Please cite the paper and not the GitHub repository, using the following citation:
 
 ```bibtex
