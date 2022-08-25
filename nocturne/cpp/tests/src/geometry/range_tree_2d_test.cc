@@ -57,14 +57,12 @@ std::vector<const MockPoint*> RangeSearch(const std::vector<MockPoint>& points,
 
 TEST(RangeTree2dTest, RangeSearchTest) {
   const int64_t n = 1000;
-  const int64_t cap = 1024;
   const float l = -20.0;
   const float r = 20.0;
   std::vector<MockPoint> points = MakeRandomPoinst(n, l, r);
 
   RangeTree2d tree(points);
   ASSERT_EQ(tree.size(), n);
-  ASSERT_EQ(tree.capacity(), cap);
 
   const AABB aabb1(-10.0, -10.0, 10.0, 10.0);
   std::vector<const MockPoint*> ret = tree.RangeSearch<MockPoint>(aabb1);
