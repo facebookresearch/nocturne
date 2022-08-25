@@ -50,7 +50,6 @@ class RangeTree2d {
   }
 
   int64_t size() const { return size_; }
-  int64_t capacity() const { return capacity_; }
 
   bool Empty() const { return size_ == 0; }
 
@@ -58,7 +57,6 @@ class RangeTree2d {
     points_.clear();
     nodes_.clear();
     size_ = 0;
-    capacity_ = 0;
   }
 
   template <class PointType>
@@ -87,8 +85,8 @@ class RangeTree2d {
     const auto r_ptr = std::upper_bound(
         points_.cbegin(), points_.cend(), aabb.MaxX(),
         [](float a, const PointLike* b) { return a < b->X(); });
-    int64_t l = (std::distance(points_.cbegin(), l_ptr) | capacity_);
-    int64_t r = (std::distance(points_.cbegin(), r_ptr) | capacity_);
+    int64_t l = (std::distance(points_.cbegin(), l_ptr) + size_);
+    int64_t r = (std::distance(points_.cbegin(), r_ptr) + size_);
     while (l < r) {
       if (l & 1) {
         NodeRangeSearch<PointType>(aabb, nodes_[l++], ret);
@@ -121,13 +119,11 @@ class RangeTree2d {
     std::sort(
         points_.begin(), points_.end(),
         [](const PointLike* a, const PointLike* b) { return a->X() < b->X(); });
-    for (capacity_ = 1; capacity_ <= size_; capacity_ <<= 1)
-      ;
-    nodes_.assign(2 * capacity_, std::vector<const PointLike*>());
+    nodes_.assign(2 * size_, std::vector<const PointLike*>());
     for (int64_t i = 0; i < size_; ++i) {
-      nodes_[i | capacity_].push_back(points_[i]);
+      nodes_[i + size_].push_back(points_[i]);
     }
-    for (int64_t i = capacity_ - 1; i > 0; --i) {
+    for (int64_t i = size_ - 1; i > 0; --i) {
       // Combine nodes by y-coordinate.
       CombineNodes(nodes_[(i << 1)], nodes_[(i << 1) | 1], nodes_[i]);
     }
@@ -158,7 +154,6 @@ class RangeTree2d {
   }
 
   int64_t size_ = 0;
-  int64_t capacity_ = 0;
   // points_ is sorted by x-coordinate.
   std::vector<const PointLike*> points_;
   // Each element in nodes_ is sorted by y-coordinate.
