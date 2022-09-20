@@ -169,10 +169,10 @@ There are a few key hyperparameters that we expect users to care quite a bit abo
 
 ### Running Sample Factory
 Files from Sample Factory can be run from examples/sample_factory_files and should work by default by running
-```python examples/sample_factory_files/visualize_sample_factory.py algorithm=APPO```
+```python examples/sample_factory_files/run_sample_factory.py algorithm=APPO```
 Additional config options for hyperparameters can be found in the config file.
 
-Once you have a trained checkpoint, you can visualize the results and make a movie of them by running ```python examples/sample_factory_files/run_sample_factory.py <PATH TO OUTPUT MODEL>```.
+Once you have a trained checkpoint, you can visualize the results and make a movie of them by running ```python examples/sample_factory_files/visualize_sample_factory.py <PATH TO OUTPUT MODEL>```.
 
 *Warning*: because of how the algorithm is configured, Sample Factory works best with a fixed number of agents
 operating on a fixed horizon. To enable this, we use the config parameter ```max_num_vehicles``` which initializes the environment with only scenes that have fewer controllable agents than ```max_num_vehicles```. Additionally, if there are fewer than ```max_num_vehicles``` in the scene we add dummy agents that receive a vector of -1 at all timesteps. When a vehicle exits the scene we continue providing it a vector of -1 as an observation and a reward of 0.
