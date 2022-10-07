@@ -9,6 +9,7 @@ import time
 
 import hydra
 import numpy as np
+import matplotlib.pyplot as plt
 
 from cfgs.config import PROCESSED_TRAIN_NO_TL, get_scenario_dict, set_display_window
 from nocturne import Simulation, Action
@@ -25,20 +26,36 @@ def run_speed_test(files, cfg):
         [np.float], [np.float]: List of expert accels, list of number
                                 of moving vehicles in file
     """
-    times_list = []
+    times_list = np.zeros(200)
+    count_list = np.zeros(200)
+    speed_for_ten_vehs = []
     for file in files:
         sim = Simulation(os.path.join(PROCESSED_TRAIN_NO_TL, file),
                          get_scenario_dict(cfg))
         vehs = sim.scenario().getObjectsThatMoved()
         scenario = sim.getScenario()
-        veh = vehs[np.random.randint(len(vehs))]
         t = time.perf_counter()
-        _ = scenario.flattened_visible_state(veh, 80, (180 / 180) * np.pi)
-        veh.apply_action(Action(1.0, 1.0, 1.0))
+        for veh in vehs:
+            _ = scenario.flattened_visible_state(veh, 80, (120 / 180) * np.pi)
+            veh.apply_action(Action(1.0, 1.0, 1.0))
         sim.step(0.1)
-        times_list.append(time.perf_counter() - t)
-    print('avg, std. time to get obs is {}, {}'.format(np.mean(times_list),
-                                                       np.std(times_list)))
+        if len(sim.scenario().getVehicles())  > 0 :
+            times_list[len(sim.scenario().getVehicles()) - 1] += (time.perf_counter() - t)
+            count_list[len(sim.scenario().getVehicles()) - 1] += len(vehs)
+            if len(sim.scenario().getVehicles()) == 10:
+                speed_for_ten_vehs.append((time.perf_counter() - t) / len(vehs))
+
+    print(1 / (times_list / count_list))
+    print((1 / (times_list / count_list))[9])
+    print(count_list[9])
+    print('avg, std. time to get obs for scenes containing 10 vehicles is {}, {}'.format(np.mean(1 / np.array(speed_for_ten_vehs)),
+                                                       np.std(speed_for_ten_vehs)))
+    plt.figure(dpi=300)
+    plt.plot(np.linspace(1, 40, 40), (1 / (times_list / count_list))[0:40])
+    plt.xlabel('Number of vehicles in scene')
+    plt.ylabel('FPS')
+    print('saving a figure in {}'.format(os.getcwd()))
+    plt.savefig('fps_v_agent')
 
 
 @hydra.main(config_path="../../cfgs/", config_name="config")
@@ -48,7 +65,7 @@ def analyze_accels(cfg):
     with open(os.path.join(f_path, 'valid_files.json')) as file:
         valid_veh_dict = json.load(file)
         files = list(valid_veh_dict.keys())
-    run_speed_test(files[0:10], cfg)
+    run_speed_test(files, cfg)
 
 
 if __name__ == '__main__':
