@@ -49,7 +49,7 @@ def run_speed_test(files, cfg):
     print((1 / (times_list / count_list))[9])
     print(count_list[9])
     print('avg, std. time to get obs for scenes containing 10 vehicles is {}, {}'.format(np.mean(1 / np.array(speed_for_ten_vehs)),
-                                                       np.std(speed_for_ten_vehs)))
+                                                       np.std(1 / np.array(speed_for_ten_vehs)))
     plt.figure(dpi=300)
     plt.plot(np.linspace(1, 40, 40), (1 / (times_list / count_list))[0:40])
     plt.xlabel('Number of vehicles in scene')
