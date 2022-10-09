@@ -30,26 +30,29 @@ def run_speed_test(files, cfg):
     count_list = np.zeros(200)
     speed_for_ten_vehs = []
     for file in files:
-        sim = Simulation(os.path.join(PROCESSED_TRAIN_NO_TL, file),
-                         get_scenario_dict(cfg))
-        vehs = sim.scenario().getObjectsThatMoved()
-        scenario = sim.getScenario()
-        t = time.perf_counter()
-        for veh in vehs:
-            _ = scenario.flattened_visible_state(veh, 80, (120 / 180) * np.pi)
-            veh.apply_action(Action(1.0, 1.0, 1.0))
-        sim.step(0.1)
-        if len(sim.scenario().getVehicles())  > 0 :
-            times_list[len(sim.scenario().getVehicles()) - 1] += (time.perf_counter() - t)
-            count_list[len(sim.scenario().getVehicles()) - 1] += len(vehs)
-            if len(sim.scenario().getVehicles()) == 10:
-                speed_for_ten_vehs.append((time.perf_counter() - t) / len(vehs))
+        for t in range(80):
+            local_cfg = get_scenario_dict(cfg)
+            local_cfg['start_time'] = t
+            sim = Simulation(os.path.join(PROCESSED_TRAIN_NO_TL, file),
+                            local_cfg)
+            vehs = sim.scenario().getObjectsThatMoved()
+            scenario = sim.getScenario()
+            t = time.perf_counter()
+            for veh in vehs:
+                _ = scenario.flattened_visible_state(veh, 80, (120 / 180) * np.pi)
+                veh.apply_action(Action(1.0, 1.0, 1.0))
+            sim.step(0.1)
+            if len(sim.scenario().getVehicles())  > 0 :
+                times_list[len(sim.scenario().getVehicles()) - 1] += (time.perf_counter() - t)
+                count_list[len(sim.scenario().getVehicles()) - 1] += len(vehs)
+                if len(sim.scenario().getVehicles()) == 10:
+                    speed_for_ten_vehs.append((time.perf_counter() - t) / len(vehs))
 
     print(1 / (times_list / count_list))
     print((1 / (times_list / count_list))[9])
     print(count_list[9])
     print('avg, std. time to get obs for scenes containing 10 vehicles is {}, {}'.format(np.mean(1 / np.array(speed_for_ten_vehs)),
-                                                       np.std(1 / np.array(speed_for_ten_vehs)))
+                                                       np.std(1 / np.array(speed_for_ten_vehs))))
     plt.figure(dpi=300)
     plt.plot(np.linspace(1, 40, 40), (1 / (times_list / count_list))[0:40])
     plt.xlabel('Number of vehicles in scene')
