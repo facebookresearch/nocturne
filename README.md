@@ -16,6 +16,8 @@ Nocturne features a rich variety of scenes, ranging from parking lots, to merges
 
 ![Intersection Scene with Obscured View](./docs/readme_files/nocturne_3_by_3_scenes.gif)
 
+More videos can be found [here](https://www.nathanlct.com/research/nocturne).
+
 The corresponding paper is available at: [https://arxiv.org/abs/2206.09889](https://arxiv.org/abs/2206.09889). Please cite the paper and not the GitHub repository, using the following citation:
 
 ```bibtex
@@ -41,6 +43,7 @@ Run `cmake --version` to see whether CMake is already installed in your environm
 - `sudo apt-get -y install cmake` (Linux)
 - `brew install cmake` (MacOS)
 
+### All machines besides OS with Mac M1 chip follow instructions below
 Nocturne uses [SFML](https://github.com/SFML/SFML) for drawing and visualization, as well as on [pybind11](https://pybind11.readthedocs.io/en/latest/) for compiling the C++ code as a Python library.
 
 To install SFML:
@@ -49,6 +52,14 @@ To install SFML:
 - `brew install sfml` (MacOS)
 
 pybind11 is included as a submodule and will be installed in the next step.
+
+### Machines with a Mac M1 chip
+Unfortunately if you have a Mac M1 chip you need to ensure that your SFML version is x86_64 instead of arm64; by default brew will install the arm64 variant. The following instructions will help you do this.
+
+1. Make sure you have rosetta2 installed. You can do this by running `softwareupdate --install-rosetta` from the command line.
+2. Build an x86_64 version of brew (which you alias to brow) using the instructions here: [stackoverflow](https://stackoverflow.com/questions/64951024/how-can-i-run-two-isolated-installations-of-homebrew).
+3. Now, run `brow install sfml`
+then everything will compile fine.
 
 ## Installing Nocturne
 
@@ -158,10 +169,10 @@ There are a few key hyperparameters that we expect users to care quite a bit abo
 
 ### Running Sample Factory
 Files from Sample Factory can be run from examples/sample_factory_files and should work by default by running
-```python examples/sample_factory_files/visualize_sample_factory.py algorithm=APPO```
+```python examples/sample_factory_files/run_sample_factory.py algorithm=APPO```
 Additional config options for hyperparameters can be found in the config file.
 
-Once you have a trained checkpoint, you can visualize the results and make a movie of them by running ```python examples/sample_factory_files/run_sample_factory.py <PATH TO OUTPUT MODEL>```.
+Once you have a trained checkpoint, you can visualize the results and make a movie of them by running ```python examples/sample_factory_files/visualize_sample_factory.py <PATH TO OUTPUT MODEL>```.
 
 *Warning*: because of how the algorithm is configured, Sample Factory works best with a fixed number of agents
 operating on a fixed horizon. To enable this, we use the config parameter ```max_num_vehicles``` which initializes the environment with only scenes that have fewer controllable agents than ```max_num_vehicles```. Additionally, if there are fewer than ```max_num_vehicles``` in the scene we add dummy agents that receive a vector of -1 at all timesteps. When a vehicle exits the scene we continue providing it a vector of -1 as an observation and a reward of 0.
