@@ -67,15 +67,16 @@ def run_speed_test(files, cfg):
                     veh.expert_control = True
             veh = moving_vehs[agent_idx]
 
-            t = time.perf_counter()
+            t = time.perf_counter_ns()
             _ = scenario.flattened_visible_state(veh, 80, (120 / 180) * np.pi)
             veh.apply_action(Action(1.0, 1.0, 1.0))
             sim.step(0.1)
-            total_time = time.perf_counter() - t
+            total_time = time.perf_counter_ns() - t
 
             times_list[num_vehs - 1] += total_time
             count_list[num_vehs - 1] += 1
 
+    times_list *= 1e-9
     avg_sec = times_list / count_list
     avg_fps = 1.0 / avg_sec
     avg_sec = np.nan_to_num(avg_sec)
@@ -137,17 +138,18 @@ def run_speed_test(files, cfg):
                 print(f"[Multi] num_vehs = {num_vehs}, num_objs = {num_objs}")
 
             avg_agent_num.append(num_moving_vehs)
-            t = time.perf_counter()
+            t = time.perf_counter_ns()
             for veh in moving_vehs:
                 _ = scenario.flattened_visible_state(veh, 80,
                                                      (120 / 180) * np.pi)
                 veh.apply_action(Action(1.0, 1.0, 1.0))
             sim.step(0.1)
-            total_time = time.perf_counter() - t
+            total_time = time.perf_counter_ns() - t
 
             times_list[num_vehs - 1] += total_time
             count_list[num_vehs - 1] += 1
 
+    times_list *= 1e-9
     avg_sec = times_list / count_list
     avg_fps = 1.0 / avg_sec
     avg_sec = np.nan_to_num(avg_sec)
