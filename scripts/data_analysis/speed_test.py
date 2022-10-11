@@ -24,6 +24,7 @@ def single_agent_test(cfg: Dict[str,
                                 Any], files: Sequence[str], num_files: int,
                       num_steps: int) -> Dict[str, Union[float, np.ndarray]]:
     sec_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
+    fps_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     cnt_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     avg_agt_num = []
     avg_veh_num = []
@@ -74,16 +75,17 @@ def single_agent_test(cfg: Dict[str,
 
             if num_vehs <= MAX_NUM_VEHICLES:
                 sec_by_veh[num_vehs - 1] += total_time
+                fps_by_veh[num_vehs - 1] += 1 / (total_time * 1e-9)
                 cnt_by_veh[num_vehs - 1] += 1
 
     sec_by_veh = sec_by_veh * 1e-9
     avg_sec = sec_by_veh / cnt_by_veh
-    avg_fps = 1.0 / avg_sec
+    avg_fps = fps_by_veh / cnt_by_veh
     avg_sec = np.nan_to_num(avg_sec)
     avg_fps = np.nan_to_num(avg_fps)
 
     overall_avg_sec = np.sum(sec_by_veh) / np.sum(cnt_by_veh)
-    overall_avg_fps = 1.0 / overall_avg_sec
+    overall_avg_fps = np.sum(fps_by_veh) / np.sum(cnt_by_veh)
     avg_agt_num = np.mean(avg_agt_num)
     avg_veh_num = np.mean(avg_veh_num)
 
@@ -107,8 +109,10 @@ def single_agent_test(cfg: Dict[str,
 def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
                      num_steps: int) -> Dict[str, Union[float, np.ndarray]]:
     sec_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
+    fps_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     cnt_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     sec_by_agt = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
+    fps_by_agt = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     cnt_by_agt = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     veh_by_agt = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
 
@@ -155,8 +159,10 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
 
             if num_vehs <= MAX_NUM_VEHICLES:
                 sec_by_veh[num_vehs - 1] += total_time
+                fps_by_veh[num_vehs - 1] += 1 / (total_time * 1e-9)
                 cnt_by_veh[num_vehs - 1] += 1
                 sec_by_agt[num_agts - 1] += total_time
+                fps_by_agt[num_agts - 1] += 1 / (total_time * 1e-9)
                 cnt_by_agt[num_agts - 1] += 1
                 veh_by_agt[num_agts - 1] += num_vehs
 
@@ -164,8 +170,8 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
     sec_by_agt = sec_by_agt * 1e-9
     avg_sec_by_veh = sec_by_veh / cnt_by_veh
     avg_sec_by_agt = sec_by_agt / cnt_by_agt
-    avg_fps_by_veh = 1.0 / avg_sec_by_veh
-    avg_fps_by_agt = 1.0 / avg_sec_by_agt
+    avg_fps_by_veh = fps_by_veh / cnt_by_veh
+    avg_fps_by_agt = fps_by_agt / cnt_by_agt
     avg_veh_by_agt = veh_by_agt / cnt_by_agt
 
     avg_sec_by_veh = np.nan_to_num(avg_sec_by_veh)
