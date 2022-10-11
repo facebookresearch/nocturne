@@ -101,9 +101,9 @@ class BaseEnv(Env):
                     self.cfg['head_angle_lower_bound']
                 ]),
                 high=np.array([
-                    np.abs(self.cfg['accel_lower_bound']),
-                    self.cfg['steering_lower_bound'],
-                    self.cfg['head_angle_lower_bound']
+                    np.abs(self.cfg['accel_upper_bound']),
+                    self.cfg['steering_upper_bound'],
+                    self.cfg['head_angle_upper_bound']
                 ]),
             )
 
