@@ -12,6 +12,12 @@ stats_avg: 100 #How many episodes to average to measure performance (avg. reward
 learning_rate: 0.0001 # LR (default: 0.0001)
 train_for_env_steps: 3000000000 # Stop after all policies are trained for this many env steps (default: 10000000000)
 train_for_seconds: 10000000000 #Stop training after this many seconds (default: 10000000000)
+lr_schedule: constant #Learning rate schedule to use. Constant keeps constant learning rate throughout training.
+                  # kl_adaptive* schedulers look at --lr_schedule_kl_threshold and if KL-divergence with behavior policy'
+                  # after the last minibatch/epoch significantly deviates from this threshold, lr is apropriately'
+                  # increased or decreased
+                  # options are 'constant', 'kl_adaptive_minibatch', 'kl_adaptive_epoch'
+lr_schedule_kl_threshold: 0.008 #Used with kl_adaptive_* schedulers
 obs_subtract_mean: 0.0 # Observation preprocessing, mean value to subtract from observation (e.g. 128.0 for 8-bit RGB) (default: 0.0)
 obs_scale: 10.0 # Observation preprocessing, divide observation tensors by this scalar (e.g. 128.0 for 8-bit RGB) (default: 1.0)
 gamma: 0.99 # Discount factor (default: 0.99)
@@ -88,6 +94,8 @@ exploration_loss: entropy
                         # divergence between the action distribution and a uniform prior approaches infinity when entropy of the distribution approaches zero, so it can prevent
                         # the pathological situations where the agent stops exploring. Empirically, symmetric KL-divergence yielded slightly better results on some problems.
                         # (default: entropy)
+max_entropy_coeff: 0.0, # Coefficient for max entropy term added directly to rewards. 0 means no max entropy term to env rewards. '
+                        # Note that this is different from exploration loss (see https://arxiv.org/abs/1805.00909)'
 num_envs_per_worker: 2
                         # Number of envs on a single CPU actor, in high-throughput configurations this should be in 10-30 range for Atari/VizDoomMust be even for double-buffered
                         # sampling! (default: 2)

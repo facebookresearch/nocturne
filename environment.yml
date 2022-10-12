@@ -27,3 +27,4 @@ dependencies:
     - dm-tree
     - tabulate
     - torch
+    - sample-factory==1.123.0
