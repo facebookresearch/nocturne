@@ -222,8 +222,7 @@ def run_speed_test(files, cfg):
     num_files = 2000
     num_steps = 90
 
-    # indices = np.random.choice(len(files), num_files)
-    indices = np.random.choice(len(files), num_files, replace=False)
+    indices = np.random.choice(len(files), num_files)
 
     indices = indices.tolist()
     sample_files = [files[i] for i in indices]
