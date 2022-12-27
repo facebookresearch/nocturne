@@ -20,8 +20,7 @@ from nocturne import Simulation, Action
 MAX_NUM_VEHICLES = 400
 
 
-def single_agent_test(cfg: Dict[str,
-                                Any], files: Sequence[str], num_files: int,
+def single_agent_test(cfg: Dict[str, Any], files: Sequence[str],
                       num_steps: int) -> Dict[str, Union[float, np.ndarray]]:
     sec_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     cnt_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
@@ -31,18 +30,16 @@ def single_agent_test(cfg: Dict[str,
     cnt = 0
     for file in files:
         cnt += 1
-        if cnt >= num_files:
-            break
 
         for t in range(num_steps):
             local_cfg = get_scenario_dict(cfg)
             local_cfg['start_time'] = t
             sim = Simulation(os.path.join(PROCESSED_TRAIN_NO_TL, file),
                              local_cfg)
-            scenario = sim.getScenario()
-
+            scenario = sim.scenario()
             vehs = scenario.vehicles()
             agts = scenario.moving_objects()
+
             num_vehs = len(vehs)
             num_agts = len(agts)
             if num_agts == 0:
@@ -78,15 +75,16 @@ def single_agent_test(cfg: Dict[str,
 
     sec_by_veh = sec_by_veh * 1e-9
     avg_sec = sec_by_veh / cnt_by_veh
-    avg_fps = 1.0 / avg_sec
+    avg_fps = cnt_by_veh / sec_by_veh
     avg_sec = np.nan_to_num(avg_sec)
     avg_fps = np.nan_to_num(avg_fps)
 
     overall_avg_sec = np.sum(sec_by_veh) / np.sum(cnt_by_veh)
-    overall_avg_fps = 1.0 / overall_avg_sec
+    overall_avg_fps = np.sum(cnt_by_veh) / np.sum(sec_by_veh)
     avg_agt_num = np.mean(avg_agt_num)
     avg_veh_num = np.mean(avg_veh_num)
 
+    print(f"[single] num_files = {cnt}")
     print(f"[single] avg_sec = {avg_sec}")
     print(f"[single] avg_fps = {avg_fps}")
     print(f"[single] overall_avg_sec = {overall_avg_sec}")
@@ -101,10 +99,12 @@ def single_agent_test(cfg: Dict[str,
         "single_avg_fps": avg_fps,
         "single_avg_agt_num": avg_agt_num,
         "single_avg_veh_num": avg_veh_num,
+        "single_overall_avg_sec": overall_avg_sec,
+        "single_overall_avg_fps": overall_avg_fps,
     }
 
 
-def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
+def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str],
                      num_steps: int) -> Dict[str, Union[float, np.ndarray]]:
     sec_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
     cnt_by_veh = np.zeros(MAX_NUM_VEHICLES, dtype=np.int64)
@@ -118,8 +118,6 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
     cnt = 0
     for file in files:
         cnt += 1
-        if cnt >= num_files:
-            break
 
         for t in range(num_steps):
             local_cfg = get_scenario_dict(cfg)
@@ -129,6 +127,7 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
             scenario = sim.scenario()
             vehs = scenario.vehicles()
             agts = scenario.moving_objects()
+
             num_vehs = len(vehs)
             num_agts = len(agts)
             if num_agts == 0:
@@ -164,8 +163,8 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
     sec_by_agt = sec_by_agt * 1e-9
     avg_sec_by_veh = sec_by_veh / cnt_by_veh
     avg_sec_by_agt = sec_by_agt / cnt_by_agt
-    avg_fps_by_veh = 1.0 / avg_sec_by_veh
-    avg_fps_by_agt = 1.0 / avg_sec_by_agt
+    avg_fps_by_veh = cnt_by_veh / sec_by_veh
+    avg_fps_by_agt = cnt_by_agt / sec_by_agt
     avg_veh_by_agt = veh_by_agt / cnt_by_agt
 
     avg_sec_by_veh = np.nan_to_num(avg_sec_by_veh)
@@ -174,11 +173,12 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
     avg_fps_by_agt = np.nan_to_num(avg_fps_by_agt)
     avg_veh_by_agt = np.nan_to_num(avg_veh_by_agt)
 
-    overall_avg_sec = np.sum(sec_by_veh) / np.sum(cnt_by_veh)
-    overall_avg_fps = 1.0 / overall_avg_sec
+    overall_avg_sec = np.sum(sec_by_agt) / np.sum(cnt_by_agt)
+    overall_avg_fps = np.sum(cnt_by_agt) / np.sum(sec_by_agt)
     avg_agt_num = np.mean(avg_agt_num)
     avg_veh_num = np.mean(avg_veh_num)
 
+    print(f"[multi] num_files = {cnt}")
     print(f"[multi] avg_sec_by_veh = {avg_sec_by_veh}")
     print(f"[multi] avg_fps_by_veh = {avg_fps_by_veh}")
     print(f"[multi] avg_sec_by_agt = {avg_sec_by_agt}")
@@ -202,6 +202,8 @@ def multi_agent_test(cfg: Dict[str, Any], files: Sequence[str], num_files: int,
         "multi_avg_veh_by_agt": avg_veh_by_agt,
         "multi_avg_agt_num": avg_agt_num,
         "multi_avg_veh_num": avg_veh_num,
+        "mult_overall_avg_sec": overall_avg_sec,
+        "mult_overall_avg_fps": overall_avg_fps,
     }
 
 
@@ -217,14 +219,21 @@ def run_speed_test(files, cfg):
                                 of moving vehicles in file
     """
 
-    num_files = 1000
+    num_files = 2000
     num_steps = 90
-    stats = {}
 
-    stats1 = single_agent_test(cfg, files, num_files, num_steps)
+    # indices = np.random.choice(len(files), num_files)
+    indices = np.random.choice(len(files), num_files, replace=False)
+
+    indices = indices.tolist()
+    sample_files = [files[i] for i in indices]
+
+    stats = {"num_files": num_files}
+
+    stats1 = single_agent_test(cfg, sample_files, num_steps)
     stats.update(stats1)
 
-    stats2 = multi_agent_test(cfg, files, num_files, num_steps)
+    stats2 = multi_agent_test(cfg, sample_files, num_steps)
     stats.update(stats2)
 
     print(stats)
