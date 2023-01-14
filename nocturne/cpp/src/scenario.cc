@@ -892,8 +892,8 @@ void Scenario::LoadObjects(const json& objects_json) {
     // TODO(ev) current_time_ should be passed in rather than defined here.
     const geometry::Vector2D position(obj["position"][current_time_]["x"],
                                       obj["position"][current_time_]["y"]);
-    const float width = static_cast<float>(obj["width"]);
-    const float length = static_cast<float>(obj["length"]);
+    const float width = std::abs(static_cast<float>(obj["width"]));
+    const float length = std::abs(static_cast<float>(obj["length"]));
     geometry::Vector2D target_position;
     if (obj.contains("goalPosition")) {
       target_position = geometry::Vector2D(obj["goalPosition"]["x"],
