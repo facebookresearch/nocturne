@@ -47,9 +47,9 @@ for i, file in enumerate(FILE_NAMES):
     multi_all_fps[i] = cur_multi_avg_fps * stats["multi_avg_agt_num"]
     multi_avg_agt_num[i] = stats["multi_avg_agt_num"]
 
-single_avg_fps_by_veh_med = np.median(single_avg_fps_by_veh, axis=1)
-single_avg_fps_by_veh_min = np.min(single_avg_fps_by_veh, axis=1)
-single_avg_fps_by_veh_max = np.max(single_avg_fps_by_veh, axis=1)
+# single_avg_fps_by_veh_med = np.median(single_avg_fps_by_veh, axis=1)
+# single_avg_fps_by_veh_min = np.min(single_avg_fps_by_veh, axis=1)
+# single_avg_fps_by_veh_max = np.max(single_avg_fps_by_veh, axis=1)
 
 single_avg_fps_by_veh_avg = np.mean(single_avg_fps_by_veh, axis=1)
 single_avg_fps_by_veh_std = np.std(single_avg_fps_by_veh, axis=1, ddof=1)
@@ -90,13 +90,13 @@ print(f"[multi] all_fps = {multi_all_fps}")
 print(f"[multi] all_fps = {np.mean(multi_all_fps)} " +
       f"[{np.std(multi_all_fps, ddof=1)}]")
 
-multi_avg_fps_by_agt_med = np.median(multi_avg_fps_by_agt, axis=1)
-multi_avg_fps_by_agt_min = np.min(multi_avg_fps_by_agt, axis=1)
-multi_avg_fps_by_agt_max = np.max(multi_avg_fps_by_agt, axis=1)
+# multi_avg_fps_by_agt_med = np.median(multi_avg_fps_by_agt, axis=1)
+# multi_avg_fps_by_agt_min = np.min(multi_avg_fps_by_agt, axis=1)
+# multi_avg_fps_by_agt_max = np.max(multi_avg_fps_by_agt, axis=1)
 
-multi_avg_sec_by_agt_med = np.median(multi_avg_sec_by_agt, axis=1)
-multi_avg_sec_by_agt_min = np.min(multi_avg_sec_by_agt, axis=1)
-multi_avg_sec_by_agt_max = np.max(multi_avg_sec_by_agt, axis=1)
+# multi_avg_sec_by_agt_med = np.median(multi_avg_sec_by_agt, axis=1)
+# multi_avg_sec_by_agt_min = np.min(multi_avg_sec_by_agt, axis=1)
+# multi_avg_sec_by_agt_max = np.max(multi_avg_sec_by_agt, axis=1)
 
 multi_avg_fps_by_agt_avg = np.mean(multi_avg_fps_by_agt, axis=1)
 multi_avg_fps_by_agt_std = np.std(multi_avg_fps_by_agt, axis=1, ddof=1)
