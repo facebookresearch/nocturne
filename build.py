@@ -1,9 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
-"""Run via ```python setup.py develop``` to install Nocturne in your environment."""
+from pybind11.setup_helpers import build_ext, Pybind11Extension
 import logging
 import multiprocessing
 import os
@@ -12,18 +7,13 @@ import subprocess
 import sys
 
 from distutils.version import LooseVersion
-from setuptools import Extension, setup
-from setuptools.command.build_ext import build_ext
-
-# Reference:
-# https://www.benjack.io/2017/06/12/python-cpp-tests.html
 
 
-class CMakeExtension(Extension):
+class CMakeExtension(Pybind11Extension):
     """Use CMake to construct the Nocturne extension."""
 
     def __init__(self, name, src_dir=""):
-        Extension.__init__(self, name, sources=[])
+        Pybind11Extension.__init__(self, name, sources=[])
         self.src_dir = os.path.abspath(src_dir)
 
 
@@ -87,15 +77,9 @@ class CMakeBuild(build_ext):
         print()  # Add an empty line for cleaner output
 
 
-def main():
-    """Build the C++ code."""
-    # with open("./requirements.txt", "r") as f:
-    #     requires = f.read().splitlines()
-    setup(
-        ext_modules=[CMakeExtension("nocturne", "./nocturne")],
-        cmdclass=dict(build_ext=CMakeBuild),
-    )
-
-
-if __name__ == "__main__":
-    main()
+def build(setup_kwargs):
+    setup_kwargs.update({
+        "ext_modules": [CMakeExtension("nocturne", "./nocturne")],
+        "cmdclass": {"build_ext": CMakeBuild},
+        "zip_safe": False,
+    })

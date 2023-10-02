@@ -44,3 +44,9 @@ dataset/
 
 # configs
 configs.json
+
+# pyenv
+.python-version
+
+# poetry
+poetry.lock

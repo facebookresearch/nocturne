@@ -1,0 +1,51 @@
+[tool.poetry]
+name = "nocturne"
+version = "0.0.1"
+description = "A data-driven, fast driving simulator for multi-agent coordination under partial observability."
+authors = [
+    "Nathan Lichtlé <nathan.lichtle@gmail.com>",
+    "Eugene Vinitsky <vinitsky.eugene@gmail.com>",
+    "Xiaomeng Yang <bit.yangxm@gmail.com>",
+]
+maintainers = [
+    "Daphne Cornelisse <cornelisse.daphne@nyu.edu>",
+    "Eugene Vinitsky <vinitsky.eugene@gmail.com>"
+]
+homepage = "https://github.com/Emerge-Lab/nocturne"
+repository = "https://github.com/Emerge-Lab/nocturne"
+documentation = "https://nocturne.readthedocs.io/"
+license = "MIT"
+readme = "README.md"
+keywords = ["Driving", "Simulation", "Autonomous Vehicles", "Waymo", "Reinforcement Learning"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: C++",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+numpy = "^1.26.0"
+torch = "^2.0.1"
+gym = "^0.26.2"
+pybind11 = "^2.11.1"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.4.0"
+
+[tool.poetry.build]
+script = "build.py"
+generate-setup-file = true
+
+[build-system]
+requires = ["poetry-core", "pybind11>=2.11.1", "setuptools>=68.2.2"]
+build-backend = "poetry.core.masonry.api"
