@@ -8,6 +8,7 @@ import sys
 
 from distutils.version import LooseVersion
 
+logging.basicConfig(level=logging.INFO)
 
 class CMakeExtension(Pybind11Extension):
     """Use CMake to construct the Nocturne extension."""
