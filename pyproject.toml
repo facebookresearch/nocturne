@@ -44,6 +44,10 @@ numpy = "^1.26.0"
 torch = "^2.0.1"
 gym = "^0.26.2"
 pybind11 = "^2.11.1"
+ipykernel = "^6.25.2"
+matplotlib = "^3.8.0"
+seaborn = "^0.13.0"
+pandas = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.4.0"
