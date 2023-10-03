@@ -54,7 +54,7 @@ repos:
     types: [python]
   - id: poetry-export-requirements
     name: poetry-export-requirements
-    entry: poetry export --without-hashes --only main -f requirements.txt -o requirements.txt
+    entry: poetry export --without-hashes --with=main,research -f requirements.txt -o requirements.txt
     language: system
     types: [python]
     pass_filenames: false
