@@ -15,14 +15,15 @@ import numpy as np
 import torch
 from gym import Env
 from gym.spaces import Box, Discrete
+
 from nocturne import Action, Simulation
 
 logging.getLogger(__name__)
 
-class BaseEnv(Env):
 
+class BaseEnv(Env):
     def __init__(self, config: Dict[str, Any], rank: int = 0) -> None:
-        """Initialize a Nocturne environment. 
+        """Initialize a Nocturne environment.
 
         Args
         ----
@@ -35,7 +36,7 @@ class BaseEnv(Env):
 
         # Path to traffic scene(s) to use
         self._data_path = self.config["data_path"]
-                
+
         # Load the list of valid files
         with open(os.path.join(self._data_path, "valid_files.json")) as file:
             self.valid_veh_dict = json.load(file)
@@ -58,15 +59,11 @@ class BaseEnv(Env):
         self._invalid_position = float(-1e4)
 
         self.start_positions = {
-            veh_obj.id: np.array([veh_obj.position.x, veh_obj.position.y])
-            for veh_obj in self.controlled_vehicles
+            veh_obj.id: np.array([veh_obj.position.x, veh_obj.position.y]) for veh_obj in self.controlled_vehicles
         }
         self.n_frames_stacked = self.config["subscriber"].get("n_frames_stacked", 1)
         if self.n_frames_stacked > 1:
-            logging.warning(
-                "Frame stacking is enabled. Note that this is not required for "
-                "recurrent policies."
-            )
+            logging.warning("Frame stacking is enabled. Note that this is not required for " "recurrent policies.")
         self.max_num_vehicles = self.config["max_num_vehicles"]
         self.single_agent_mode = self.config["single_agent_mode"]
         if self.single_agent_mode:
@@ -85,9 +82,7 @@ class BaseEnv(Env):
         if self.config["discretize_actions"]:
             self.accel_discretization = self.config["accel_discretization"]
             self.steering_discretization = self.config["steering_discretization"]
-            self.action_space = Discrete(
-                self.accel_discretization * self.steering_discretization
-            )
+            self.action_space = Discrete(self.accel_discretization * self.steering_discretization)
             self.accel_grid = np.linspace(
                 -np.abs(self.config["accel_lower_bound"]),
                 self.config["accel_upper_bound"],
@@ -122,9 +117,7 @@ class BaseEnv(Env):
                 ),
             )
 
-    def apply_actions(
-        self, action_dict: Dict[int, Union[Action, np.ndarray, Sequence[float], int]]
-    ) -> None:
+    def apply_actions(self, action_dict: Dict[int, Union[Action, np.ndarray, Sequence[float], int]]) -> None:
         """Apply a dict of actions to the vehicle objects."""
         for veh_obj in self.scenario.getObjectsThatMoved():
             action = action_dict.get(veh_obj.id, None)
@@ -143,9 +136,7 @@ class BaseEnv(Env):
                 veh_obj.acceleration = accel
                 veh_obj.steering = steer
 
-    def step(
-        self, action_dict: Dict[int, Union[Action, np.ndarray, Sequence[float], int]]
-    ) -> None:
+    def step(self, action_dict: Dict[int, Union[Action, np.ndarray, Sequence[float], int]]) -> None:
         """See superclass."""
         obs_dict = {}
         rew_dict = {}
@@ -189,28 +180,17 @@ class BaseEnv(Env):
             speed_target_achieved = True
             heading_target_achieved = True
             if rew_cfg["position_target"]:
-                position_target_achieved = (goal_pos - obj_pos).norm() < rew_cfg[
-                    "position_target_tolerance"
-                ]
+                position_target_achieved = (goal_pos - obj_pos).norm() < rew_cfg["position_target_tolerance"]
             if rew_cfg["speed_target"]:
-                speed_target_achieved = (
-                    np.abs(veh_obj.speed - veh_obj.target_speed)
-                    < rew_cfg["speed_target_tolerance"]
-                )
+                speed_target_achieved = np.abs(veh_obj.speed - veh_obj.target_speed) < rew_cfg["speed_target_tolerance"]
             if rew_cfg["heading_target"]:
                 heading_target_achieved = (
                     np.abs(self.angle_sub(veh_obj.heading, veh_obj.target_heading))
                     < rew_cfg["heading_target_tolerance"]
                 )
-            if (
-                position_target_achieved
-                and speed_target_achieved
-                and heading_target_achieved
-            ):
+            if position_target_achieved and speed_target_achieved and heading_target_achieved:
                 info_dict[veh_id]["goal_achieved"] = True
-                rew_dict[veh_id] += (
-                    rew_cfg["goal_achieved_bonus"] / rew_cfg["reward_scaling"]
-                )
+                rew_dict[veh_id] += rew_cfg["goal_achieved_bonus"] / rew_cfg["reward_scaling"]
             if rew_cfg["shaped_goal_distance"] and rew_cfg["position_target"]:
                 # penalize the agent for its distance from goal
                 # we scale by goal_dist_normalizers to ensure that this value is always
@@ -218,10 +198,7 @@ class BaseEnv(Env):
                 if rew_cfg["goal_distance_penalty"]:
                     rew_dict[veh_id] -= (
                         rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                        * (
-                            (goal_pos - obj_pos).norm()
-                            / self.goal_dist_normalizers[veh_id]
-                        )
+                        * ((goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id])
                         / rew_cfg["reward_scaling"]
                     )
                 else:
@@ -234,11 +211,7 @@ class BaseEnv(Env):
                     # i.e. we'd have to go more than 40 m/s to get there
                     rew_dict[veh_id] += (
                         rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                        * (
-                            1
-                            - (goal_pos - obj_pos).norm()
-                            / self.goal_dist_normalizers[veh_id]
-                        )
+                        * (1 - (goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id])
                         / rew_cfg["reward_scaling"]
                     )
                 # repeat the same thing for speed and heading
@@ -259,37 +232,20 @@ class BaseEnv(Env):
                     if rew_cfg["goal_distance_penalty"]:
                         rew_dict[veh_id] -= (
                             rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                            * (
-                                np.abs(
-                                    self.angle_sub(
-                                        veh_obj.heading, veh_obj.target_heading
-                                    )
-                                )
-                                / (2 * np.pi)
-                            )
+                            * (np.abs(self.angle_sub(veh_obj.heading, veh_obj.target_heading)) / (2 * np.pi))
                             / rew_cfg["reward_scaling"]
                         )
                     else:
                         rew_dict[veh_id] += (
                             rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                            * (
-                                1
-                                - np.abs(
-                                    self.angle_sub(
-                                        veh_obj.heading, veh_obj.target_heading
-                                    )
-                                )
-                                / (2 * np.pi)
-                            )
+                            * (1 - np.abs(self.angle_sub(veh_obj.heading, veh_obj.target_heading)) / (2 * np.pi))
                             / rew_cfg["reward_scaling"]
                         )
             """############################################
                     Handle potential done conditions
             ############################################"""
             # achieved our goal
-            if info_dict[veh_id]["goal_achieved"] and self.config.get(
-                "remove_at_goal", True
-            ):
+            if info_dict[veh_id]["goal_achieved"] and self.config.get("remove_at_goal", True):
                 done_dict[veh_id] = True
             if veh_obj.getCollided():
                 info_dict[veh_id]["collided"] = True
@@ -297,21 +253,15 @@ class BaseEnv(Env):
                     info_dict[veh_id]["veh_veh_collision"] = True
                 if int(veh_obj.collision_type) == 2:
                     info_dict[veh_id]["veh_edge_collision"] = True
-                rew_dict[veh_id] -= (
-                    np.abs(rew_cfg["collision_penalty"]) / rew_cfg["reward_scaling"]
-                )
+                rew_dict[veh_id] -= np.abs(rew_cfg["collision_penalty"]) / rew_cfg["reward_scaling"]
                 if self.config.get("remove_at_collide", True):
                     done_dict[veh_id] = True
             # remove the vehicle so that its trajectory doesn't continue. This is
             # important in the multi-agent setting.
             if done_dict[veh_id]:
                 self.done_ids.append(veh_id)
-                if (
-                    info_dict[veh_id]["goal_achieved"]
-                    and self.config.get("remove_at_goal", True)
-                ) or (
-                    info_dict[veh_id]["collided"]
-                    and self.config.get("remove_at_collide", True)
+                if (info_dict[veh_id]["goal_achieved"] and self.config.get("remove_at_goal", True)) or (
+                    info_dict[veh_id]["collided"] and self.config.get("remove_at_collide", True)
                 ):
                     objs_to_remove.append(veh_obj)
 
@@ -375,9 +325,7 @@ class BaseEnv(Env):
             # as context
             context_len = max(10, self.n_frames_stacked)
             self.context_dict = {
-                veh.getID(): deque(
-                    [self.dead_feat for _ in range(context_len)], maxlen=context_len
-                )
+                veh.getID(): deque([self.dead_feat for _ in range(context_len)], maxlen=context_len)
                 for veh in self.scenario.getObjectsThatMoved()
             }
             for veh in self.scenario.getObjectsThatMoved():
@@ -401,18 +349,12 @@ class BaseEnv(Env):
                     Remove vehicles at goal
                 ############################################"""
                 norm = np.linalg.norm(goal_pos - obj_pos)
-                if (
-                    norm < self.config["rew_cfg"]["goal_tolerance"]
-                    or veh_obj.getCollided()
-                ):
+                if norm < self.config["rew_cfg"]["goal_tolerance"] or veh_obj.getCollided():
                     self.scenario.removeVehicle(veh_obj)
                 """############################################
                     Set all vehicles with unachievable goals to be experts
                 ############################################"""
-                if (
-                    self.file in self.valid_veh_dict
-                    and veh_obj.getID() in self.valid_veh_dict[self.file]
-                ):
+                if self.file in self.valid_veh_dict and veh_obj.getID() in self.valid_veh_dict[self.file]:
                     veh_obj.expert_control = True
             """############################################
                 Pick out the vehicles that we are controlling
@@ -455,8 +397,7 @@ class BaseEnv(Env):
             # anyways
             # or else we might be stuck in an infinite loop
             if len(self.all_vehicle_ids) > 0 or (
-                len(self.files) == 1
-                or ("scene" in self.config and self.config["scene"] is not None)
+                len(self.files) == 1 or ("scene" in self.config and self.config["scene"] is not None)
             ):
                 enough_vehicles = True
 
@@ -519,10 +460,7 @@ class BaseEnv(Env):
         else:
             self.initial_dead_agent_ids = []
 
-        logging.debug(
-            f"Scene: {self.file} | Controlling vehicles: "
-            f"{[veh.id for veh in self.controlled_vehicles]}"
-        )
+        logging.debug(f"Scene: {self.file} | Controlling vehicles: " f"{[veh.id for veh in self.controlled_vehicles]}")
 
         return obs_dict
 
@@ -541,9 +479,7 @@ class BaseEnv(Env):
             (
                 self.scenario.ego_state(veh_obj) if use_ego_state else [],
                 cur_pos if use_current_position else [],
-                self.scenario.flattened_visible_state(veh_obj, view_dist, view_angle)
-                if use_observations
-                else [],
+                self.scenario.flattened_visible_state(veh_obj, view_dist, view_angle) if use_observations else [],
             )
         )
         return obs
