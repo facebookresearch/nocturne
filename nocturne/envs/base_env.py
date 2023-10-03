@@ -6,159 +6,145 @@
 
 import json
 import logging
-import os
 from collections import defaultdict, deque
-from itertools import islice
-from typing import Any, Dict, Sequence, Union
+from enum import Enum
+from itertools import islice, product
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
+from box import Box as ConfigBox
 from gym import Env
 from gym.spaces import Box, Discrete
 
-from nocturne import Action, Simulation
+from nocturne import Action, Simulation, Vector2D, Vehicle
+
+_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
 
 logging.getLogger(__name__)
 
+ActType = TypeVar("ActType")  # pylint: disable=invalid-name
+ObsType = TypeVar("ObsType")  # pylint: disable=invalid-name
+RenderType = TypeVar("RenderType")  # pylint: disable=invalid-name
 
-class BaseEnv(Env):
-    def __init__(self, config: Dict[str, Any], rank: int = 0) -> None:
+
+class CollisionType(Enum):
+    """Enum for collision types."""
+
+    NONE = 0
+    VEHICLE_VEHICLE = 1
+    VEHICLE_EDGE = 2
+
+
+class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
+    """Nocturne base Gym environment."""
+
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        config: Dict[str, Any],
+        *,
+        img_width=1600,
+        img_height=1600,
+        draw_target_positions=True,
+        padding=50.0,
+    ) -> None:
         """Initialize a Nocturne environment.
 
         Args
         ----
             config (dict): configuration file for the environment.
-            data_path (str): path to the data directory with traffic scenes.
-            rank (int, optional): [description]. Defaults to 0.
+
+        Optional Args
+        -------------
+            img_width (int): width of the image to render.
+            img_height (int): height of the image to render.
+            draw_target_positions (bool): whether to draw the target positions.
+            padding (float): padding to add to the image.
         """
         super().__init__()
-        self.config = config
+        self.config = ConfigBox(config)
+        self.config.data_path = Path(self.config.data_path)
+        self._render_settings = {
+            "img_width": img_width,
+            "img_height": img_height,
+            "draw_target_positions": draw_target_positions,
+            "padding": padding,
+        }
 
-        # Path to traffic scene(s) to use
-        self._data_path = self.config["data_path"]
+        self.seed(self.config.seed)
 
         # Load the list of valid files
-        with open(os.path.join(self._data_path, "valid_files.json")) as file:
-            self.valid_veh_dict = json.load(file)
-            self.files = list(self.valid_veh_dict.keys())
-            # sort the files so that we have a consistent order
-            self.files = sorted(self.files)
-        if self.config["num_files"] != -1:
-            self.files = self.files[: self.config["num_files"]]
-        self.file = (
-            self.config["scene"]
-            if "scene" in self.config and self.config["scene"] is not None
-            else self.files[np.random.randint(len(self.files))]
-        )
-        self.simulation = Simulation(
-            os.path.join(self._data_path, self.file),
-            config=self.config["scenario"],
-        )
-        self.scenario = self.simulation.getScenario()
-        self.controlled_vehicles = self.scenario.getObjectsThatMoved()
-        self._invalid_position = float(-1e4)
+        self.files, self.valid_veh_dict = _load_valid_files(self.config, sorted_=True)
 
-        self.start_positions = {
-            veh_obj.id: np.array([veh_obj.position.x, veh_obj.position.y]) for veh_obj in self.controlled_vehicles
-        }
-        self.n_frames_stacked = self.config["subscriber"].get("n_frames_stacked", 1)
-        if self.n_frames_stacked > 1:
-            logging.warning("Frame stacking is enabled. Note that this is not required for " "recurrent policies.")
-        self.max_num_vehicles = self.config["max_num_vehicles"]
-        self.single_agent_mode = self.config["single_agent_mode"]
-        if self.single_agent_mode:
-            self.max_num_vehicles = 1
-        self.seed(self.config["seed"])
-        self.episode_length = self.config["episode_length"]
-        self.t = 0
-        self.step_num = 0
-        self.rank = rank
         obs_dict = self.reset()
-        self.observation_space = Box(
-            low=-np.infty,
-            high=np.infty,
-            shape=(obs_dict[list(obs_dict.keys())[0]].shape[0],),
-        )
-        if self.config["discretize_actions"]:
-            self.accel_discretization = self.config["accel_discretization"]
-            self.steering_discretization = self.config["steering_discretization"]
-            self.action_space = Discrete(self.accel_discretization * self.steering_discretization)
-            self.accel_grid = np.linspace(
-                -np.abs(self.config["accel_lower_bound"]),
-                self.config["accel_upper_bound"],
-                self.accel_discretization,
-            )
-            self.steering_grid = np.linspace(
-                -np.abs(self.config["steering_lower_bound"]),
-                self.config["steering_upper_bound"],
-                self.steering_discretization,
-            )
 
-            # compute the indexing only once
-            self.idx_to_actions = {}
-            i = 0
-            for accel in self.accel_grid:
-                for steer in self.steering_grid:
-                    self.idx_to_actions[i] = [accel, steer]
-                    i += 1
+        # Set observation space
+        self.observation_space = Box(low=-np.inf, high=np.inf, shape=obs_dict[list(obs_dict.keys())[0]].shape[0])
+
+        # Set action space
+        if self.config.discretize_actions:
+            self._set_discrete_action_space()
         else:
-            self.action_space = Box(
-                low=-np.array(
-                    [
-                        np.abs(self.config["accel_lower_bound"]),
-                        self.config["steering_lower_bound"],
-                    ]
-                ),
-                high=np.array(
-                    [
-                        np.abs(self.config["accel_upper_bound"]),
-                        self.config["steering_upper_bound"],
-                    ]
-                ),
-            )
+            self._set_continuous_action_space()
 
-    def apply_actions(self, action_dict: Dict[int, Union[Action, np.ndarray, Sequence[float], int]]) -> None:
-        """Apply a dict of actions to the vehicle objects."""
+    def apply_actions(self, action_dict: Dict[int, ActType]) -> None:
+        """Apply a dict of actions to the vehicle objects.
+
+        Args
+        ----
+            action_dict (Dict[int, ActType]): Dictionary of actions to apply to the vehicles.
+        """
         for veh_obj in self.scenario.getObjectsThatMoved():
             action = action_dict.get(veh_obj.id, None)
             if action is None:
                 continue
+            _apply_action_to_vehicle(veh_obj, action, idx_to_actions=self.idx_to_actions)
 
-            if isinstance(action, Action):
-                veh_obj.apply_action(action)
-            elif isinstance(action, np.ndarray):
-                veh_obj.apply_action(Action.from_numpy(action))
-            elif isinstance(action, (tuple, list)):
-                veh_obj.acceleration = action[0]
-                veh_obj.steering = action[1]
-            else:
-                accel, steer = self.idx_to_actions[action]
-                veh_obj.acceleration = accel
-                veh_obj.steering = steer
+    def step(  # pylint: disable=arguments-renamed,too-many-locals,too-many-branches,too-many-statements
+        self, action_dict: Dict[int, ActType]
+    ) -> Tuple[Dict[int, ObsType], Dict[int, float], Dict[int, bool], Dict[int, Dict[str, Union[bool, str]]]]:
+        """Run one timestep of the environment's dynamics.
 
-    def step(self, action_dict: Dict[int, Union[Action, np.ndarray, Sequence[float], int]]) -> None:
-        """See superclass."""
+        Args
+        ----
+            action_dict (Dict[int, ActType]): Dictionary of actions to apply to the vehicles.
+
+        Raises
+        ------
+            ValueError: If the action is not of a supported type or if the vehicle collision type is unknown.
+
+
+        Returns
+        -------
+            Dict[int, ObsType]: Dictionary with observation for each vehicle.
+            Dict[int, float]: Dictionary with reward for each vehicle.
+            Dict[int, bool]: Dictionary with done flag for each vehicle.
+            Dict[int, Dict[str, Union[bool, str]]]]: Dictionary with info for each vehicle.
+        """
         obs_dict = {}
         rew_dict = {}
         done_dict = {}
         info_dict = defaultdict(dict)
-        rew_cfg = self.config["rew_cfg"]
+
+        rew_cfg = self.config.rew_cfg
+
         self.apply_actions(action_dict)
-        self.simulation.step(self.config["dt"])
-        self.t += self.config["dt"]
+        self.simulation.step(self.config.dt)
+        self.t += self.config.dt
         self.step_num += 1
-        objs_to_remove = []
+
         for veh_obj in self.controlled_vehicles:
             veh_id = veh_obj.getID()
             if veh_id in self.done_ids:
                 continue
             self.context_dict[veh_id].append(self.get_observation(veh_obj))
-            if self.n_frames_stacked > 1:
+            if self.config.subscriber.n_frames_stacked > 1:
                 veh_deque = self.context_dict[veh_id]
                 context_list = list(
                     islice(
                         veh_deque,
-                        len(veh_deque) - self.n_frames_stacked,
+                        len(veh_deque) - self.config.subscriber.n_frames_stacked,
                         len(veh_deque),
                     )
                 )
@@ -173,87 +159,85 @@ class BaseEnv(Env):
             info_dict[veh_id]["veh_edge_collision"] = False
             obj_pos = veh_obj.position
             goal_pos = veh_obj.target_position
-            """############################################
-                            Compute rewards
-               ############################################"""
+            ############################################
+            #   Compute rewards
+            ############################################
             position_target_achieved = True
             speed_target_achieved = True
             heading_target_achieved = True
-            if rew_cfg["position_target"]:
-                position_target_achieved = (goal_pos - obj_pos).norm() < rew_cfg["position_target_tolerance"]
-            if rew_cfg["speed_target"]:
-                speed_target_achieved = np.abs(veh_obj.speed - veh_obj.target_speed) < rew_cfg["speed_target_tolerance"]
-            if rew_cfg["heading_target"]:
+            if rew_cfg.position_target:
+                position_target_achieved = (goal_pos - obj_pos).norm() < rew_cfg.position_target_tolerance
+            if rew_cfg.speed_target:
+                speed_target_achieved = np.abs(veh_obj.speed - veh_obj.target_speed) < rew_cfg.speed_target_tolerance
+            if rew_cfg.heading_target:
                 heading_target_achieved = (
-                    np.abs(self.angle_sub(veh_obj.heading, veh_obj.target_heading))
-                    < rew_cfg["heading_target_tolerance"]
+                    np.abs(_angle_sub(veh_obj.heading, veh_obj.target_heading)) < rew_cfg.heading_target_tolerance
                 )
             if position_target_achieved and speed_target_achieved and heading_target_achieved:
                 info_dict[veh_id]["goal_achieved"] = True
-                rew_dict[veh_id] += rew_cfg["goal_achieved_bonus"] / rew_cfg["reward_scaling"]
-            if rew_cfg["shaped_goal_distance"] and rew_cfg["position_target"]:
+                rew_dict[veh_id] += rew_cfg.goal_achieved_bonus / rew_cfg.reward_scaling
+            if rew_cfg.shaped_goal_distance and rew_cfg.position_target:
                 # penalize the agent for its distance from goal
                 # we scale by goal_dist_normalizers to ensure that this value is always
                 # less than the penalty for collision
-                if rew_cfg["goal_distance_penalty"]:
+                if rew_cfg.goal_distance_penalty:
                     rew_dict[veh_id] -= (
-                        rew_cfg.get("shaped_goal_distance_scaling", 1.0)
+                        rew_cfg.shaped_goal_distance_scaling
                         * ((goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id])
-                        / rew_cfg["reward_scaling"]
+                        / rew_cfg.reward_scaling
                     )
                 else:
                     # the minus one is to ensure that it's not beneficial to collide
                     # we divide by goal_achieved_bonus / episode_length to ensure that
                     # acquiring the maximum "get-close-to-goal" reward at every
                     # time-step is always less than just acquiring the goal reward once
-                    # we also assume that vehicles are never more than 400 meters from
-                    # their goal which makes sense as the episodes are 9 seconds long
-                    # i.e. we'd have to go more than 40 m/s to get there
                     rew_dict[veh_id] += (
-                        rew_cfg.get("shaped_goal_distance_scaling", 1.0)
+                        rew_cfg.shaped_goal_distance_scaling
                         * (1 - (goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id])
-                        / rew_cfg["reward_scaling"]
+                        / rew_cfg.reward_scaling
                     )
                 # repeat the same thing for speed and heading
-                if rew_cfg["shaped_goal_distance"] and rew_cfg["speed_target"]:
-                    if rew_cfg["goal_distance_penalty"]:
+                if rew_cfg.shaped_goal_distance and rew_cfg.speed_target:
+                    if rew_cfg.goal_distance_penalty:
                         rew_dict[veh_id] -= (
-                            rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                            * (np.abs(veh_obj.speed - veh_obj.target_speed) / 40.0)
-                            / rew_cfg["reward_scaling"]
+                            rew_cfg.shaped_goal_distance_scaling
+                            * (np.abs(veh_obj.speed - veh_obj.target_speed) / rew_cfg.goal_speed_scaling)
+                            / rew_cfg.reward_scaling
                         )
                     else:
                         rew_dict[veh_id] += (
-                            rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                            * (1 - np.abs(veh_obj.speed - veh_obj.target_speed) / 40.0)
-                            / rew_cfg["reward_scaling"]
+                            rew_cfg.shaped_goal_distance_scaling
+                            * (1 - np.abs(veh_obj.speed - veh_obj.target_speed) / rew_cfg.goal_speed_scaling)
+                            / rew_cfg.reward_scaling
                         )
-                if rew_cfg["shaped_goal_distance"] and rew_cfg["heading_target"]:
-                    if rew_cfg["goal_distance_penalty"]:
+                if rew_cfg.shaped_goal_distance and rew_cfg.heading_target:
+                    if rew_cfg.goal_distance_penalty:
                         rew_dict[veh_id] -= (
-                            rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                            * (np.abs(self.angle_sub(veh_obj.heading, veh_obj.target_heading)) / (2 * np.pi))
-                            / rew_cfg["reward_scaling"]
+                            rew_cfg.shaped_goal_distance_scaling
+                            * (np.abs(_angle_sub(veh_obj.heading, veh_obj.target_heading)) / (2 * np.pi))
+                            / rew_cfg.reward_scaling
                         )
                     else:
                         rew_dict[veh_id] += (
-                            rew_cfg.get("shaped_goal_distance_scaling", 1.0)
-                            * (1 - np.abs(self.angle_sub(veh_obj.heading, veh_obj.target_heading)) / (2 * np.pi))
-                            / rew_cfg["reward_scaling"]
+                            rew_cfg.shaped_goal_distance_scaling
+                            * (1 - np.abs(_angle_sub(veh_obj.heading, veh_obj.target_heading)) / (2 * np.pi))
+                            / rew_cfg.reward_scaling
                         )
-            """############################################
-                    Handle potential done conditions
-            ############################################"""
+            ############################################
+            #   Handle potential done conditions
+            ############################################
             # achieved our goal
             if info_dict[veh_id]["goal_achieved"] and self.config.get("remove_at_goal", True):
                 done_dict[veh_id] = True
             if veh_obj.getCollided():
                 info_dict[veh_id]["collided"] = True
-                if int(veh_obj.collision_type) == 1:
+                if int(veh_obj.collision_type) == CollisionType.VEHICLE_VEHICLE.value:
                     info_dict[veh_id]["veh_veh_collision"] = True
-                if int(veh_obj.collision_type) == 2:
+                elif int(veh_obj.collision_type) == CollisionType.VEHICLE_EDGE.value:
                     info_dict[veh_id]["veh_edge_collision"] = True
-                rew_dict[veh_id] -= np.abs(rew_cfg["collision_penalty"]) / rew_cfg["reward_scaling"]
+                elif int(veh_obj.collision_type) != CollisionType.NONE.value:
+                    raise ValueError(f"Unknown collision type: {veh_obj.collision_type}.")
+                rew_dict[veh_id] -= np.abs(rew_cfg.collision_penalty) / rew_cfg.reward_scaling
                 if self.config.get("remove_at_collide", True):
                     done_dict[veh_id] = True
             # remove the vehicle so that its trajectory doesn't continue. This is
@@ -263,77 +247,63 @@ class BaseEnv(Env):
                 if (info_dict[veh_id]["goal_achieved"] and self.config.get("remove_at_goal", True)) or (
                     info_dict[veh_id]["collided"] and self.config.get("remove_at_collide", True)
                 ):
-                    objs_to_remove.append(veh_obj)
+                    self.scenario.removeVehicle(veh_obj)
 
-        for veh_obj in objs_to_remove:
-            self.scenario.removeVehicle(veh_obj)
+        if self.config.rew_cfg.shared_reward:
+            total_reward = np.sum(rew_dict.values())
+            rew_dict = {key: total_reward for key in rew_dict}
 
-        if self.config["rew_cfg"]["shared_reward"]:
-            total_reward = np.sum([rew_dict[key] for key in rew_dict.keys()])
-            rew_dict = {key: total_reward for key in rew_dict.keys()}
+        if self.step_num >= self.config.episode_length:
+            done_dict = {key: True for key in done_dict}
 
-        # fill in the missing observations if we should be doing so
-        if self.config["subscriber"]["keep_inactive_agents"]:
-            # force all vehicles done to be false since they should persist through the
-            # episode
-            done_dict = {key: False for key in self.all_vehicle_ids}
-            for key in self.all_vehicle_ids:
-                if key not in obs_dict.keys():
-                    obs_dict[key] = self.dead_feat
-                    rew_dict[key] = 0.0
-                    info_dict[key]["goal_achieved"] = False
-                    info_dict[key]["collided"] = False
-                    info_dict[key]["veh_veh_collision"] = False
-                    info_dict[key]["veh_edge_collision"] = False
-
-        if self.step_num >= self.episode_length:
-            done_dict = {key: True for key in done_dict.keys()}
-
-        all_done = True
-        for value in done_dict.values():
-            all_done *= value
-        done_dict["__all__"] = all_done
+        done_dict["__all__"] = all(done_dict.values())
 
         return obs_dict, rew_dict, done_dict, info_dict
 
-    def reset(self):
-        """See superclass."""
+    def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
+        self,
+    ) -> Dict[int, ObsType]:
+        """Reset the environment.
+
+        Returns
+        -------
+            Dict[int, ObsType]: Dictionary of observations for each vehicle.
+        """
         self.t = 0
         self.step_num = 0
 
-        enough_vehicles = False
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
-        while not enough_vehicles:
-            self.file = (
-                self.config["scene"]
-                if "scene" in self.config and self.config["scene"] is not None
-                else self.files[np.random.randint(len(self.files))]
-            )
-            self.simulation = Simulation(
-                os.path.join(self._data_path, self.file),
-                config=self.config["scenario"],
-            )
+        for _ in range(_NUM_TRIES_TO_FIND_VALID_VEHICLE):
+            self.file = np.random.choice(self.files) if self.config.scene is None else self.config.scene
+            self.simulation = Simulation(self.config.data_path / self.file, config=self.config.scenario)
             self.scenario = self.simulation.getScenario()
-            """##################################################################
-                Construct context dictionary of observations that can be used to
-                warm up policies by stepping all vehicles as experts.
-            #####################################################################"""
-            dead_obs = self.get_observation(self.scenario.getVehicles()[0])
-            self.dead_feat = -np.ones(dead_obs.shape[0] * self.n_frames_stacked)
+
+            #####################################################################
+            #   Construct context dictionary of observations that can be used to
+            #   warm up policies by stepping all vehicles as experts.
+            #####################################################################
+            dead_feat = -np.ones(
+                self.get_observation(self.scenario.getVehicles()[0]).shape[0] * self.config.subscriber.n_frames_stacked
+            )
             # step all the vehicles forward by one second and record their observations
             # as context
-            context_len = max(10, self.n_frames_stacked)
+            self.config.scenario.context_length = max(
+                self.config.scenario.context_length, self.config.subscriber.n_frames_stacked
+            )  # Note: Consider raising an error if context_length < n_frames_stacked.
             self.context_dict = {
-                veh.getID(): deque([self.dead_feat for _ in range(context_len)], maxlen=context_len)
+                veh.getID(): deque(
+                    [dead_feat for _ in range(self.config.scenario.context_length)],
+                    maxlen=self.config.scenario.context_length,
+                )
                 for veh in self.scenario.getObjectsThatMoved()
             }
             for veh in self.scenario.getObjectsThatMoved():
                 veh.expert_control = True
-            for _ in range(10):
+            for _ in range(self.config.scenario.context_length):
                 for veh in self.scenario.getObjectsThatMoved():
                     self.context_dict[veh.getID()].append(self.get_observation(veh))
-                self.simulation.step(self.config["dt"])
+                self.simulation.step(self.config.dt)
             # now hand back control to our actual controllers
             for veh in self.scenario.getObjectsThatMoved():
                 veh.expert_control = False
@@ -341,99 +311,74 @@ class BaseEnv(Env):
             # remove all the objects that are in collision or are already in goal dist
             # additionally set the objects that have infeasible goals to be experts
             for veh_obj in self.simulation.getScenario().getObjectsThatMoved():
-                obj_pos = veh_obj.getPosition()
-                obj_pos = np.array([obj_pos.x, obj_pos.y])
-                goal_pos = veh_obj.getGoalPosition()
-                goal_pos = np.array([goal_pos.x, goal_pos.y])
-                """############################################
-                    Remove vehicles at goal
-                ############################################"""
+                obj_pos = _position_as_array(veh_obj.getPosition())
+                goal_pos = _position_as_array(veh_obj.getGoalPosition())
+                ############################################
+                #    Remove vehicles at goal
+                ############################################
                 norm = np.linalg.norm(goal_pos - obj_pos)
-                if norm < self.config["rew_cfg"]["goal_tolerance"] or veh_obj.getCollided():
+                if norm < self.config.rew_cfg.goal_tolerance or veh_obj.getCollided():
                     self.scenario.removeVehicle(veh_obj)
-                """############################################
-                    Set all vehicles with unachievable goals to be experts
-                ############################################"""
+                ############################################
+                #    Set all vehicles with unachievable goals to be experts
+                ############################################
                 if self.file in self.valid_veh_dict and veh_obj.getID() in self.valid_veh_dict[self.file]:
                     veh_obj.expert_control = True
-            """############################################
-                Pick out the vehicles that we are controlling
-            ############################################"""
+            ############################################
+            #    Pick out the vehicles that we are controlling
+            ############################################
             # ensure that we have no more than max_num_vehicles are controlled
-            temp_vehicles = self.scenario.getObjectsThatMoved()
-            np.random.shuffle(temp_vehicles)
+            temp_vehicles = np.random.shuffle(self.scenario.getObjectsThatMoved())
             curr_index = 0
             self.controlled_vehicles = []
-            self.expert_controlled_vehicles = []
-            self.vehicles_to_delete = []
             for vehicle in temp_vehicles:
                 # this vehicle was invalid at the end of the 1 second context
                 # step so we need to remove it.
-                if np.isclose(vehicle.position.x, self._invalid_position):
-                    self.vehicles_to_delete.append(vehicle)
+                if np.isclose(vehicle.position.x, self.config.scenario.invalid_position):
+                    self.scenario.removeVehicle(vehicle)
                 # If vehicle ID is given, use that as controlled vehicle
-                elif "vehicle" in self.config and self.config["vehicle"] is not None:
-                    if vehicle.id == self.config["vehicle"]:
+                elif self.config.vehicle is not None:
+                    if vehicle.id == self.config.vehicle:
                         self.controlled_vehicles.append(vehicle)
                     else:
-                        self.expert_controlled_vehicles.append(vehicle)
+                        vehicle.expert_control = True
                 # we don't want to include vehicles that had unachievable goals
                 # as controlled vehicles
-                elif not vehicle.expert_control and curr_index < self.max_num_vehicles:
+                elif not vehicle.expert_control and curr_index < self.config.max_num_vehicles:
                     self.controlled_vehicles.append(vehicle)
                     curr_index += 1
                 else:
-                    self.expert_controlled_vehicles.append(vehicle)
+                    vehicle.expert_control = True
             self.all_vehicle_ids = [veh.getID() for veh in self.controlled_vehicles]
-            # make all the vehicles that are in excess of max_num_vehicles controlled by
-            # an expert
-            for veh in self.expert_controlled_vehicles:
-                veh.expert_control = True
-            # remove vehicles that are currently at an invalid position
-            for veh in self.vehicles_to_delete:
-                self.scenario.removeVehicle(veh)
 
-            # check that we have at least one vehicle or if we have just one file, exit
-            # anyways
+            # check that we have at least one vehicle or if we have just one file, exit anyways
             # or else we might be stuck in an infinite loop
-            if len(self.all_vehicle_ids) > 0 or (
-                len(self.files) == 1 or ("scene" in self.config and self.config["scene"] is not None)
-            ):
-                enough_vehicles = True
-
-        # for one reason or another (probably we had a file where all the agents
-        # achieved their goals)
-        # we have no controlled vehicles
-        # just grab a vehicle even if it hasn't moved so that we have something
-        # to return obs for even if it's not controlled
-        # NOTE: this case only occurs during our eval procedure where we set the
-        # self.files list to be length 1. Otherwise, the while loop above will repeat
-        # until a file is found.
-        if len(self.all_vehicle_ids) == 0:
-            self.controlled_vehicles = [self.scenario.getVehicles()[0]]
-            self.all_vehicle_ids = [veh.getID() for veh in self.controlled_vehicles]
+            if len(self.all_vehicle_ids) > 0:
+                break
+            if len(self.files) == 1 or ("scene" in self.config and self.config.scene is not None):
+                raise ValueError(f"No controllable vehicle in scene {self.file}.")
+        else:  # No break in for-loop, i.e., no valid vehicle found in any of the files.
+            raise ValueError(f"No controllable vehicles in any of the {len(self.files)} scenes.")
 
         # construct the observations and goal normalizers
         obs_dict = {}
         self.goal_dist_normalizers = {}
-        max_goal_dist = -100
+        max_goal_dist = -np.inf
         for veh_obj in self.controlled_vehicles:
             veh_id = veh_obj.getID()
             # store normalizers for each vehicle
-            obj_pos = veh_obj.getPosition()
-            obj_pos = np.array([obj_pos.x, obj_pos.y])
-            goal_pos = veh_obj.getGoalPosition()
-            goal_pos = np.array([goal_pos.x, goal_pos.y])
+            obj_pos = _position_as_array(veh_obj.getPosition())
+            goal_pos = _position_as_array(veh_obj.getGoalPosition())
             dist = np.linalg.norm(obj_pos - goal_pos)
             self.goal_dist_normalizers[veh_id] = dist
             # compute the obs
             self.context_dict[veh_id].append(self.get_observation(veh_obj))
-            if self.n_frames_stacked > 1:
+            if self.config.subscriber.n_frames_stacked > 1:
                 veh_deque = self.context_dict[veh_id]
                 context_list = list(
                     islice(
                         veh_deque,
-                        len(veh_deque) - self.n_frames_stacked,
+                        len(veh_deque) - self.config.subscriber.n_frames_stacked,
                         len(veh_deque),
                     )
                 )
@@ -449,109 +394,238 @@ class BaseEnv(Env):
                 max_goal_dist = dist
 
         self.done_ids = []
-        # we should return obs for the missing agents
-        if self.config["subscriber"]["keep_inactive_agents"]:
-            max_id = max([int(key) for key in obs_dict.keys()])
-            num_missing_agents = max(0, self.max_num_vehicles - len(obs_dict))
-            for i in range(num_missing_agents):
-                obs_dict[max_id + i + 1] = self.dead_feat
-            self.initial_dead_agent_ids = [max_id + i + 1 for i in range(num_missing_agents)]
-            self.all_vehicle_ids = list(obs_dict.keys())
-        else:
-            self.initial_dead_agent_ids = []
 
-        logging.debug(f"Scene: {self.file} | Controlling vehicles: " f"{[veh.id for veh in self.controlled_vehicles]}")
+        logging.debug("Scene: %s | Controlling vehicles: %s", self.file, [veh.id for veh in self.controlled_vehicles])
 
         return obs_dict
 
-    def get_observation(self, veh_obj):
-        """Return the observation for a particular vehicle."""
+    def get_observation(self, veh_obj: Vehicle) -> np.ndarray:
+        """Return the observation for a particular vehicle.
 
-        use_ego_state = self.config["subscriber"]["use_ego_state"]
-        use_observations = self.config["subscriber"]["use_observations"]
-        use_current_position = self.config["subscriber"]["use_current_position"]
+        Args
+        ----
+            veh_obj (Vehicle): Vehicle object to get the observation for.
 
-        view_dist = self.config["subscriber"]["view_dist"]
-        view_angle = self.config["subscriber"]["view_angle"]
-        cur_pos = np.array([veh_obj.getPosition().x, veh_obj.getPosition().y])
-
+        Returns
+        -------
+            np.ndarray: Observation for the vehicle.
+        """
+        cur_position = _position_as_array(veh_obj.getPosition())
         obs = np.concatenate(
             (
-                self.scenario.ego_state(veh_obj) if use_ego_state else [],
-                cur_pos if use_current_position else [],
-                self.scenario.flattened_visible_state(veh_obj, view_dist, view_angle) if use_observations else [],
+                self.scenario.ego_state(veh_obj) if self.config.subscriber.use_ego_state else [],
+                cur_position if self.config.subscriber.use_current_position else [],
+                self.scenario.flattened_visible_state(
+                    veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
+                )
+                if self.config.subscriber.use_observations
+                else [],
             )
         )
         return obs
 
-    def make_all_vehicles_experts(self):
+    def make_all_vehicles_experts(self) -> None:
         """Force all vehicles to be experts."""
         for veh in self.scenario.getVehicles():
             veh.expert_control = True
 
-    def get_vehicles(self):
-        """Return the vehicles."""
-        return self.scenario.getVehicles()
+    def render(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
+        """Render the environment.
 
-    def get_objects_that_moved(self):
-        """Return the objects that moved."""
-        return self.scenario.getObjectsThatMoved()
+        Args
+        ----
+            mode (Optional[bool]): Render mode.
 
-    def render(self, mode=None):
-        """See superclass."""
-        return self.scenario.getImage(
-            img_width=1600,
-            img_height=1600,
-            draw_target_positions=True,
-            padding=50.0,
+        Returns
+        -------
+            Optional[RenderType]: Rendered image.
+        """
+        return self.scenario.getImage(**self._render_settings)
+
+    def render_ego(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
+        """Render the ego vehicles.
+
+        Args
+        ----
+            mode (Optional[bool]): Render mode.
+
+        Returns
+        -------
+            Optional[RenderType]: Rendered image.
+        """
+        if self.render_vehicle.getID() in self.done_ids:
+            return None
+        return self.scenario.getConeImage(
+            source=self.render_vehicle,
+            view_dist=self.config.subscriber.view_dist,
+            view_angle=self.config.subscriber.view_angle,
+            head_angle=self.render_vehicle.head_angle,
+            **self._render_settings,
         )
 
-    def render_ego(self, mode=None):
-        """See superclass."""
+    def render_features(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
+        """Render the features.
+
+        Args
+        ----
+            mode (Optional[bool]): Render mode.
+
+        Returns
+        -------
+            Optional[RenderType]: Rendered image.
+        """
         if self.render_vehicle.getID() in self.done_ids:
             return None
-        else:
-            return self.scenario.getConeImage(
-                source=self.render_vehicle,
-                view_dist=self.config["subscriber"]["view_dist"],
-                view_angle=self.config["subscriber"]["view_angle"],
-                head_angle=self.render_vehicle.head_angle,
-                img_width=1600,
-                img_height=1600,
-                padding=50.0,
-                draw_target_position=True,
-            )
+        return self.scenario.getFeaturesImage(
+            source=self.render_vehicle,
+            view_dist=self.config.subscriber.view_dist,
+            view_angle=self.config.subscriber.view_angle,
+            head_angle=self.render_vehicle.head_angle,
+            **self._render_settings,
+        )
 
-    def render_features(self, mode=None):
-        """See superclass."""
-        if self.render_vehicle.getID() in self.done_ids:
-            return None
-        else:
-            return self.scenario.getFeaturesImage(
-                source=self.render_vehicle,
-                view_dist=self.config["subscriber"]["view_dist"],
-                view_angle=self.config["subscriber"]["view_angle"],
-                head_angle=self.render_vehicle.head_angle,
-                img_width=1600,
-                img_height=1600,
-                padding=50.0,
-                draw_target_position=True,
-            )
+    def seed(self, seed: Optional[int] = None) -> None:
+        """Seed the environment.
 
-    def seed(self, seed=None):
-        """Ensure determinism."""
+        Args
+        ----
+            seed (Optional[int]): Seed to use.
+        """
         if seed is not None:
             np.random.seed(seed)
             torch.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)
 
-    def angle_sub(self, current_angle, target_angle) -> int:
-        """Subtract two angles to find the minimum angle between them."""
-        # Subtract the angles, constraining the value to [0, 2 * np.pi)
-        diff = (target_angle - current_angle) % (2 * np.pi)
+    def _set_discrete_action_space(self) -> None:
+        """Set the discrete action space."""
+        self.action_space = Discrete(self.config.accel_discretization * self.config.steering_discretization)
+        self.accel_grid = np.linspace(
+            -np.abs(self.config.accel_lower_bound),
+            self.config.accel_upper_bound,
+            self.config.accel_discretization,
+        )
+        self.steering_grid = np.linspace(
+            -np.abs(self.config.steering_lower_bound),
+            self.config.steering_upper_bound,
+            self.config.steering_discretization,
+        )
 
-        # If we are more than np.pi we're taking the long way around.
-        # Let's instead go in the shorter, negative direction
-        if diff > np.pi:
-            diff = -(2 * np.pi - diff)
-        return diff
+        self.idx_to_actions = {}
+        for i, (accel, steer) in product(self.accel_grid, self.steering_grid):
+            self.idx_to_actions[i] = [accel, steer]
+
+    def _set_continuous_action_space(self) -> None:
+        """Set the continuous action space."""
+        self.action_space = Box(
+            low=-np.array(
+                [
+                    np.abs(self.config.accel_lower_bound),
+                    self.config.steering_lower_bound,
+                ]
+            ),
+            high=np.array(
+                [
+                    np.abs(self.config.accel_upper_bound),
+                    self.config.steering_upper_bound,
+                ]
+            ),
+        )
+        self.idx_to_actions = None
+
+
+def _load_valid_files(config: Dict[str, Any], *, sorted_: bool = True) -> Tuple[List[str], Dict[str, Dict[str, Any]]]:
+    """Load the list of valid files.
+
+    Args
+    ----
+        config (Dict[str, Any]): Configuration file for the environment.
+
+    Optional Args
+    -------------
+        sorted_ (bool): Whether to sort the files.
+
+    Returns
+    -------
+        Tuple[List[str]: List of valid files.
+        Dict[str, Dict[str, Any]]: Dictionary of valid vehicles.
+    """
+    with open(config.data_path / "valid_files.json", encoding="utf-8") as file:
+        valid_veh_dict = json.load(file)
+        files = list(valid_veh_dict.keys())
+
+        # sort the files so that we have a consistent order
+        if sorted_:
+            files = sorted_(files)
+
+    if config.num_files != -1:
+        files = files[: config.num_files]
+
+    return files, valid_veh_dict
+
+
+def _angle_sub(current_angle: float, target_angle: float) -> float:
+    """Subtract two angles to find the minimum angle between them.
+
+    Args
+    ----
+        current_angle (float): Current angle.
+        target_angle (float): Target angle.
+
+    Returns
+    -------
+        float: Minimum angle between the two angles.
+    """
+    # Subtract the angles, constraining the value to [0, 2 * np.pi)
+    diff = (target_angle - current_angle) % (2 * np.pi)
+
+    # If we are more than np.pi we're taking the long way around.
+    # Let's instead go in the shorter, negative direction
+    if diff > np.pi:
+        diff = -(2 * np.pi - diff)
+    return diff
+
+
+def _apply_action_to_vehicle(
+    veh_obj: Vehicle, action: ActType, *, idx_to_actions: Optional[Dict[int, Tuple[float, float]]] = None
+) -> None:
+    """Apply an action to a vehicle.
+
+    Args
+    ----
+        veh_obj (Vehicle): Vehicle object to apply the action to.
+        action (ActType): Action to apply to the vehicle.
+
+    Optional Args
+    -------------
+        idx_to_actions (Optional[Dict[int, Tuple[float, float]]]): Dictionary of actions to apply to the vehicle.
+
+    Raises
+    ------
+        NotImplementedError: If the action type is not supported.
+    """
+    if isinstance(action, Action):
+        veh_obj.apply_action(action)
+    elif isinstance(action, np.ndarray):
+        veh_obj.apply_action(Action.from_numpy(action))
+    elif isinstance(action, (tuple, list)):
+        veh_obj.acceleration = action[0]
+        veh_obj.steering = action[1]
+    elif isinstance(action, int) and idx_to_actions is not None:
+        accel, steer = idx_to_actions[action]
+        veh_obj.acceleration = accel
+        veh_obj.steering = steer
+    raise NotImplementedError(f"Action type '{type(action)}' not supported.")
+
+
+def _position_as_array(position: Vector2D) -> np.ndarray:
+    """Convert a position to an array.
+
+    Args
+    ----
+        position (Vector2D): Position to convert.
+
+    Returns
+    -------
+        np.ndarray: Position as an array.
+    """
+    return np.array([position.x, position.y])

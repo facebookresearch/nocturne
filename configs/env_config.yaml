@@ -4,10 +4,6 @@ debug: false
 experiment: intersection
 env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 
-# one of the agents will be randomly tagged as the
-# agent that we control, the rest of the agents will
-# replay trajectories
-single_agent_mode: true
 # all goals are achievable within 90 steps
 episode_length: 80
 # how many files of the total dataset to use. -1 indicates to use all of them
@@ -47,6 +43,8 @@ scenario:
   # to the visible road points first and only add the other points
   # (road lines, lane lines) etc. if we have remaining states after
   road_edge_first: false
+  invalid_position: -10000.0
+  context_length: 10
 
 # these configs are mostly used for aligning displacement error computations
 # with the standard way of doing it in other libraries i.e. we keep
@@ -73,6 +71,9 @@ rew_cfg:
   speed_target_tolerance: 1.0
   heading_target: false # If True, goal is only achieved if you're within this tolerance on final agent heading at goal position
   heading_target_tolerance: 0.3
+  # we assume that vehicles are never more than 400 meters from their goal which makes
+  # sense as the episodes are 9 seconds long, i.e. we'd have to go more than 40 m/s to get there
+  goal_speed_scaling: 40.0
 
 # Agent settings
 subscriber:
@@ -85,10 +86,6 @@ subscriber:
   use_target_position: false # if True, add target (x, y)-position of the agent
   use_distance_to_target: false # if True, add distance to target (dx, dy) of the agent
 
-  # if true, we return an observation for agents that have exited the system
-  # as well as returning an observation for the extra agents if the number of
-  # agents in the system is less than max_num_vehicles
-  keep_inactive_agents: false
   # for values greater than 1, we will stack inputs together (i.e. memory and equivalent of n_stacked_states)
   n_frames_stacked: 1 # Agent memory
 
