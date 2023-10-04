@@ -584,6 +584,10 @@ def _apply_action_to_vehicle(
         accel, steer = idx_to_actions[action]
         veh_obj.acceleration = accel
         veh_obj.steering = steer
+    elif isinstance(action, np.int64):
+        accel, steer = idx_to_actions[action]
+        veh_obj.acceleration = accel
+        veh_obj.steering = steer
     else:
         raise NotImplementedError(f"Action type '{type(action)}' not supported.")
 
