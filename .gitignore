@@ -50,3 +50,6 @@ configs.json
 
 # poetry
 poetry.lock
+
+# wandb
+wandb
