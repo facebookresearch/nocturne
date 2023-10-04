@@ -44,7 +44,98 @@ env.close()
 
 ## Installation
 
-#TODO
+### Requirements
+
+* Python (>=3.10)
+
+### Virtual environment
+Below different options for setting up a virtual environment are described. Either option works although `pyenv` is recommended.
+
+> _Note:_ The virtual environment needs to be **activated each time** before you start working.
+
+#### Option 1: `pyenv`
+Create a virtual environment by running:
+
+```shell
+pyenv virtualenv 3.10.12 nocturne_lab
+```
+
+The virtual environment should be activated every time you start a new shell session before running subsequent commands:
+
+```shell
+pyenv shell nocturne_lab
+```
+
+Fortunately, `pyenv` provides a way to assign a virtual environment to a directory. To set it for this project, run:
+```shell
+pyenv local nocturne_lab
+```
+
+#### Option 2: `conda`
+Create a conda environment by running:
+
+```shell
+conda env create -f ./environment.yml
+```
+
+This creates a conda environment using Python 3.10 called `nocturne_lab`.
+
+To activate the virtual environment, run:
+
+```shell
+conda activate nocturne_lab
+```
+
+#### Option 3: `venv`
+Create a virtual environment by running:
+
+```shell
+python -m venv .venv
+```
+
+The virtual environment should be activated every time you start a new shell session before running the subsequent command:
+
+```shell
+source .venv/bin/activate
+```
+
+### Dependencies
+
+`poetry` is used to manage the project and its dependencies. Start by installing `poetry` in your virtual environment:
+
+```shell
+pip install poetry
+```
+
+Before installing the package, you first need to synchronise and update the git submodules by running:
+
+```shell
+# Synchronise and update git submodules
+git submodule sync
+git submodule update --init --recursive
+```
+
+Now install the package by running:
+
+```shell
+poetry install
+```
+
+> _Note:_ Under the hood the `nocturne` package uses the `nocturne_cpp` Python package that wraps the Nocturne C++ code base and provides bindings for Python to interact with the C++ code using `pybind11`.
+
+
+### Development setup
+To configure the development setup, run:
+```shell
+# Install poetry dev dependencies
+poetry install --only=dev
+
+# Install pre-commit (for flake8, isort, black, etc.)
+pre-commit install
+
+# Optional: Install poetry docs dependencies
+poetry install --only=docs
+```
 
 ## Ongoing work
 
