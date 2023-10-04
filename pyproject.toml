@@ -46,14 +46,14 @@ gym = "^0.26.2"
 pybind11 = "^2.11.1"
 python-box = "^7.1.1"
 gymnasium = "^0.29.1"
-wandb = "^0.15.12"
-tensorboard = "^2.14.1"
 
 [tool.poetry.group.research.dependencies]
 ipykernel = "^6.25.2"
 matplotlib = "^3.8.0"
 seaborn = "^0.13.0"
 pandas = "^2.1.1"
+wandb = "^0.15.12"
+tensorboard = "^2.14.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.4.0"

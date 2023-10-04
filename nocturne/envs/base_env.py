@@ -21,7 +21,7 @@ from gym.spaces import Box, Discrete
 
 from nocturne import Action, Simulation, Vector2D, Vehicle
 
-_NUM_TRIES_TO_FIND_VALID_VEHICLE = 10
+_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
 
 logging.getLogger(__name__)
 
@@ -281,7 +281,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
-        for _ in range(_NUM_TRIES_TO_FIND_VALID_VEHICLE):
+        for _ in range(_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE):
             self.file = np.random.choice(self.files)
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
             self.scenario = self.simulation.getScenario()
