@@ -50,4 +50,6 @@ env.close()
 
 Here is a list of features that we are developing:
 
-#TODO
+- @Daphne: Support for SB3's PPO algorithm with multi-agent control
+- @Alex: Logging and unit testing
+- @Tiyas: Random resets
