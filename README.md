@@ -1,6 +1,6 @@
 # `nocturne_lab`: fast driving simulator 🧪 + 🚗
 
-`nocturne_lab` is a maintained fork of [Nocturne](https://github.com/facebookresearch/nocturne), which is a 2D, partially observed, driving simulator built in C++. `nocturne_lab` is currently only used internally at the Emerge lab.
+`nocturne_lab` is a maintained fork of [Nocturne](https://github.com/facebookresearch/nocturne), which is a 2D, partially observed, driving simulator built in C++. Currently, `nocturne_lab` is used internally at the Emerge lab.
 
 ## Basic usage
 
