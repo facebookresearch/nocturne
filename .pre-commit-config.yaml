@@ -64,9 +64,3 @@ repos:
     language: system
     types: [python]
     pass_filenames: false
-  - id: poetry-export-requirements-docs
-    name: poetry-export-requirements-docs
-    entry: poetry export --without-hashes --only docs -f requirements.txt -o requirements.docs.txt
-    language: system
-    types: [python]
-    pass_filenames: false
