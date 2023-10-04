@@ -13,12 +13,12 @@ sims_per_step: 10
 img_as_state: false
 discretize_actions: true
 include_head_angle: false # Whether to include the head tilt/angle as part of a vehicle's action
-accel_discretization: 5
+accel_discretization: 3
 accel_lower_bound: -2
 accel_upper_bound: 2
 steering_lower_bound: -0.25 # corresponds to about 40 degrees of max steering angle
 steering_upper_bound: 0.25 # corresponds to about 40 degrees of max steering angle
-steering_discretization: 5
+steering_discretization: 3
 max_num_vehicles: 20
 randomize_goals: false
 scenario:
@@ -90,4 +90,4 @@ subscriber:
   n_frames_stacked: 1 # Agent memory
 
 # Path to folder with traffic scene(s) from which to create an environment
-data_path: ./data
+data_path: ../data
