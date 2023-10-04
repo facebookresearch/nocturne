@@ -32,12 +32,6 @@ repos:
   hooks:
   - id: flake8
     args: [--max-line-length=120, --extend-ignore=E203]
-- repo: https://github.com/PyCQA/pydocstyle
-  rev: 6.3.0
-  hooks:
-  - id: pydocstyle
-    args: [--convention=numpy]
-    additional_dependencies: [tomli]
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: v2.10.0
   hooks:
