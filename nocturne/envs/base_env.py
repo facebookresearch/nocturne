@@ -10,17 +10,18 @@ from collections import defaultdict, deque
 from enum import Enum
 from itertools import islice, product
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
+import yaml
 from box import Box as ConfigBox
 from gym import Env
 from gym.spaces import Box, Discrete
 
 from nocturne import Action, Simulation, Vector2D, Vehicle
 
-_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
+_NUM_TRIES_TO_FIND_VALID_VEHICLE = 10
 
 logging.getLogger(__name__)
 
@@ -75,12 +76,18 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         self.seed(self.config.seed)
 
         # Load the list of valid files
-        self.files, self.valid_veh_dict = _load_valid_files(self.config, sorted_=True)
+        with open(self.config.data_path / "valid_files.json", encoding="utf-8") as file:
+            self.valid_veh_dict = json.load(file)
+            files = sorted(list(self.valid_veh_dict.keys()))
+            if self.config.num_files != -1:
+                self.files = files[: self.config.num_files]
+        if len(self.files) == 0:
+            raise ValueError("Data path does not contain scenes.")
 
         obs_dict = self.reset()
 
         # Set observation space
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=obs_dict[list(obs_dict.keys())[0]].shape[0])
+        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dict[list(obs_dict.keys())[0]].shape[0],))
 
         # Set action space
         if self.config.discretize_actions:
@@ -275,8 +282,8 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
         for _ in range(_NUM_TRIES_TO_FIND_VALID_VEHICLE):
-            self.file = np.random.choice(self.files) if self.config.scene is None else self.config.scene
-            self.simulation = Simulation(self.config.data_path / self.file, config=self.config.scenario)
+            self.file = np.random.choice(self.files)
+            self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
             self.scenario = self.simulation.getScenario()
 
             #####################################################################
@@ -327,36 +334,29 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             ############################################
             #    Pick out the vehicles that we are controlling
             ############################################
-            # ensure that we have no more than max_num_vehicles are controlled
-            temp_vehicles = np.random.shuffle(self.scenario.getObjectsThatMoved())
+            # Ensure that no more than max_num_vehicles are controlled
+            temp_vehicles = np.random.permutation(self.scenario.getObjectsThatMoved())
             curr_index = 0
             self.controlled_vehicles = []
             for vehicle in temp_vehicles:
-                # this vehicle was invalid at the end of the 1 second context
-                # step so we need to remove it.
+                # This vehicle was invalid at the end of the 1 second context
+                # step so we need to remove it
                 if np.isclose(vehicle.position.x, self.config.scenario.invalid_position):
                     self.scenario.removeVehicle(vehicle)
-                # If vehicle ID is given, use that as controlled vehicle
-                elif self.config.vehicle is not None:
-                    if vehicle.id == self.config.vehicle:
-                        self.controlled_vehicles.append(vehicle)
-                    else:
-                        vehicle.expert_control = True
-                # we don't want to include vehicles that had unachievable goals
+                # We don't want to include vehicles that had unachievable goals
                 # as controlled vehicles
                 elif not vehicle.expert_control and curr_index < self.config.max_num_vehicles:
                     self.controlled_vehicles.append(vehicle)
                     curr_index += 1
                 else:
                     vehicle.expert_control = True
+
             self.all_vehicle_ids = [veh.getID() for veh in self.controlled_vehicles]
 
             # check that we have at least one vehicle or if we have just one file, exit anyways
             # or else we might be stuck in an infinite loop
             if len(self.all_vehicle_ids) > 0:
                 break
-            if len(self.files) == 1 or ("scene" in self.config and self.config.scene is not None):
-                raise ValueError(f"No controllable vehicle in scene {self.file}.")
         else:  # No break in for-loop, i.e., no valid vehicle found in any of the files.
             raise ValueError(f"No controllable vehicles in any of the {len(self.files)} scenes.")
 
@@ -511,7 +511,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         )
 
         self.idx_to_actions = {}
-        for i, (accel, steer) in product(self.accel_grid, self.steering_grid):
+        for i, (accel, steer) in enumerate(product(self.accel_grid, self.steering_grid)):
             self.idx_to_actions[i] = [accel, steer]
 
     def _set_continuous_action_space(self) -> None:
@@ -531,36 +531,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             ),
         )
         self.idx_to_actions = None
-
-
-def _load_valid_files(config: Dict[str, Any], *, sorted_: bool = True) -> Tuple[List[str], Dict[str, Dict[str, Any]]]:
-    """Load the list of valid files.
-
-    Args
-    ----
-        config (Dict[str, Any]): Configuration file for the environment.
-
-    Optional Args
-    -------------
-        sorted_ (bool): Whether to sort the files.
-
-    Returns
-    -------
-        Tuple[List[str]: List of valid files.
-        Dict[str, Dict[str, Any]]: Dictionary of valid vehicles.
-    """
-    with open(config.data_path / "valid_files.json", encoding="utf-8") as file:
-        valid_veh_dict = json.load(file)
-        files = list(valid_veh_dict.keys())
-
-        # sort the files so that we have a consistent order
-        if sorted_:
-            files = sorted_(files)
-
-    if config.num_files != -1:
-        files = files[: config.num_files]
-
-    return files, valid_veh_dict
 
 
 def _angle_sub(current_angle: float, target_angle: float) -> float:
@@ -614,7 +584,8 @@ def _apply_action_to_vehicle(
         accel, steer = idx_to_actions[action]
         veh_obj.acceleration = accel
         veh_obj.steering = steer
-    raise NotImplementedError(f"Action type '{type(action)}' not supported.")
+    else:
+        raise NotImplementedError(f"Action type '{type(action)}' not supported.")
 
 
 def _position_as_array(position: Vector2D) -> np.ndarray:
@@ -629,3 +600,12 @@ def _position_as_array(position: Vector2D) -> np.ndarray:
         np.ndarray: Position as an array.
     """
     return np.array([position.x, position.y])
+
+
+if __name__ == "__main__":
+    # Load environment settings
+    with open("./configs/env_config.yaml", "r") as stream:
+        env_config = yaml.safe_load(stream)
+
+    # Initialize environment
+    env = BaseEnv(config=env_config)

@@ -45,6 +45,7 @@ torch = "^2.0.1"
 gym = "^0.26.2"
 pybind11 = "^2.11.1"
 python-box = "^7.1.1"
+gymnasium = "^0.29.1"
 
 [tool.poetry.group.research.dependencies]
 ipykernel = "^6.25.2"
@@ -76,6 +77,7 @@ convention = "google"
 
 [tool.pylint]
 max-line-length = 120
+disable = "W1514"
 
 [tool.isort]
 profile = "black"
