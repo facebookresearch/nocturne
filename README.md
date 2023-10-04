@@ -34,7 +34,7 @@ env.close()
 ```
 
 ---
-> 🚀 **New here?** Get started with the intro [examples](https://github.com/Emerge-Lab/nocturne_lab/tree/feature/nocturne_fork_cleanup/examples)
+> 🚀 **New here?** Get started with the [intro examples](https://github.com/Emerge-Lab/nocturne_lab/tree/feature/nocturne_fork_cleanup/examples)
 ---
 
 ## Implemented algorithms
