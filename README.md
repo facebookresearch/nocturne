@@ -33,13 +33,16 @@ for _ in range(1000):
 env.close()
 ```
 
+---
+> 🚀 **New here?** Get started with the intro [examples](https://github.com/Emerge-Lab/nocturne_lab/tree/feature/nocturne_fork_cleanup/examples)
+---
 
 ## Implemented algorithms
 
 | Algorithm                              | Reference                                                  | Code  | Compatible with    | Notes                                                                                                                                                                  |
 | -------------------------------------- | ---------------------------------------------------------- | ----- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PPO with**single-agent** control | [Schulman et al., 2017](https://arxiv.org/pdf/1707.06347.pdf) | #TODO | Stable baselines 3 |                                                                                                                                                                        |
-| PPO with**multi-agent** control  | [Schulman et al., 2017](https://arxiv.org/pdf/1707.06347.pdf) | #TODO | Stable baselines 3 | SB3 doesn't support multi-agent environments. Using the `VecEnv`class to treat observations from multiple agents as a set of vectorized single-agent environments. |
+| PPO **single-agent** control | [Schulman et al., 2017](https://arxiv.org/pdf/1707.06347.pdf) | #TODO | Stable baselines 3 |                                                                                                                                                                        |
+| PPO **multi-agent** control  | [Schulman et al., 2017](https://arxiv.org/pdf/1707.06347.pdf) | #TODO | Stable baselines 3 | SB3 doesn't support multi-agent environments. Using the `VecEnv`class to treat observations from multiple agents as a set of vectorized single-agent environments. |
 |                                        |                                                            |       |                    |                                                                                                                                                                        |
 |                                        |                                                            |       |                    |                                                                                                                                                                        |
 
