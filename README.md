@@ -12,24 +12,34 @@ env = BaseEnv(config=env_config)
 
 # Reset
 obs_dict = env.reset()
-num_agents = len(env.controlled_agents)
 
-# Step through env
-for _ in range(1000):
+# Get info
+agent_ids = [agent_id for agent_id in obs_dict.keys()]
+dead_agent_ids = []
 
-    # Take action(s)
+for step in range(1000):
+
+    # Sample actions
     action_dict = {
-        agent_id: env.action_space.sample()
+        agent_id: env.action_space.sample() 
         for agent_id in agent_ids
         if agent_id not in dead_agent_ids
     }
-
-    # Step
+    
+    # Step in env
     obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
 
+    # Update dead agents
+    for agent_id, is_done in done_dict.items():
+        if is_done and agent_id not in dead_agent_ids:
+            dead_agent_ids.append(agent_id)
+
+    # Reset if all agents are done
     if done_dict["__all__"]:
         obs_dict = env.reset()
+        dead_agent_ids = []
 
+# Close environment
 env.close()
 ```
 
