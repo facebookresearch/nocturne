@@ -10,10 +10,6 @@ SINGULARITY_IMAGE=./hpc/nocturne.sif
 OVERLAY_LOC=/scratch/work/public/overlay-fs-ext3
 OVERLAY_FILE=./hpc/overlay-15GB-500K.ext3
 
-# Override WandB and pre-commit cache directories to avoid # files constraint issues
-WANDB_CACHE_DIR='${WANDB_CACHE_DIR}'
-PRE_COMMIT_CACHE = '${PRE_COMMIT_CACHE}'
-
 # Check if singularity image exists, if not pull Singularity image from Docker Hub
 if [ ! -f "${SINGULARITY_IMAGE}" ]; then
     echo "Pulling Docker container from ${PROJECT_DOCKER}"
