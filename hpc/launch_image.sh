@@ -8,7 +8,7 @@ PROJECT="Nocturne (lab version)"
 PROJECT_DOCKER=docker://daphnecor/nocturne
 SINGULARITY_IMAGE=./hpc/nocturne.sif
 OVERLAY_LOC=/scratch/work/public/overlay-fs-ext3
-OVERLAY_FILE=./hpc/overlay-15GB-500K.ext3
+OVERLAY_FILE=overlay-15GB-500K.ext3
 
 # Check if singularity image exists, if not pull Singularity image from Docker Hub
 if [ ! -f "${SINGULARITY_IMAGE}" ]; then
@@ -48,10 +48,10 @@ else  # Overlay Singularity image and overlay file exist
 
     # Welcome message
     echo "Run the following to activate the Python environment:"
-    echo "  (1) activate venv: 'source venv/bin/activate'"
+    echo "  (1) activate venv: 'source .venv/bin/activate'"
 
     # Launch singularity image in use mode
-    singularity exec --nv --overlay "${OVERLAY_FILE}:ro" \
+    singularity exec --nv --overlay "${OVERLAY_FILE}:rw" \
         "${SINGULARITY_IMAGE}" \
         /bin/bash
 

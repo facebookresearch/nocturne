@@ -11,8 +11,9 @@ git submodule update --init --recursive
 
 # Install Nocturne
 echo 'Installing Nocturne using poetry...'
+poetry build  # Note: Build first to see build outputs. If build gets stuck at 38%, increase RAM.
+rm setup.py
 poetry install --all-extras
-echo "Successfully installed Nocturne. Please relaunch the Singularity image by running: 'bash ./hpc/launch_image.sh'"
-
-# Exit Singularity image
-exit
+echo "Successfully installed Nocturne."
+echo "To use Nocturne, please close the current Singularity image by running \
+  'exit' and afterwards relaunch the image by running 'bash ./hpc/launch_image.sh'"
