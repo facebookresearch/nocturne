@@ -53,6 +53,7 @@ env.close()
 |                                        |                                                            |       |                    |                                                                                                                                                                        |
 
 ## Installation
+The instructions for installing Nocturne locally are provided below. To use the package on a HPC (e.g. HPC Greene), follow the instructions in [./hpc/hpc_setup.md](./hpc/hpc_setup.md).
 
 ### Requirements
 
