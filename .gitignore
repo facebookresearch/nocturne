@@ -44,3 +44,24 @@ dataset/
 
 # configs
 configs.json
+
+# pyenv
+.python-version
+
+# poetry
+poetry.lock
+
+# wandb
+wandb
+
+# Virtual env files
+.venv
+
+# HPC image files
+overlay-*
+nocturne.sif
+
+# Files used for package installation
+setup.py
+*.whl
+*.tar.gz
