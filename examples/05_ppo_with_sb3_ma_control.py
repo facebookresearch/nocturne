@@ -15,6 +15,9 @@ from utils.sb3_vec_env import MultiAgentAsVecEnv
 # Custom callback
 from utils.callbacks import CustomMultiAgentCallback
 
+# Custom PPO class that supports masking
+from algorithms.custom_ppo import CustomPPO
+
 logging.basicConfig(level=logging.INFO)
 
 if __name__ == "__main__":
@@ -53,10 +56,21 @@ if __name__ == "__main__":
         exp_config=exp_config,
     )
 
-    # Use default PPO class
-    model = PPO(
-        #n_steps=exp_config.ppo.n_steps, # Number of rollout steps
-        #batch_size=exp_config.ppo.batch_size,
+    # # Use default PPO class
+    # model = PPO(
+    #     #n_steps=exp_config.ppo.n_steps, # Number of rollout steps
+    #     #batch_size=exp_config.ppo.batch_size,
+    #     policy=exp_config.ppo.policy,
+    #     env=env,
+    #     seed=exp_config.seed,
+    #     tensorboard_log=f"runs/{run_id}" if run_id is not None else None,
+    #     verbose=1,
+    # )
+
+    # Use custom PPO class
+    model = CustomPPO(
+        # n_steps=exp_config.ppo.n_steps, # Number of rollout steps
+        # batch_size=exp_config.ppo.batch_size, # Batch size to use for updating the model
         policy=exp_config.ppo.policy,
         env=env,
         seed=exp_config.seed,
