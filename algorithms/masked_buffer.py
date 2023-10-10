@@ -65,6 +65,12 @@ class MaskedRolloutBuffer(RolloutBuffer):
         # in David Silver Lecture 4: https://www.youtube.com/watch?v=PnHCvfgC_ZA
         self.returns = self.advantages + self.values
 
+        # EDIT_2 (TMP): Save all values, rewards, and advantages for unit testing
+        # np.save('advantages.npy', self.advantages)
+        # np.save('rewards.npy', self.rewards)
+        # np.save('values.npy', self.values)
+        # np.save('episode_starts.npy', self.episode_starts)
+
     def get(
         self, batch_size: Optional[int] = None
     ) -> Generator[RolloutBufferSamples, None, None]:
