@@ -2,7 +2,7 @@ import logging
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Any, Dict, List
-import copy
+
 import gymnasium as gym
 import numpy as np
 import torch
@@ -67,7 +67,6 @@ class MultiAgentAsVecEnv(VecEnv):
         self.agent_ids = []
         self.rewards = []
         self.dead_agent_ids = []
-        self.ALREADY_DONE = False
         obs_all = np.zeros((self.num_envs, self.env.observation_space.shape[0]))
         for idx, agent_id in enumerate(obs_dict.keys()):
             self.agent_ids.append(agent_id)
@@ -120,7 +119,6 @@ class MultiAgentAsVecEnv(VecEnv):
                 done_all[idx] = done_dict[key] * 1
 
         # Store
-        #NOTE: TEMPORARY - ONLY WORKS IN SINGLE AGENT CASE
         self.rewards.append(sum(rew_dict.values()))
         for env_idx in range(self.num_envs):
             self.buf_rews[env_idx] = rew_all[env_idx]
@@ -130,30 +128,24 @@ class MultiAgentAsVecEnv(VecEnv):
         # O(t) = O(t+1)
         self._save_obs(obs_all)
 
-        # TEMP: for dead agents
-        if done_dict["__all__"] and not self.ALREADY_DONE:
-            self.last_step_alive = copy.deepcopy(self.step_num)
-            self.last_info_dict = info_dict.copy()
-            self.ALREADY_DONE = True
-                    
         # If all agents are done or we reached the end of the episode,
         # store last observation and reset
         # NOTE: TMP EDIT TO TEST MASKING - RESET ONLY AT EPISODE END
-        if self.step_num == 80:
+        if done_dict["__all__"]:
+        # if self.step_num == 80:
             for agent_id in self.agent_ids:
-                self.collided.append(self.last_info_dict[agent_id]["collided"])
-                self.goal_achieved.append(self.last_info_dict[agent_id]["goal_achieved"])
+                self.collided.append(info_dict[agent_id]["collided"])
+                self.goal_achieved.append(info_dict[agent_id]["goal_achieved"])
 
             # Save final observation where user can get it, then reset
             for env_idx in range(self.num_envs):
                 self.buf_infos[env_idx]["terminal_observation"] = obs_all[env_idx]
-            
             ep_rew = sum(self.rewards)
             ep_len = len(self.rewards)
             self.n_episodes += 1
 
-            logging.debug(
-                f"Episode done at step: {self.env.step_num} | ep_rew = {ep_rew:.2f} | ep_len = {ep_len} | ids: {self.dead_agent_ids}"
+            logging.info(
+                f"Episode done at step: {self.step_num} | ep_rew = {ep_rew:.2f} | ep_len = {ep_len} | ids: {self.dead_agent_ids}"
             )
 
             # Reset environment

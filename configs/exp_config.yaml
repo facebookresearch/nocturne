@@ -1,7 +1,7 @@
 project: multi_agent_rl_sb3
 env_id: "Nocturne"
 seed: 42
-track_wandb: True
+track_wandb: False
 wandb_init_videos: ["expert"]
 
 wandb:
@@ -13,7 +13,7 @@ custom_callback:
   save_model: False
   model_save_freq: 200_000
   save_video: False
-  video_save_freq: 50 # Make a video every k iterations (one iter is 4096 steps)
+  video_save_freq: 50 # Make a video every k iterations (one iter is x steps)
   video_deterministic: False
   calculate_human_likeness: False
   metrics_deterministic: False
@@ -21,8 +21,6 @@ custom_callback:
 
 ppo:
   policy: "MlpPolicy"
-  n_steps: 4096
-  batch_size: 4096
 
 learn:
   total_timesteps: 500_000

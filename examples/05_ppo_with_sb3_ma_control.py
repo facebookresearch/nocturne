@@ -10,7 +10,7 @@ from utils.config import load_config
 from utils.string_utils import datetime_to_str
 
 # Multi-agent as vectorized environment
-from utils.sb3_vec_env import MultiAgentAsVecEnv
+from utils.sb3_vec_env_SA_w_dead_agents import MultiAgentAsVecEnv
 
 # Custom callback
 from utils.callbacks import CustomMultiAgentCallback
@@ -24,6 +24,8 @@ if __name__ == "__main__":
 
     # Load environment and experiment configurations
     env_config = load_config("env_config")
+
+    # Ensure we're only controlling one agent
     env_config.max_num_vehicles = 1
     exp_config = load_config("exp_config")
 
@@ -35,7 +37,7 @@ if __name__ == "__main__":
     if exp_config.track_wandb:
         # Set up run
         run_id = datetime_to_str(dt=datetime.now())
-        run_id = f"nocturne_{run_id}_s{exp_config.seed}"
+        run_id = f"{run_id}_s{exp_config.seed}"
         run = wandb.init(
             project=exp_config.project,
             name=run_id,
@@ -50,16 +52,15 @@ if __name__ == "__main__":
     # Set device
     exp_config.ppo.device = device
 
+    # Initialize custom callback  
     custom_callback = CustomMultiAgentCallback(
         max_agents=env_config.max_num_vehicles,
         env_config=env_config,
         exp_config=exp_config,
     )
 
-    # # Use default PPO class
+    # # Use default PPO class (only works with a single agent)
     # model = PPO(
-    #     #n_steps=exp_config.ppo.n_steps, # Number of rollout steps
-    #     #batch_size=exp_config.ppo.batch_size,
     #     policy=exp_config.ppo.policy,
     #     env=env,
     #     seed=exp_config.seed,
@@ -69,11 +70,10 @@ if __name__ == "__main__":
 
     # Use custom PPO class
     model = CustomPPO(
-        # n_steps=exp_config.ppo.n_steps, # Number of rollout steps
-        # batch_size=exp_config.ppo.batch_size, # Batch size to use for updating the model
+        n_steps=3500, # Compensate for the decrease in number of samples per rollout
         policy=exp_config.ppo.policy,
         env=env,
-        seed=exp_config.seed,
+        seed=exp_config.seed, # Seed for the pseudo random generators
         tensorboard_log=f"runs/{run_id}" if run_id is not None else None,
         verbose=1,
     )
