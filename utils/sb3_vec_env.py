@@ -66,6 +66,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.agent_ids = []
         self.rewards = []
         self.dead_agent_ids = []
+        
         obs_all = np.full(fill_value=np.nan, shape=(self.num_envs, self.env.observation_space.shape[0]))
         for idx, agent_id in enumerate(obs_dict.keys()):
             self.agent_ids.append(agent_id)
@@ -74,11 +75,7 @@ class MultiAgentAsVecEnv(VecEnv):
         # Save obs in buffer
         self._save_obs(obs_all)
 
-        # Make agent mapping
-        self.agent_mapping = {
-            agent_id: agent_idx for agent_idx, agent_id in enumerate(self.agent_ids)
-        }
-        # Dict for storing the last infos of each agent
+        # Make dict for storing the last info set for each agent
         self.last_info_dicts = {agent_id: {} for agent_id in self.agent_ids}
 
         return self._obs_from_buf()
@@ -112,7 +109,7 @@ class MultiAgentAsVecEnv(VecEnv):
         info_all = []
 
         for idx, key in enumerate(self.agent_ids):
-            info_all.append(info_dict[key])
+            
             # Store data if available; otherwise leave as NaN
             if key in next_obses_dict:
                 obs_all[idx, :] = next_obses_dict[key]
@@ -121,6 +118,7 @@ class MultiAgentAsVecEnv(VecEnv):
         
         # Store in buffer
         for env_idx in range(len(self.agent_ids)):
+            info_all.append(info_dict[key])
             self.buf_rews[env_idx] = rew_all[env_idx]
             self.buf_dones[env_idx] = done_all[env_idx]
             self.buf_infos[env_idx] = info_all[env_idx]
@@ -139,7 +137,7 @@ class MultiAgentAsVecEnv(VecEnv):
                 self.goal_achieved += self.last_info_dicts[agent_id]["goal_achieved"] * 1
 
             # Save final observation where user can get it, then reset
-            for env_idx in range(self.num_envs):
+            for env_idx in range(len(self.agent_ids)):
                 self.buf_infos[env_idx]["terminal_observation"] = obs_all[env_idx]
             
             # Log episode stats

@@ -16,7 +16,6 @@ class CustomMultiAgentCallback(BaseCallback):
 
     def __init__(
         self,
-        max_agents,
         env_config,
         exp_config,
         video_config=None,
@@ -28,7 +27,6 @@ class CustomMultiAgentCallback(BaseCallback):
         self.env_config = env_config
         self.exp_config = exp_config
         self.video_config = video_config
-        self.max_agents = max_agents
         self.save_video_callbacks = (
             [] if save_video_callbacks is None else save_video_callbacks
         )
@@ -73,13 +71,17 @@ class CustomMultiAgentCallback(BaseCallback):
         # Get rewards, filter out NaNs
         rewards = np.nan_to_num(self.locals["rollout_buffer"].rewards, nan=0)
 
+        # Get number of agents in scene 
+        #TODO: Only works when every scene has the same number of agents
+        num_agents_in_scene = len(self.locals["env"].agent_ids)
+
         # Obtain the average reward obtained per episode across agents
         avg_rewards = rewards.sum() / self.n_episodes
 
         # Compute average reward obtained per agent, per episode
         if self.exp_config.custom_callback.log_indiv_rewards:
-            indiv_rewards_sum = rewards.sum(axis=0)[: self.max_agents]
-            for agent_idx in range(self.max_agents):
+            indiv_rewards_sum = rewards.sum(axis=0)[:num_agents_in_scene]
+            for agent_idx in range(num_agents_in_scene):
                 self.logger.record(
                     f"rollout/ep_rew_mean_agent_{agent_idx}",
                     indiv_rewards_sum[agent_idx] / self.n_episodes
@@ -89,9 +91,8 @@ class CustomMultiAgentCallback(BaseCallback):
         batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
 
         # Get fraction of agents collided & goal achieved per episode
-        # TODO:CHECK LOGIC
-        frac_collided = (self.locals["env"].collided / self.max_agents) / self.n_episodes
-        frac_goal_achieved = (self.locals["env"].goal_achieved / self.max_agents) / self.n_episodes
+        frac_collided = (self.locals["env"].collided / num_agents_in_scene) / self.n_episodes
+        frac_goal_achieved = (self.locals["env"].goal_achieved / num_agents_in_scene) / self.n_episodes
 
         # Log
         self.logger.record("rollout/ep_rew_mean", avg_rewards)
