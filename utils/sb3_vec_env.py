@@ -44,8 +44,8 @@ class MultiAgentAsVecEnv(VecEnv):
                 for k in self.keys
             ]
         )
-        self.buf_dones = np.zeros((self.num_envs,))
-        self.buf_rews = np.zeros((self.num_envs,))
+        self.buf_dones = np.full(fill_value=np.nan, shape=(self.num_envs,))
+        self.buf_rews = np.full(fill_value=np.nan, shape=(self.num_envs,))
         self.buf_infos: List[Dict[str, Any]] = [{} for _ in range(self.num_envs)]
         self.n_episodes = 0
         self.episode_lengths = []
@@ -102,7 +102,7 @@ class MultiAgentAsVecEnv(VecEnv):
                 # Store agents' last info dict
                 self.last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
-        # Storage
+        # Convert dicts to arrays
         obs_all = np.full(
             fill_value=np.nan,
             shape=(self.num_envs, self.env.observation_space.shape[0]),
@@ -117,16 +117,16 @@ class MultiAgentAsVecEnv(VecEnv):
             if key in next_obses_dict:
                 obs_all[idx, :] = next_obses_dict[key]
                 rew_all[idx] = rew_dict[key]
-                done_all[idx] = done_dict[key] * 1
-            
-        # Save step reward obtained across all agents
-        self.rewards.append(sum(rew_dict.values()))
+                done_all[idx] = done_dict[key] * 1 # Will be 0 or 1 if valid, NaN otherwise
         
-        # Store everything in buffer
+        # Store in buffer
         for env_idx in range(len(self.agent_ids)):
             self.buf_rews[env_idx] = rew_all[env_idx]
             self.buf_dones[env_idx] = done_all[env_idx]
             self.buf_infos[env_idx] = info_all[env_idx]
+
+        # Save step reward obtained across all agents
+        self.rewards.append(sum(rew_dict.values()))
 
         # O(t) = O(t+1)
         self._save_obs(obs_all)
@@ -151,7 +151,6 @@ class MultiAgentAsVecEnv(VecEnv):
             logging.debug(
                 f"Episode done at step: {self.env.step_num} | ep_rew = {ep_rew:.2f} | ep_len = {ep_len} | ids: {self.dead_agent_ids}"
             )
-
             # Reset 
             obs_all = self.reset()
 
@@ -207,17 +206,15 @@ class MultiAgentAsVecEnv(VecEnv):
     def step_wait(self) -> VecEnvStepReturn:
         raise NotImplementedError()
 
-    def get_images(self):
-        raise NotImplementedError()
-
 
 if __name__ == "__main__":
         
-    MAX_AGENTS = 3
-    NUM_STEPS = 400
+    MAX_AGENTS = 2
+    NUM_STEPS = 500
 
     # Load environment variables and config
     env_config = load_config("env_config")
+
     # Set the number of max vehicles
     env_config.max_num_vehicles = MAX_AGENTS
 
