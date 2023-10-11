@@ -34,7 +34,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.observation_space = gym.spaces.Box(
             -np.inf, np.inf, self.env.observation_space.shape, np.float32
         )
-        self.num_envs = num_envs  # The number of agents
+        self.num_envs = num_envs  # The maximum number of agents
         self.keys, shapes, dtypes = obs_space_info(self.env.observation_space)
 
         # Storage
@@ -66,7 +66,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.agent_ids = []
         self.rewards = []
         self.dead_agent_ids = []
-        obs_all = np.zeros((self.num_envs, self.env.observation_space.shape[0]))
+        obs_all = np.full(fill_value=np.nan, shape=(self.num_envs, self.env.observation_space.shape[0]))
         for idx, agent_id in enumerate(obs_dict.keys()):
             self.agent_ids.append(agent_id)
             obs_all[idx, :] = obs_dict[agent_id]
@@ -123,7 +123,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.rewards.append(sum(rew_dict.values()))
         
         # Store everything in buffer
-        for env_idx in range(self.num_envs):
+        for env_idx in range(len(self.agent_ids)):
             self.buf_rews[env_idx] = rew_all[env_idx]
             self.buf_dones[env_idx] = done_all[env_idx]
             self.buf_infos[env_idx] = info_all[env_idx]
@@ -212,14 +212,13 @@ class MultiAgentAsVecEnv(VecEnv):
 
 
 if __name__ == "__main__":
-    # NOTE: Currently only supports settings where MAX_AGENTS == number of agents in the scene
-    MAX_AGENTS = 2
+        
+    MAX_AGENTS = 3
     NUM_STEPS = 400
 
     # Load environment variables and config
     env_config = load_config("env_config")
-
-    # Ensure we only have a single agent
+    # Set the number of max vehicles
     env_config.max_num_vehicles = MAX_AGENTS
 
     # Make environment
