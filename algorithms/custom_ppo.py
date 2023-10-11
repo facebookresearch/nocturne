@@ -16,7 +16,6 @@ from algorithms.masked_buffer import MaskedRolloutBuffer
 
 logging.getLogger(__name__)
 
-
 class CustomPPO(PPO):
     """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments.
     """
@@ -71,23 +70,19 @@ class CustomPPO(PPO):
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
 
-                # EDIT_1: Check if there is at least one dead agent, if so, mask out observations
-                if env.dead_agent_ids:
-                    # Create dummy actions, values and log_probs (NaN)
-                    actions = torch.full(fill_value=np.nan, size=(self.n_envs,))
-                    log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,))
-                    values = torch.full(
-                        fill_value=np.nan, size=(self.n_envs,)
-                    ).unsqueeze(dim=1)
-                
-                    for idx, agent_id in enumerate(env.agent_ids):
-                        if agent_id not in env.dead_agent_ids:
-                            # Sample actions from policy if agent is alive
-                            obs_tensor_agent_id = obs_tensor[idx, :].unsqueeze(dim=0) 
-                            actions[idx], values[idx], log_probs[idx] = self.policy(obs_tensor_agent_id)
-                else:
-                    # Sample actions from policy
-                    actions, values, log_probs = self.policy(obs_tensor)
+                # EDIT_1: Mask out invalid observations (NaN dimensions and/or dead agents)
+                # Create dummy actions, values and log_probs (NaN)
+                actions = torch.full(fill_value=np.nan, size=(self.n_envs,))
+                log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,))
+                values = torch.full(
+                    fill_value=np.nan, size=(self.n_envs,)
+                ).unsqueeze(dim=1)
+            
+                for idx, agent_id in enumerate(env.agent_ids):
+                    if agent_id not in env.dead_agent_ids:
+                        # Sample actions from policy if agent is alive
+                        obs_tensor_agent_id = obs_tensor[idx, :].unsqueeze(dim=0) 
+                        actions[idx], values[idx], log_probs[idx] = self.policy(obs_tensor_agent_id)
 
             actions = actions.cpu().numpy()
 
