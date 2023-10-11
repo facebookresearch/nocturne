@@ -18,14 +18,7 @@ logging.getLogger(__name__)
 
 
 class CustomPPO(PPO):
-    """Regularized Proximal Policy Optimization algorithm (PPO) (clip version).
-
-    Changes wrt standard SB3 PPO Class:
-    @ _setup_model
-        - buffer_cls is MaskedRolloutBuffer (edit 09/26) --> verified
-            see: https://tinyurl.com/sb3buffer
-    @ collect_rollouts
-        - ...
+    """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments.
     """
 
     def _setup_model(self) -> None:
@@ -78,18 +71,22 @@ class CustomPPO(PPO):
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
 
-                # EDIT_1: Check if there is a dead agent
-                # NOTE: This only works when there is a single agent
-                # if torch.isnan(obs_tensor).any():
+                # EDIT_1: Check if there is at least one dead agent, if so, mask out observations
                 if env.dead_agent_ids:
-                    # Create dummy actions, values and log_probs (NaNs)
+                    # Create dummy actions, values and log_probs (NaN)
                     actions = torch.full(fill_value=np.nan, size=(self.n_envs,))
                     log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,))
                     values = torch.full(
                         fill_value=np.nan, size=(self.n_envs,)
                     ).unsqueeze(dim=1)
-
+                
+                    for idx, agent_id in enumerate(env.agent_ids):
+                        if agent_id not in env.dead_agent_ids:
+                            # Sample actions from policy if agent is alive
+                            obs_tensor_agent_id = obs_tensor[idx, :].unsqueeze(dim=0) 
+                            actions[idx], values[idx], log_probs[idx] = self.policy(obs_tensor_agent_id)
                 else:
+                    # Sample actions from policy
                     actions, values, log_probs = self.policy(obs_tensor)
 
             actions = actions.cpu().numpy()
@@ -111,7 +108,7 @@ class CustomPPO(PPO):
 
             new_obs, rewards, dones, infos = env.step(clipped_actions)
 
-            # EDIT_2: Increment the global step by the number of valid samples in step
+            # EDIT_2: Increment the global step by the number of valid samples in rollout step
             samples_in_timestep = env.num_envs - np.isnan(dones).sum()
             self.num_timesteps += samples_in_timestep
 
@@ -157,7 +154,6 @@ class CustomPPO(PPO):
             # Compute value for the last timestep
             values = self.policy.predict_values(obs_as_tensor(new_obs, self.device))  # type: ignore[arg-type]
 
-        # EDIT_3 Perform GAE while masking out invalid samples
         rollout_buffer.compute_returns_and_advantage(last_values=values, dones=dones)
 
         callback.update_locals(locals())

@@ -10,7 +10,7 @@ from utils.config import load_config
 from utils.string_utils import datetime_to_str
 
 # Multi-agent as vectorized environment
-from utils.sb3_vec_env_SA_w_dead_agents import MultiAgentAsVecEnv
+from utils.sb3_vec_env import MultiAgentAsVecEnv
 
 # Custom callback
 from utils.callbacks import CustomMultiAgentCallback
@@ -24,10 +24,10 @@ if __name__ == "__main__":
 
     # Load environment and experiment configurations
     env_config = load_config("env_config")
-
-    # Ensure we're only controlling one agent
-    env_config.max_num_vehicles = 1
     exp_config = load_config("exp_config")
+
+    # Set the number of agents to control
+    env_config.max_num_vehicles = 2
 
     logging.info(f"number of agents == envs == {env_config.max_num_vehicles}")
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     if exp_config.track_wandb:
         # Set up run
         run_id = datetime_to_str(dt=datetime.now())
-        run_id = f"{run_id}_s{exp_config.seed}"
+        run_id = f"MA_{run_id}_s{exp_config.seed}"
         run = wandb.init(
             project=exp_config.project,
             name=run_id,
@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     # Use custom PPO class
     model = CustomPPO(
-        n_steps=3500, # Compensate for the decrease in number of samples per rollout
+        n_steps=2048, #3500, # Compensate for the decrease in number of samples per rollout
         policy=exp_config.ppo.policy,
         env=env,
         seed=exp_config.seed, # Seed for the pseudo random generators

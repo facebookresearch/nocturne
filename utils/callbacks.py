@@ -68,7 +68,7 @@ class CustomMultiAgentCallback(BaseCallback):
         self.iteration += 1
 
         # Compute average episode length across all agents
-        avg_ep_len = self.locals["n_steps"] / self.n_episodes
+        avg_ep_len = np.mean(self.locals["env"].episode_lengths)
 
         # Get rewards, filter out NaNs
         rewards = np.nan_to_num(self.locals["rollout_buffer"].rewards, nan=0)
@@ -88,9 +88,10 @@ class CustomMultiAgentCallback(BaseCallback):
         # Get batch size
         batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
 
-        # Get fraction of agents collided & goal achieved (NOTE:SINGLE_AGENT)
-        frac_collided = sum(self.locals["env"].collided) / self.n_episodes
-        frac_goal_achieved = sum(self.locals["env"].goal_achieved) / self.n_episodes
+        # Get fraction of agents collided & goal achieved per episode
+        # TODO:CHECK LOGIC
+        frac_collided = (self.locals["env"].collided / self.max_agents) / self.n_episodes
+        frac_goal_achieved = (self.locals["env"].goal_achieved / self.max_agents) / self.n_episodes
 
         # Log
         self.logger.record("rollout/ep_rew_mean", avg_rewards)
@@ -119,9 +120,10 @@ class CustomMultiAgentCallback(BaseCallback):
                 )
 
         #NOTE: RESET COLLIDED AND GOAL ACHIEVED (tmp solution, this doesn't belong in the callback)
-        self.locals["env"].collided = []
-        self.locals["env"].goal_achieved = []
+        self.locals["env"].collided = 0
+        self.locals["env"].goal_achieved = 0
         self.locals["env"].n_episodes = 0
+        self.locals["env"].episode_lengths = []
 
     def _on_training_end(self) -> None:
         """

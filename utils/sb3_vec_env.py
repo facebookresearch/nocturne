@@ -22,12 +22,8 @@ from utils.config import load_config
 
 logging.basicConfig(level=logging.INFO)
 
-
 class MultiAgentAsVecEnv(VecEnv):
-    """
-    NOTE: CURRENTLY SUPPORTS ONLY A SINGLE AGENT
-    Wrapper that treats an environment with multiple agents as vectorized environment.
-    """
+    """Wrapper casts multi-agent environments as vectorized environments."""
 
     def __init__(self, config, num_envs):
         # Create Nocturne env
@@ -51,23 +47,25 @@ class MultiAgentAsVecEnv(VecEnv):
         self.buf_dones = np.zeros((self.num_envs,))
         self.buf_rews = np.zeros((self.num_envs,))
         self.buf_infos: List[Dict[str, Any]] = [{} for _ in range(self.num_envs)]
-        self.metadata = self.env.metadata
         self.n_episodes = 0
+        self.episode_lengths = []
         self.rewards = []         # Log reward per step 
         self.dead_agent_ids = []  # Log dead agents per step
-        self.collided = [] # Log if agent collided at episode end
-        self.goal_achieved = [] # Log if agent achieved goal at episode end
+        self.collided = 0         # Log if agent collided at episode end
+        self.goal_achieved = 0    # Log if agent achieved goal at episode end
 
     def _reset_seeds(self) -> None:
         self._seeds = None
 
     def reset(self, seed=None):
+        """Reset environment and return initial observations."""
         # Reset Nocturne env
         obs_dict = self.env.reset()
+
+        # Reset storage
         self.agent_ids = []
         self.rewards = []
         self.dead_agent_ids = []
-        self.ALREADY_DONE = False
         obs_all = np.zeros((self.num_envs, self.env.observation_space.shape[0]))
         for idx, agent_id in enumerate(obs_dict.keys()):
             self.agent_ids.append(agent_id)
@@ -75,15 +73,15 @@ class MultiAgentAsVecEnv(VecEnv):
 
         # Save obs in buffer
         self._save_obs(obs_all)
-        # Seeds are only used once
-        # self._reset_seeds()
+
+        # Make agent mapping
         self.agent_mapping = {
             agent_id: agent_idx for agent_idx, agent_id in enumerate(self.agent_ids)
         }
-        return self._obs_from_buf()
+        # Dict for storing the last infos of each agent
+        self.last_info_dicts = {agent_id: {} for agent_id in self.agent_ids}
 
-    def close(self) -> None:
-        self.env.close()
+        return self._obs_from_buf()
 
     def step(self, actions) -> VecEnvStepReturn:
         """Convert action vector to dict and call env.step()."""
@@ -94,13 +92,15 @@ class MultiAgentAsVecEnv(VecEnv):
             if agent_id not in self.dead_agent_ids
         }
 
-        # Take a step in the env to obtain obs dict
+        # Take a step to obtain dicts
         next_obses_dict, rew_dict, done_dict, info_dict = self.env.step(agent_actions)
 
-        # Update dead agents
+        # Update dead agents based on most recent done_dict
         for agent_id, is_done in done_dict.items():
             if is_done and agent_id not in self.dead_agent_ids:
                 self.dead_agent_ids.append(agent_id)
+                # Store agents' last info dict
+                self.last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
         # Storage
         obs_all = np.full(
@@ -113,15 +113,16 @@ class MultiAgentAsVecEnv(VecEnv):
 
         for idx, key in enumerate(self.agent_ids):
             info_all.append(info_dict[key])
-            # If agent is still active store data
+            # Store data if available; otherwise leave as NaN
             if key in next_obses_dict:
                 obs_all[idx, :] = next_obses_dict[key]
                 rew_all[idx] = rew_dict[key]
                 done_all[idx] = done_dict[key] * 1
-
-        # Store
-        #NOTE: TEMPORARY - ONLY WORKS IN SINGLE AGENT CASE
+            
+        # Save step reward obtained across all agents
         self.rewards.append(sum(rew_dict.values()))
+        
+        # Store everything in buffer
         for env_idx in range(self.num_envs):
             self.buf_rews[env_idx] = rew_all[env_idx]
             self.buf_dones[env_idx] = done_all[env_idx]
@@ -130,33 +131,28 @@ class MultiAgentAsVecEnv(VecEnv):
         # O(t) = O(t+1)
         self._save_obs(obs_all)
 
-        # TEMP: for dead agents
-        if done_dict["__all__"] and not self.ALREADY_DONE:
-            self.last_step_alive = copy.deepcopy(self.step_num)
-            self.last_info_dict = info_dict.copy()
-            self.ALREADY_DONE = True
-                    
-        # If all agents are done or we reached the end of the episode,
-        # store last observation and reset
-        # NOTE: TMP EDIT TO TEST MASKING - RESET ONLY AT EPISODE END
-        if self.step_num == 80:
+        # Reset episode if ALL agents are done
+        if done_dict["__all__"]:
             for agent_id in self.agent_ids:
-                self.collided.append(self.last_info_dict[agent_id]["collided"])
-                self.goal_achieved.append(self.last_info_dict[agent_id]["goal_achieved"])
+                # Store total number of collisions and goal achievements across rollout
+                self.collided += self.last_info_dicts[agent_id]["collided"] * 1
+                self.goal_achieved += self.last_info_dicts[agent_id]["goal_achieved"] * 1
 
             # Save final observation where user can get it, then reset
             for env_idx in range(self.num_envs):
                 self.buf_infos[env_idx]["terminal_observation"] = obs_all[env_idx]
             
+            # Log episode stats
             ep_rew = sum(self.rewards)
-            ep_len = len(self.rewards)
+            ep_len = self.step_num
             self.n_episodes += 1
+            self.episode_lengths.append(ep_len)
 
             logging.debug(
                 f"Episode done at step: {self.env.step_num} | ep_rew = {ep_rew:.2f} | ep_len = {ep_len} | ids: {self.dead_agent_ids}"
             )
 
-            # Reset environment
+            # Reset 
             obs_all = self.reset()
 
         return (
@@ -164,7 +160,10 @@ class MultiAgentAsVecEnv(VecEnv):
             np.copy(self.buf_rews),
             np.copy(self.buf_dones),
             deepcopy(self.buf_infos),
-        )
+        )   
+    
+    def close(self) -> None:
+        self.env.close()
 
     @property
     def step_num(self) -> List[int]:
@@ -214,8 +213,8 @@ class MultiAgentAsVecEnv(VecEnv):
 
 if __name__ == "__main__":
     # NOTE: Currently only supports settings where MAX_AGENTS == number of agents in the scene
-    MAX_AGENTS = 1
-    NUM_STEPS = 1000
+    MAX_AGENTS = 2
+    NUM_STEPS = 400
 
     # Load environment variables and config
     env_config = load_config("env_config")
@@ -235,6 +234,6 @@ if __name__ == "__main__":
         obs, rew, done, info = env.step(actions)
 
         # Log
-        logging.debug(
-            f"step_num: {env.step_num} | done: {done} | cum_rew: {sum(env.rewards):.3f}"
+        logging.info(
+            f"step_num: {env.step_num} | done: {done} | total_rew: {sum(env.rewards):.3f}"
         )

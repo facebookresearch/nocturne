@@ -11,21 +11,13 @@ logging.getLogger(__name__)
 
 
 class MaskedRolloutBuffer(RolloutBuffer):
-    """Custom SB3 RolloutBuffer class.
-
-    Changes wrt standard SB3 RolloutBuffer class:
-    @ compute_returns_and_advantage()
-        - Map NaNs in dones to 1s
-        - Map NaNs in rewards, values and next_values to 0s
-
-    @ get()
-        -
-    """
+    """Custom SB3 RolloutBuffer class that filters out invalid samples."""
 
     def compute_returns_and_advantage(
         self, last_values: torch.Tensor, dones: np.ndarray
     ) -> None:
-        """TBD."""
+        """GAE (General Advantage Estimation) to compute advantages and returns."""
+        
         # Convert to numpy
         last_values = last_values.clone().cpu().numpy().flatten()
 
@@ -65,12 +57,6 @@ class MaskedRolloutBuffer(RolloutBuffer):
         # in David Silver Lecture 4: https://www.youtube.com/watch?v=PnHCvfgC_ZA
         self.returns = self.advantages + self.values
 
-        # EDIT_2 (TMP): Save all values, rewards, and advantages for unit testing
-        # np.save('advantages.npy', self.advantages)
-        # np.save('rewards.npy', self.rewards)
-        # np.save('values.npy', self.values)
-        # np.save('episode_starts.npy', self.episode_starts)
-
     def get(
         self, batch_size: Optional[int] = None
     ) -> Generator[RolloutBufferSamples, None, None]:
@@ -109,7 +95,7 @@ class MaskedRolloutBuffer(RolloutBuffer):
 
             self.generator_ready = True
 
-        # EDIT_6 Compute total number of samples
+        # EDIT_6 Compute total number of samples and create indices
         total_num_samples = self.valid_samples_mask.sum()
         indices = np.random.permutation(total_num_samples)
 
