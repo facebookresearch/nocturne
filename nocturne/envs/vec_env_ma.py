@@ -17,6 +17,7 @@ from stable_baselines3.common.vec_env.util import (
     dict_to_obs,
     obs_space_info,
 )
+
 from nocturne.envs.base_env import BaseEnv
 from utils.config import load_config
 

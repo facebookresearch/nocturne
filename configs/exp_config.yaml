@@ -3,7 +3,7 @@ env_id: Nocturne
 seed: 41
 track_wandb: true
 wandb_init_videos: []
-where_am_i: "local" # Change to "cluster" when you're on the HPC 
+where_am_i: local   # Change to "cluster" when you're on the HPC
 
 wandb:
   sync_tensorboard: true

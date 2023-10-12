@@ -1,4 +1,3 @@
-
 """Render functions to create a video of a traffic scene."""
 
 from typing import Optional, Tuple, Union
@@ -7,17 +6,16 @@ import numpy as np
 import pandas as pd
 import torch
 from box import Box
-from nocturne import Action
 from pyvirtualdisplay import Display
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 
 import wandb
+from nocturne import Action
 from nocturne.envs.base_env import BaseEnv
 
 
 def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
-    """Discretize actions.
-    """
+    """Discretize actions."""
     acceleration_actions = np.linspace(
         start=env_config.accel_lower_bound,
         stop=env_config.accel_upper_bound,
@@ -37,6 +35,7 @@ def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
     action_idx = acceleration_idx * env_config.steering_discretization + steering_idx
 
     return action, action_idx
+
 
 def save_nocturne_video(
     env_config: Box,
@@ -70,11 +69,7 @@ def save_nocturne_video(
     """
 
     total_steps = exp_config.learn.total_timesteps
-    video_name = (
-        model
-        if isinstance(model, str)
-        else f"Steps {str(n_steps).rjust(len(str(total_steps)), ' ')}"
-    )
+    video_name = model if isinstance(model, str) else f"Steps {str(n_steps).rjust(len(str(total_steps)), ' ')}"
 
     # If non-deterministic, ensure that the environment is not seeded
     if not deterministic:
@@ -86,7 +81,7 @@ def save_nocturne_video(
     next_done_dict = {agent_id: False for agent_id in next_obs_dict}
 
     frames = []
-    
+
     action_df = pd.DataFrame()
     for timestep in range(max_steps):
         action_dict = {}
@@ -97,26 +92,21 @@ def save_nocturne_video(
                     action = env.scenario.expert_action(agent, timestep)
                     agent.expert_control = False
                     if model == "expert_discrete":
-                        action, action_idx = discretize_action(
-                            env_config=env_config, action=action
-                        )
+                        action, action_idx = discretize_action(env_config=env_config, action=action)
                     action_dict[agent.id] = action
                     acceleration, steering = action.acceleration, action.steering
                 else:
                     obs_tensor = torch.Tensor(next_obs_dict[agent.id]).unsqueeze(dim=0)
                     with torch.no_grad():
-                        action_idx, _ = model.predict(
-                            obs_tensor, deterministic=deterministic
-                        )
+                        action_idx, _ = model.predict(obs_tensor, deterministic=deterministic)
                     action_dict[agent.id] = action_idx.item()
                     acceleration, steering = env.idx_to_actions[action_idx.item()]
-        
+
         next_obs_dict, _, next_done_dict, _ = env.step(action_dict)
 
         if model in ("expert", "expert_discrete"):
             action_dict = {
-                agent_id: discretize_action(env_config, action)[1]
-                for agent_id, agent in action_dict.items()
+                agent_id: discretize_action(env_config, action)[1] for agent_id, agent in action_dict.items()
             }
         action_df = pd.concat(
             (action_df, pd.DataFrame(action_dict, index=[timestep])),
@@ -144,9 +134,7 @@ def save_nocturne_video(
         wandb.log(
             {
                 "step": n_steps,
-                video_key: wandb.Video(
-                    movie_frames, fps=frames_per_second, caption=video_name
-                ),
+                video_key: wandb.Video(movie_frames, fps=frames_per_second, caption=video_name),
             },
         )
     env.close()

@@ -1,13 +1,14 @@
 """Cast a multi-agent env as vec env to use SB3's PPO."""
 import logging
 from datetime import datetime
-import torch
-import wandb
 
-from utils.config import load_config
+import torch
+
+import wandb
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
+from utils.config import load_config
 
 # Custom callback
 from utils.sb3.callbacks import CustomMultiAgentCallback
@@ -40,12 +41,9 @@ if __name__ == "__main__":
             id=run_id,
             **exp_config.wandb,
         )
-    
+
     # Make environment
-    env = MultiAgentAsVecEnv(
-        config=env_config, 
-        num_envs=env_config.max_num_vehicles
-    )
+    env = MultiAgentAsVecEnv(config=env_config, num_envs=env_config.max_num_vehicles)
 
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
 
