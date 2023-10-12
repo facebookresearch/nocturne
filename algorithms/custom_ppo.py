@@ -6,9 +6,8 @@ import numpy as np
 import torch
 from gymnasium import spaces
 from stable_baselines3 import PPO
-from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.utils import explained_variance, obs_as_tensor
+from stable_baselines3.common.utils import obs_as_tensor
 from stable_baselines3.common.vec_env import VecEnv
 
 # Import masked buffer class
@@ -16,9 +15,9 @@ from algorithms.masked_buffer import MaskedRolloutBuffer
 
 logging.getLogger(__name__)
 
+
 class CustomPPO(PPO):
-    """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments.
-    """
+    """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments."""
 
     def _setup_model(self) -> None:
         super()._setup_model()
@@ -58,11 +57,7 @@ class CustomPPO(PPO):
         callback.on_rollout_start()
 
         while n_steps < n_rollout_steps:
-            if (
-                self.use_sde
-                and self.sde_sample_freq > 0
-                and n_steps % self.sde_sample_freq == 0
-            ):
+            if self.use_sde and self.sde_sample_freq > 0 and n_steps % self.sde_sample_freq == 0:
                 # Sample a new noise matrix
                 self.policy.reset_noise(env.num_envs)
 
@@ -74,14 +69,12 @@ class CustomPPO(PPO):
                 # Create dummy actions, values and log_probs (NaN)
                 actions = torch.full(fill_value=np.nan, size=(self.n_envs,))
                 log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,))
-                values = torch.full(
-                    fill_value=np.nan, size=(self.n_envs,)
-                ).unsqueeze(dim=1)
-            
+                values = torch.full(fill_value=np.nan, size=(self.n_envs,)).unsqueeze(dim=1)
+
                 for idx, agent_id in enumerate(env.agent_ids):
                     if agent_id not in env.dead_agent_ids:
                         # Sample actions from policy if agent is alive
-                        obs_tensor_agent_id = obs_tensor[idx, :].unsqueeze(dim=0) 
+                        obs_tensor_agent_id = obs_tensor[idx, :].unsqueeze(dim=0)
                         actions[idx], values[idx], log_probs[idx] = self.policy(obs_tensor_agent_id)
 
             actions = actions.cpu().numpy()
@@ -97,9 +90,7 @@ class CustomPPO(PPO):
                 else:
                     # Otherwise, clip the actions to avoid out of bound error
                     # as we are sampling from an unbounded Gaussian distribution
-                    clipped_actions = np.clip(
-                        actions, self.action_space.low, self.action_space.high
-                    )
+                    clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
 
             new_obs, rewards, dones, infos = env.step(clipped_actions)
 
@@ -127,9 +118,7 @@ class CustomPPO(PPO):
                     and infos[idx].get("terminal_observation") is not None
                     and infos[idx].get("TimeLimit.truncated", False)
                 ):
-                    terminal_obs = self.policy.obs_to_tensor(
-                        infos[idx]["terminal_observation"]
-                    )[0]
+                    terminal_obs = self.policy.obs_to_tensor(infos[idx]["terminal_observation"])[0]
                     with torch.no_grad():
                         terminal_value = self.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
                     rewards[idx] += self.gamma * terminal_value

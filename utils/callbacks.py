@@ -3,15 +3,13 @@ import logging
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
-from wandb.integration.sb3 import WandbCallback
+import wandb
 from utils.render_utils import save_nocturne_video
 
 
 class CustomMultiAgentCallback(BaseCallback):
     """
     A custom callback that derives from ``BaseCallback``.
-
-    :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
     """
 
     def __init__(
@@ -27,12 +25,8 @@ class CustomMultiAgentCallback(BaseCallback):
         self.env_config = env_config
         self.exp_config = exp_config
         self.video_config = video_config
-        self.save_video_callbacks = (
-            [] if save_video_callbacks is None else save_video_callbacks
-        )
-        self.training_end_callbacks = (
-            [] if training_end_callbacks is None else training_end_callbacks
-        )
+        self.save_video_callbacks = [] if save_video_callbacks is None else save_video_callbacks
+        self.training_end_callbacks = [] if training_end_callbacks is None else training_end_callbacks
         self.iteration = 0
 
     def _on_training_start(self) -> None:
@@ -62,7 +56,7 @@ class CustomMultiAgentCallback(BaseCallback):
         # # Compute the number of episodes completed during this rollout
         self.n_episodes = self.locals["env"].n_episodes
 
-        # Every rollout end marks an iteration
+        # Every rollout end (+ optim step) marks an iteration
         self.iteration += 1
 
         # Compute average episode length across all agents
@@ -71,46 +65,39 @@ class CustomMultiAgentCallback(BaseCallback):
         # Get rewards, filter out NaNs
         rewards = np.nan_to_num(self.locals["rollout_buffer"].rewards, nan=0)
 
-        # Get number of agents in scene 
-        #TODO: Only works when every scene has the same number of agents
-        num_agents_in_scene = len(self.locals["env"].agent_ids)
+        # Average normalized by the number of agents in the scene
+        num_agents_per_step = np.array(self.locals["env"].agents_in_scene)
+        ep_rewards_avg_norm = sum(rewards.sum(axis=1) / num_agents_per_step) / self.n_episodes
 
-        # Obtain the average reward obtained per episode across agents
-        avg_rewards = rewards.sum() / self.n_episodes
-
-        # Compute average reward obtained per agent, per episode
-        if self.exp_config.custom_callback.log_indiv_rewards:
-            indiv_rewards_sum = rewards.sum(axis=0)[:num_agents_in_scene]
-            for agent_idx in range(num_agents_in_scene):
-                self.logger.record(
-                    f"rollout/ep_rew_mean_agent_{agent_idx}",
-                    indiv_rewards_sum[agent_idx] / self.n_episodes
-                )
+        # Obtain the sum of reward per episode (accross all agents)
+        sum_rewards = rewards.sum() / self.n_episodes
 
         # Get batch size
         batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
 
-        # Get fraction of agents collided & goal achieved per episode
-        frac_collided = (self.locals["env"].collided / num_agents_in_scene) / self.n_episodes
-        frac_goal_achieved = (self.locals["env"].goal_achieved / num_agents_in_scene) / self.n_episodes
+        # Obtain the average ratio of agents that collided / achieved goal in the episode
+        avg_frac_collided = np.mean(self.locals["env"].frac_collided)
+        avg_frac_goal_achieved = np.mean(self.locals["env"].frac_goal_achieved)
 
         # Log
-        self.logger.record("rollout/ep_rew_mean", avg_rewards)
+        if self.exp_config.track_wandb:
+            agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
+            hist = np.histogram(num_agents_per_step, bins=agent_bins)
+            wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
+        self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)
+        self.logger.record("rollout/ep_rew_sum", sum_rewards)
         self.logger.record("rollout/ep_rew_std", rewards.std())
         self.logger.record("rollout/ep_len_mean", avg_ep_len)
-        self.logger.record("rollout/perc_goal_achieved", frac_goal_achieved)
-        self.logger.record("rollout/perc_collided", frac_collided)
-        # The global step is defined as the number of individual steps in the env
+        self.logger.record("rollout/perc_goal_achieved", avg_frac_goal_achieved)
+        self.logger.record("rollout/perc_collided", avg_frac_collided)
         self.logger.record("global_step", self.num_timesteps)
         self.logger.record("iteration", self.iteration)
         self.logger.record("num_frames_in_rollout", batch_size)
 
-        # Reset number of episodes per rollout
+        # Make a video with a random scene
         if self.exp_config.custom_callback.save_video:
             if self.iteration % self.exp_config.custom_callback.video_save_freq == 0:
-                logging.info(
-                    f"Make video at iter = {self.iteration} | global_step = {self.num_timesteps}"
-                )
+                logging.info(f"Making video at iter = {self.iteration} | global_step = {self.num_timesteps}")
                 save_nocturne_video(
                     env_config=self.env_config,
                     exp_config=self.exp_config,
@@ -120,11 +107,12 @@ class CustomMultiAgentCallback(BaseCallback):
                     deterministic=self.exp_config.custom_callback.video_deterministic,
                 )
 
-        #NOTE: RESET COLLIDED AND GOAL ACHIEVED (tmp solution, this doesn't belong in the callback)
-        self.locals["env"].collided = 0
-        self.locals["env"].goal_achieved = 0
+        # RESET COLLIDED AND GOAL ACHIEVED (TBD: think about a more elegant way to do this)
+        self.locals["env"].frac_collided = []
+        self.locals["env"].frac_goal_achieved = []
         self.locals["env"].n_episodes = 0
         self.locals["env"].episode_lengths = []
+        self.locals["env"].agents_in_scene = []
 
     def _on_training_end(self) -> None:
         """

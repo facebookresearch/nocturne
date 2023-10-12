@@ -1,27 +1,29 @@
-project: multi_agent_rl_sb3
-env_id: "Nocturne"
+project: ma_control_sb3_ppo
+env_id: Nocturne
 seed: 42
-track_wandb: False
-wandb_init_videos: ["expert"]
+track_wandb: true
+wandb_init_videos: [expert]
 
 wandb:
-  sync_tensorboard: True
-  save_code: False
-  monitor_gym: True
+  sync_tensorboard: true
+  save_code: false
+  monitor_gym: true
 
 custom_callback:
-  save_model: False
+  save_model: false
   model_save_freq: 200_000
-  save_video: False
+  save_video: false
   video_save_freq: 50 # Make a video every k iterations (one iter is x steps)
-  video_deterministic: False
-  calculate_human_likeness: False
-  metrics_deterministic: False
-  log_indiv_rewards: True
+  video_deterministic: false
+  calculate_human_likeness: false
+  metrics_deterministic: false
+  log_indiv_rewards: true # NOTE: this only really makes sense if you use a single scene
 
 ppo:
-  policy: "MlpPolicy"
+  policy: MlpPolicy
+  n_steps: 2048
+
 
 learn:
   total_timesteps: 500_000
-  progress_bar: True
+  progress_bar: true
