@@ -107,13 +107,6 @@ class CustomMultiAgentCallback(BaseCallback):
                     deterministic=self.exp_config.ma_callback.video_deterministic,
                 )
 
-        # RESET COLLIDED AND GOAL ACHIEVED (TBD: think about a more elegant way to do this)
-        self.locals["env"].frac_collided = []
-        self.locals["env"].frac_goal_achieved = []
-        self.locals["env"].n_episodes = 0
-        self.locals["env"].episode_lengths = []
-        self.locals["env"].agents_in_scene = []
-
     def _on_training_end(self) -> None:
         """
         This event is triggered before exiting the `learn()` method.

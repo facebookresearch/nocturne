@@ -144,4 +144,11 @@ class MultiAgentPPO(PPO):
 
         callback.on_rollout_end()
 
+        # EDIT_3: Reset buffer after each rollout
+        env.frac_collided = []
+        env.frac_goal_achieved = []
+        env.n_episodes = 0
+        env.episode_lengths = []
+        env.agents_in_scene = []
+
         return True
