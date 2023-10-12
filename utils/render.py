@@ -1,8 +1,6 @@
 
-"""Utility functions to create a video of a traffic scene."""
+"""Render functions to create a video of a traffic scene."""
 
-import logging
-import os
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -15,10 +13,11 @@ from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 
 import wandb
 from nocturne.envs.base_env import BaseEnv
-from utils.config import load_config
 
 
 def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
+    """Discretize actions.
+    """
     acceleration_actions = np.linspace(
         start=env_config.accel_lower_bound,
         stop=env_config.accel_upper_bound,
@@ -49,9 +48,26 @@ def save_nocturne_video(
     log_wandb: bool = True,
     deterministic: bool = True,
     max_steps: int = 80,
-    frame_rate: int = 4,
-    frames_per_second: int = 1,
+    snap_interval: int = 4,
+    frames_per_second: int = 4,
 ) -> Tuple[np.ndarray, pd.DataFrame]:
+    """Make a video of a traffic scene.
+
+    Args:
+        env_config (Box): RL environment configuration.
+        exp_config (Box): Algo configuration.
+        video_config (Box): Rendering configuration.
+        model (Union[str, OnPolicyAlgorithm]): Policy to use.
+        n_steps (Optional[int]): The gloabl step number. Defaults to None.
+        log_wandb (bool, optional): If true, log video to wandb. Defaults to True.
+        deterministic (bool, optional): If true, set policy to determistic mode. Defaults to True.
+        max_steps (int, optional): Episode length. Defaults to 80.
+        snap_interval (int, optional): Take snapshot every n steps. Defaults to 4.
+        frames_per_second (int, optional): Speed with which to replay video. Defaults to 4.
+
+    Returns:
+        Tuple[np.ndarray, pd.DataFrame]: Movie frames and action dataframe.
+    """
 
     total_steps = exp_config.learn.total_timesteps
     video_name = (
@@ -70,18 +86,7 @@ def save_nocturne_video(
     next_done_dict = {agent_id: False for agent_id in next_obs_dict}
 
     frames = []
-    # if log_wandb:
-    #     wandb_log_keys = [
-    #         f"agent_{{}}/action_idx/{video_name}",
-    #         f"agent_{{}}/acceleration/{video_name}",
-    #         f"agent_{{}}/steering/{video_name}",
-    #     ]
-    #     for agent in env.controlled_vehicles:
-    #         for wandb_log_key in wandb_log_keys:
-    #             wandb.define_metric(
-    #                 wandb_log_key.format(agent.id), step_metric="timestep"
-    #             )
-
+    
     action_df = pd.DataFrame()
     for timestep in range(max_steps):
         action_dict = {}
@@ -100,26 +105,14 @@ def save_nocturne_video(
                 else:
                     obs_tensor = torch.Tensor(next_obs_dict[agent.id]).unsqueeze(dim=0)
                     with torch.no_grad():
-                        if isinstance(model, BehavioralCloningAgentJoint):
-                            action_idx, _ = model(obs_tensor)
-                        else:
-                            action_idx, _ = model.predict(
-                                obs_tensor, deterministic=deterministic
-                            )
+                        action_idx, _ = model.predict(
+                            obs_tensor, deterministic=deterministic
+                        )
                     action_dict[agent.id] = action_idx.item()
                     acceleration, steering = env.idx_to_actions[action_idx.item()]
-                # if log_wandb:
-                #     wandb.log(
-                #         {
-                #             wandb_log_keys[0].format(agent.id): None
-                #             if model == "expert"
-                #             else action_idx,
-                #             wandb_log_keys[1].format(agent.id): acceleration,
-                #             wandb_log_keys[2].format(agent.id): steering,
-                #             "timestep": timestep,
-                #         },
-                #     )
+        
         next_obs_dict, _, next_done_dict, _ = env.step(action_dict)
+
         if model in ("expert", "expert_discrete"):
             action_dict = {
                 agent_id: discretize_action(env_config, action)[1]
@@ -131,9 +124,13 @@ def save_nocturne_video(
             ignore_index=True,
         )
 
-        if timestep % frame_rate == 0:
-            # Activate display and render
-            with Display() as disp:
+        if timestep % snap_interval == 0:
+            # If we're on a headless machine: activate display and render
+            if exp_config.where_am_i == "cluster":
+                with Display() as disp:
+                    render_scene = env.scenario.getImage(**video_config)
+                    frames.append(render_scene.T)
+            else:
                 render_scene = env.scenario.getImage(**video_config)
                 frames.append(render_scene.T)
 
@@ -144,7 +141,6 @@ def save_nocturne_video(
 
     if log_wandb:
         video_key = video_name if n_steps is None else "video"
-
         wandb.log(
             {
                 "step": n_steps,

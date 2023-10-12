@@ -4,16 +4,17 @@ from datetime import datetime
 import torch
 import wandb
 
-# Custom PPO class that supports masking
-from algorithms.custom_ppo import CustomPPO
-
-# Custom callback
-from utils.callbacks import CustomMultiAgentCallback
 from utils.config import load_config
 
 # Multi-agent as vectorized environment
-from utils.sb3_vec_env import MultiAgentAsVecEnv
-from utils.string_utils import datetime_to_str
+from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
+
+# Custom callback
+from utils.sb3.callbacks import CustomMultiAgentCallback
+
+# Custom PPO class that supports multi-agent control
+from utils.sb3.custom_ppo import MultiAgentPPO
+from utils.string import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,19 +22,17 @@ if __name__ == "__main__":
     # Load environment and experiment configurations
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
+    video_config = load_config("video_config")
 
     # Set the maximum number of agents to control
     env_config.max_num_vehicles = 3
 
-    logging.info(f"--- MAX_AGENTS = {env_config.max_num_vehicles} ---")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    # Set up wandb
     run_id = None
     if exp_config.track_wandb:
         # Set up run
         run_id = datetime_to_str(dt=datetime.now())
-        run_id = f"MA_n=2<M={env_config.max_num_vehicles}_S{exp_config.seed}_nsteps={exp_config.ppo.n_steps}"
+        run_id = f"M={env_config.max_num_vehicles}_S{exp_config.seed}_nsteps={exp_config.ppo.n_steps}"
         run = wandb.init(
             project=exp_config.project,
             name=run_id,
@@ -41,21 +40,27 @@ if __name__ == "__main__":
             id=run_id,
             **exp_config.wandb,
         )
-
+    
     # Make environment
-    env = MultiAgentAsVecEnv(config=env_config, num_envs=env_config.max_num_vehicles)
+    env = MultiAgentAsVecEnv(
+        config=env_config, 
+        num_envs=env_config.max_num_vehicles
+    )
+
+    logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
 
     # Set device
-    exp_config.ppo.device = device
+    exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize custom callback
     custom_callback = CustomMultiAgentCallback(
         env_config=env_config,
         exp_config=exp_config,
+        video_config=video_config,
     )
 
     # Use custom PPO class
-    model = CustomPPO(
+    model = MultiAgentPPO(
         n_steps=exp_config.ppo.n_steps,
         policy=exp_config.ppo.policy,
         env=env,

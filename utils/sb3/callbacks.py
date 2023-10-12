@@ -4,7 +4,7 @@ import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
 import wandb
-from utils.render_utils import save_nocturne_video
+from utils.render import save_nocturne_video
 
 
 class CustomMultiAgentCallback(BaseCallback):
@@ -95,8 +95,8 @@ class CustomMultiAgentCallback(BaseCallback):
         self.logger.record("num_frames_in_rollout", batch_size)
 
         # Make a video with a random scene
-        if self.exp_config.custom_callback.save_video:
-            if self.iteration % self.exp_config.custom_callback.video_save_freq == 0:
+        if self.exp_config.ma_callback.save_video:
+            if self.iteration % self.exp_config.ma_callback.video_save_freq == 0:
                 logging.info(f"Making video at iter = {self.iteration} | global_step = {self.num_timesteps}")
                 save_nocturne_video(
                     env_config=self.env_config,
@@ -104,7 +104,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     video_config=self.video_config,
                     model=self.model,
                     n_steps=self.num_timesteps,
-                    deterministic=self.exp_config.custom_callback.video_deterministic,
+                    deterministic=self.exp_config.ma_callback.video_deterministic,
                 )
 
         # RESET COLLIDED AND GOAL ACHIEVED (TBD: think about a more elegant way to do this)

@@ -46,6 +46,8 @@ gym = "^0.26.2"
 pybind11 = "^2.11.1"
 python-box = "^7.1.1"
 gymnasium = "^0.29.1"
+moviepy = "^1.0.3"
+imageio = "^2.31.5"
 
 [tool.poetry.group.research.dependencies]
 ipykernel = "^6.25.2"

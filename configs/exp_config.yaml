@@ -1,29 +1,27 @@
 project: ma_control_sb3_ppo
 env_id: Nocturne
-seed: 42
+seed: 41
 track_wandb: true
-wandb_init_videos: [expert]
+wandb_init_videos: []
+where_am_i: "local" # Change to "cluster" when you're on the HPC 
 
 wandb:
   sync_tensorboard: true
   save_code: false
-  monitor_gym: true
 
-custom_callback:
+ma_callback:
   save_model: false
   model_save_freq: 200_000
-  save_video: false
-  video_save_freq: 50 # Make a video every k iterations (one iter is x steps)
-  video_deterministic: false
-  calculate_human_likeness: false
+  save_video: true
+  video_save_freq: 10 # Make a video every k iterations (one iter is x steps)
+  video_deterministic: true
   metrics_deterministic: false
-  log_indiv_rewards: true # NOTE: this only really makes sense if you use a single scene
 
 ppo:
   policy: MlpPolicy
-  n_steps: 2048
+  n_steps: 4096
 
 
 learn:
-  total_timesteps: 500_000
+  total_timesteps: 1_000_000
   progress_bar: true

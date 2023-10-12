@@ -11,12 +11,12 @@ from stable_baselines3.common.utils import obs_as_tensor
 from stable_baselines3.common.vec_env import VecEnv
 
 # Import masked buffer class
-from algorithms.masked_buffer import MaskedRolloutBuffer
+from utils.sb3.masked_buffer import MaskedRolloutBuffer
 
 logging.getLogger(__name__)
 
 
-class CustomPPO(PPO):
+class MultiAgentPPO(PPO):
     """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments."""
 
     def _setup_model(self) -> None:

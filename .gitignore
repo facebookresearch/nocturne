@@ -65,5 +65,3 @@ nocturne.sif
 setup.py
 *.whl
 *.tar.gz
-
-unit_tests
