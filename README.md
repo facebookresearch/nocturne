@@ -132,8 +132,11 @@ Now install the package by running:
 poetry install
 ```
 
-> _Note:_ Under the hood the `nocturne` package uses the `nocturne_cpp` Python package that wraps the Nocturne C++ code base and provides bindings for Python to interact with the C++ code using `pybind11`.
+> _Note_: If it fails to build `nocturne`, try running `poetry build` to get a more descriptive error message. One reason it fails may be because you don't have SFML installed, which can be done by running `brew install sfml` on mac or `sudo apt-get install libsfml-dev` on Linux.
 
+---
+> Under the hood the `nocturne` package uses the `nocturne_cpp` Python package that wraps the Nocturne C++ code base and provides bindings for Python to interact with the C++ code using `pybind11`.
+---
 
 ### Development setup
 To configure the development setup, run:
