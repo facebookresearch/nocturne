@@ -132,7 +132,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.rewards.append(sum(rew_dict.values()))
         self.agents_in_scene.append(len(self.agent_ids))
 
-        # O(t) = O(t+1)
+        # Store observation
         self._save_obs(obs_all)
 
         # Reset episode if ALL agents are done
