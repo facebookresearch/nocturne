@@ -26,6 +26,7 @@ if __name__ == "__main__":
     video_config = load_config("video_config")
 
     # Set the maximum number of agents to control
+    # TODO: remove hardcoded var
     env_config.max_num_vehicles = 3
 
     # Set up wandb
@@ -44,7 +45,7 @@ if __name__ == "__main__":
 
     # Make environment
     env = MultiAgentAsVecEnv(config=env_config, num_envs=env_config.max_num_vehicles)
-
+    
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
 
     # Set device
