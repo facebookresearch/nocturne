@@ -1,0 +1,4 @@
+img_width: 1200
+img_height: 1200
+padding: 10.0
+draw_target_positions: true
