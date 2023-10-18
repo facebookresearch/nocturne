@@ -15,7 +15,6 @@ from utils.sb3.masked_buffer import MaskedRolloutBuffer
 
 logging.getLogger(__name__)
 
-
 class MultiAgentPPO(PPO):
     """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments."""
 
@@ -68,14 +67,16 @@ class MultiAgentPPO(PPO):
                 # EDIT_1: Mask out invalid observations (NaN dimensions and/or dead agents)
                 # Create dummy actions, values and log_probs (NaN)
                 actions = torch.full(fill_value=np.nan, size=(self.n_envs,))
-                log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,))
-                values = torch.full(fill_value=np.nan, size=(self.n_envs,)).unsqueeze(dim=1)
+                log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32)
+                values = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32).unsqueeze(dim=1)
 
-                for idx, agent_id in enumerate(env.agent_ids):
-                    if agent_id not in env.dead_agent_ids:
-                        # Sample actions from policy if agent is alive
-                        obs_tensor_agent_id = obs_tensor[idx, :].unsqueeze(dim=0)
-                        actions[idx], values[idx], log_probs[idx] = self.policy(obs_tensor_agent_id)
+                # Get indices of alive agent ids
+                alive_agent_idx = [idx for idx, agent_id in enumerate(env.agent_ids) if agent_id not in env.dead_agent_ids]
+                obs_tensor_alive = obs_tensor[alive_agent_idx, :]
+
+                # Predict actions, vals and log_probs given obs
+                actions_tmp, values_tmp, log_prob_tmp = self.policy(obs_tensor_alive)
+                actions[alive_agent_idx], values[alive_agent_idx], log_probs[alive_agent_idx] = actions_tmp.float(), values_tmp.float(), log_prob_tmp.float()
 
             actions = actions.cpu().numpy()
 
