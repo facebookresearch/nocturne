@@ -84,9 +84,10 @@ class CustomMultiAgentCallback(BaseCallback):
             agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
             hist = np.histogram(num_agents_per_step, bins=agent_bins)
             wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
+
+        self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
         self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)
         self.logger.record("rollout/ep_rew_sum", sum_rewards)
-        self.logger.record("rollout/ep_rew_std", rewards.std())
         self.logger.record("rollout/ep_len_mean", avg_ep_len)
         self.logger.record("rollout/perc_goal_achieved", avg_frac_goal_achieved)
         self.logger.record("rollout/perc_collided", avg_frac_collided)
