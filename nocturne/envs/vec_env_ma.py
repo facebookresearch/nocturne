@@ -105,30 +105,6 @@ class MultiAgentAsVecEnv(VecEnv):
                 self.buf_infos[idx] = info_dict[key]
                 obs[idx, :] = next_obses_dict[key] 
 
-        # Convert dicts to arrays
-        # obs_all = np.full(
-        #     fill_value=np.nan,
-        #     shape=(self.num_envs, self.env.observation_space.shape[0]),
-        # )
-        # rew_all = np.full(fill_value=np.nan, shape=(self.num_envs))
-        # done_all = np.full(fill_value=np.nan, shape=(self.num_envs))
-        #info_all = []
-
-        # for idx, key in enumerate(self.agent_ids):
-        #     # Store data if available; otherwise leave as NaN
-        #     if key in next_obses_dict:
-        #         obs_all[idx, :] = next_obses_dict[key]
-        #         rew_all[idx] = rew_dict[key]
-        #         done_all[idx] = done_dict[key] * 1  # Will be 0 or 1 if valid, NaN otherwise
-
-        # OVERRIDE old buffer vals with with new ones (for all envs)
-        # for idx in range(self.num_envs):
-        #     for idx, key in enumerate(self.agent_ids):
-        #     info_all.append(info_dict[key])
-        #     self.buf_rews[env_idx] = rew_all[env_idx]
-        #     self.buf_dones[env_idx] = done_all[env_idx]
-        #     self.buf_infos[env_idx] = info_all[env_idx]
-
         # Save step reward obtained across all agents
         self.rewards.append(sum(rew_dict.values()))
         self.agents_in_scene.append(len(self.agent_ids))
