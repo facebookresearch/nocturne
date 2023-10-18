@@ -154,4 +154,4 @@ Here is a list of features that we are developing:
 
 - @Daphne: Support for SB3's PPO algorithm with multi-agent control
 - @Alex: Logging and unit testing
-- @Tiyas: Random resets
+- @Tiyas: Sample efficient RL by prioritized scene replay

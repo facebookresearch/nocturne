@@ -65,3 +65,4 @@ nocturne.sif
 setup.py
 *.whl
 *.tar.gz
+nocturne/_version.py

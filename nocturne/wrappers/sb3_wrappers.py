@@ -1,27 +1,29 @@
+"""SB3 wrappers for Nocturne."""
 
+import gym
 import gymnasium
 import numpy as np
-import gym
+
 
 class NocturneToSB3(gymnasium.Env):
-    """Makes Nocturne env compatible with SB3.
+    """Nocturne environment wrapper for compatible with SB3.
     ! NOTE: Controlling a single agent.
     """
 
     def __init__(self, nocturne_env: gym.Env):
         self.env = nocturne_env
         self.action_space = gymnasium.spaces.Discrete(self.env.action_space.n)
-        self.observation_space = gymnasium.spaces.Box(
-            -np.inf, np.inf, self.env.observation_space.shape, np.float32
-        )
-    
+        self.observation_space = gymnasium.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
+
     def step(self, action):
         """Take a step in the environment, convert dicts to np arrays.
 
-        Args:
+        Args
+        ----
             action (Dict): Dictionary with a single action for the controlled vehicle.
 
-        Returns:
+        Returns
+        -------
             observation, reward, terminated, truncated, info (np.ndarray, float, bool, bool, dict)
         """
         next_obs_dict, rewards_dict, dones_dict, info_dict = self.env.step(
@@ -35,14 +37,12 @@ class NocturneToSB3(gymnasium.Env):
             False,
             info_dict[self.controlled_vehicle],
         )
-    
+
     def reset(self, seed=None):
         """Reset the environment."""
         obs_dict = self.env.reset()
-        assert (
-            len(self.env.controlled_vehicles) == 1
-        ), "This wrapper does not support multi-agent control."
-        
+        assert len(self.env.controlled_vehicles) == 1, "This wrapper does not support multi-agent control."
+
         self.controlled_vehicle = self.env.controlled_vehicles[0].id
         return obs_dict[self.controlled_vehicle], {}
 
@@ -61,7 +61,7 @@ class NocturneToSB3(gymnasium.Env):
     @observation_space.setter
     def observation_space(self, observation_space):
         self.env.observation_space = observation_space
-    
+
     def render(self):
         pass
 

@@ -1,0 +1,28 @@
+project: nocturne_ppo_benchmark
+env_id: Nocturne
+seed: 6
+track_wandb: true
+wandb_init_videos: []
+where_am_i: local   # Change to "cluster" when you're on the HPC
+exp_name: Nocturne
+
+wandb:
+  sync_tensorboard: true
+  save_code: false
+
+ma_callback:
+  save_model: false
+  model_save_freq: 200_000
+  save_video: false
+  video_save_freq: 20 # Make a video every k iterations (one iter is x steps)
+  video_deterministic: true
+  metrics_deterministic: false
+
+ppo:
+  policy: MlpPolicy
+  n_steps: 4096
+
+
+learn:
+  total_timesteps: 400_000
+  progress_bar: true
