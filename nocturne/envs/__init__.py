@@ -1,4 +1,4 @@
-"""Import file for tests."""
+"""Nocturne environments."""
 from nocturne.envs.base_env import BaseEnv
 
 __all__ = [

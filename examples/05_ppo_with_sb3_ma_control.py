@@ -25,6 +25,8 @@ if __name__ == "__main__":
     exp_config = load_config("exp_config")
     video_config = load_config("video_config")
 
+    logging.info(f"Loaded Nocturne environment, experiment, and video configurations.")
+
     # Set the maximum number of agents to control
     # TODO: remove hardcoded var
     env_config.max_num_vehicles = 3
@@ -45,7 +47,7 @@ if __name__ == "__main__":
 
     # Make environment
     env = MultiAgentAsVecEnv(config=env_config, num_envs=env_config.max_num_vehicles)
-    
+
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
 
     # Set device
