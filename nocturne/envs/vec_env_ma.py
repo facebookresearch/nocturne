@@ -1,7 +1,6 @@
 """Vectorized environment wrapper for multi-agent environments."""
 import logging
 import time
-from collections import OrderedDict
 from copy import deepcopy
 from typing import Any, Dict, List
 
@@ -11,11 +10,6 @@ from stable_baselines3.common.vec_env.base_vec_env import (
     VecEnv,
     VecEnvObs,
     VecEnvStepReturn,
-)
-from stable_baselines3.common.vec_env.util import (
-    copy_obs_dict,
-    dict_to_obs,
-    obs_space_info,
 )
 
 from nocturne.envs.base_env import BaseEnv
@@ -40,12 +34,9 @@ class MultiAgentAsVecEnv(VecEnv):
         self.action_space = gym.spaces.Discrete(self.env.action_space.n)
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
         self.num_envs = num_envs  # The maximum number of agents allowed in the environment
-        self.keys, shapes, dtypes = obs_space_info(self.env.observation_space)
 
         # Storage
-        self.buf_obs = OrderedDict(
-            [(k, np.zeros((self.num_envs, *tuple(shapes[k])), dtype=dtypes[k])) for k in self.keys]
-        )
+        self.buf_obs = np.full(fill_value=np.nan, shape=(self.num_envs, self.observation_space.shape[0]))
         self.buf_dones = np.full(fill_value=np.nan, shape=(self.num_envs,))
         self.buf_rews = np.full(fill_value=np.nan, shape=(self.num_envs,))
         self.buf_infos: List[Dict[str, Any]] = [{} for _ in range(self.num_envs)]
@@ -186,15 +177,11 @@ class MultiAgentAsVecEnv(VecEnv):
 
     def _save_obs(self, obs: VecEnvObs) -> None:
         """Save observations into buffer."""
-        for key in self.keys:
-            if key is None:
-                self.buf_obs[key] = obs
-            else:
-                self.buf_obs[key] = obs[key]  # type: ignore[call-overload]
+        self.buf_obs = obs
 
     def _obs_from_buf(self) -> VecEnvObs:
         """Get observation from buffer."""
-        return dict_to_obs(self.observation_space, copy_obs_dict(self.buf_obs))
+        return np.copy(self.buf_obs)
 
     def get_attr(self, attr_name, indices=None):
         raise NotImplementedError()
