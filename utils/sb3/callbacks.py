@@ -97,7 +97,7 @@ class CustomMultiAgentCallback(BaseCallback):
 
         # Make a video with a random scene
         if self.exp_config.ma_callback.save_video:
-            if self.iteration % self.exp_config.ma_callback.video_save_freq == 0:
+            if (self.iteration - 1) % self.exp_config.ma_callback.video_save_freq == 0:
                 logging.info(f"Making video at iter = {self.iteration} | global_step = {self.num_timesteps}")
                 save_nocturne_video(
                     env_config=self.env_config,
