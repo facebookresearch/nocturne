@@ -25,23 +25,20 @@ if __name__ == "__main__":
     exp_config = load_config("exp_config")
     video_config = load_config("video_config")
 
-    logging.info(f"Loaded Nocturne environment, experiment, and video configurations.")
-
     # Set the maximum number of agents to control
-    # TODO: remove hardcoded var
     env_config.max_num_vehicles = 3
 
     # Set up wandb
-    run_id = None
+    RUN_ID = None
     if exp_config.track_wandb:
         # Set up run
-        run_id = datetime_to_str(dt=datetime.now())
-        run_id = f"M={env_config.max_num_vehicles}_S{exp_config.seed}_nsteps={exp_config.ppo.n_steps}"
+        datetime = datetime_to_str(dt=datetime.now())
+        RUN_ID = f"{exp_config.exp_name}_{datetime}"
         run = wandb.init(
             project=exp_config.project,
-            name=run_id,
+            name=RUN_ID,
             config={**exp_config, **env_config},
-            id=run_id,
+            id=RUN_ID,
             **exp_config.wandb,
         )
 
@@ -66,7 +63,7 @@ if __name__ == "__main__":
         policy=exp_config.ppo.policy,
         env=env,
         seed=exp_config.seed,  # Seed for the pseudo random generators
-        tensorboard_log=f"runs/{run_id}" if run_id is not None else None,
+        tensorboard_log=f"runs/{RUN_ID}" if RUN_ID is not None else None,
         verbose=1,
     )
 
