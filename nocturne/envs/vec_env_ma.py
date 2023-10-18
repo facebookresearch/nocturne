@@ -35,11 +35,6 @@ class MultiAgentAsVecEnv(VecEnv):
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
         self.num_envs = num_envs  # The maximum number of agents allowed in the environment
 
-        # Storage
-        self.buf_obs = np.full(fill_value=np.nan, shape=(self.num_envs, self.observation_space.shape[0]))
-        self.buf_dones = np.full(fill_value=np.nan, shape=(self.num_envs,))
-        self.buf_rews = np.full(fill_value=np.nan, shape=(self.num_envs,))
-        self.buf_infos: List[Dict[str, Any]] = [{} for _ in range(self.num_envs)]
         self.n_episodes = 0
         self.episode_lengths = []
         self.rewards = []  # Log reward per step
@@ -96,35 +91,50 @@ class MultiAgentAsVecEnv(VecEnv):
                 # Store agents' last info dict
                 self.last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
-        # Convert dicts to arrays
-        obs_all = np.full(
-            fill_value=np.nan,
-            shape=(self.num_envs, self.env.observation_space.shape[0]),
-        )
-        rew_all = np.full(fill_value=np.nan, shape=(self.num_envs))
-        done_all = np.full(fill_value=np.nan, shape=(self.num_envs))
-        info_all = []
-
+        # Storage
+        obs = np.full(fill_value=np.nan, shape=(self.num_envs, self.observation_space.shape[0]))
+        self.buf_dones = np.full(fill_value=np.nan, shape=(self.num_envs,))
+        self.buf_rews = np.full_like(self.buf_dones, fill_value=np.nan)
+        self.buf_infos = [{} for _ in range(self.num_envs)]
+        
+        # Override NaN placeholder for each agent that is alive
         for idx, key in enumerate(self.agent_ids):
-            # Store data if available; otherwise leave as NaN
             if key in next_obses_dict:
-                obs_all[idx, :] = next_obses_dict[key]
-                rew_all[idx] = rew_dict[key]
-                done_all[idx] = done_dict[key] * 1  # Will be 0 or 1 if valid, NaN otherwise
+                self.buf_rews[idx] = rew_dict[key]
+                self.buf_dones[idx] = done_dict[key] * 1
+                self.buf_infos[idx] = info_dict[key]
+                obs[idx, :] = next_obses_dict[key] 
+
+        # Convert dicts to arrays
+        # obs_all = np.full(
+        #     fill_value=np.nan,
+        #     shape=(self.num_envs, self.env.observation_space.shape[0]),
+        # )
+        # rew_all = np.full(fill_value=np.nan, shape=(self.num_envs))
+        # done_all = np.full(fill_value=np.nan, shape=(self.num_envs))
+        #info_all = []
+
+        # for idx, key in enumerate(self.agent_ids):
+        #     # Store data if available; otherwise leave as NaN
+        #     if key in next_obses_dict:
+        #         obs_all[idx, :] = next_obses_dict[key]
+        #         rew_all[idx] = rew_dict[key]
+        #         done_all[idx] = done_dict[key] * 1  # Will be 0 or 1 if valid, NaN otherwise
 
         # OVERRIDE old buffer vals with with new ones (for all envs)
-        for env_idx in range(self.num_envs):
-            info_all.append(info_dict[key])
-            self.buf_rews[env_idx] = rew_all[env_idx]
-            self.buf_dones[env_idx] = done_all[env_idx]
-            self.buf_infos[env_idx] = info_all[env_idx]
+        # for idx in range(self.num_envs):
+        #     for idx, key in enumerate(self.agent_ids):
+        #     info_all.append(info_dict[key])
+        #     self.buf_rews[env_idx] = rew_all[env_idx]
+        #     self.buf_dones[env_idx] = done_all[env_idx]
+        #     self.buf_infos[env_idx] = info_all[env_idx]
 
         # Save step reward obtained across all agents
         self.rewards.append(sum(rew_dict.values()))
         self.agents_in_scene.append(len(self.agent_ids))
 
         # Store observation
-        self._save_obs(obs_all)
+        self._save_obs(obs)
 
         # Reset episode if ALL agents are done
         if done_dict["__all__"]:
@@ -138,8 +148,8 @@ class MultiAgentAsVecEnv(VecEnv):
             self.frac_goal_achieved.append(self.ep_goal_achived / len(self.agent_ids))
 
             # Save final observation where user can get it, then reset
-            for env_idx in range(len(self.agent_ids)):
-                self.buf_infos[env_idx]["terminal_observation"] = obs_all[env_idx]
+            for idx in range(len(self.agent_ids)):
+                self.buf_infos[idx]["terminal_observation"] = obs[idx]
 
             # Log episode stats
             ep_len = self.step_num
@@ -147,7 +157,7 @@ class MultiAgentAsVecEnv(VecEnv):
             self.episode_lengths.append(ep_len)
 
             # Reset
-            obs_all = self.reset()
+            obs = self.reset()
 
         return (
             self._obs_from_buf(),
