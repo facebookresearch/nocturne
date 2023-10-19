@@ -80,7 +80,7 @@ subscriber:
   view_angle: 3.14 # the distance which the cone extends before agents are not visible; set to pi rad to correct for missing head angle
   view_dist: 80
   use_ego_state: true # if True, add information about the ego state
-  use_observations: false # if True, add visible field
+  use_observations: true # if True, add visible field
   use_start_position: false # if True, add start (x, y)-position of the agent
   use_current_position: false # if True, add current (x, y)-position of the agent
   use_target_position: false # if True, add target (x, y)-position of the agent

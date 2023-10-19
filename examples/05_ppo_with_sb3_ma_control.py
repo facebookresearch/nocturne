@@ -3,7 +3,6 @@ import logging
 from datetime import datetime
 
 import torch
-
 import wandb
 
 # Multi-agent as vectorized environment
@@ -65,6 +64,7 @@ if __name__ == "__main__":
         seed=exp_config.seed,  # Seed for the pseudo random generators
         tensorboard_log=f"runs/{RUN_ID}" if RUN_ID is not None else None,
         verbose=1,
+        device=exp_config.ppo.device,
     )
 
     # Learn

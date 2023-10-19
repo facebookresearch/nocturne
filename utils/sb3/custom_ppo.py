@@ -66,9 +66,9 @@ class MultiAgentPPO(PPO):
 
                 # EDIT_1: Mask out invalid observations (NaN dimensions and/or dead agents)
                 # Create dummy actions, values and log_probs (NaN)
-                actions = torch.full(fill_value=np.nan, size=(self.n_envs,))
-                log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32)
-                values = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32).unsqueeze(dim=1)
+                actions = torch.full(fill_value=np.nan, size=(self.n_envs,)).to(self.device)
+                log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32).to(self.device)
+                values = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32).unsqueeze(dim=1).to(self.device)
 
                 # Get indices of alive agent ids
                 alive_agent_idx = [idx for idx, agent_id in enumerate(env.agent_ids) if agent_id not in env.dead_agent_ids]
