@@ -20,6 +20,7 @@ from gym import Env
 from gym.spaces import Box, Discrete
 
 from nocturne import Action, Simulation, Vector2D, Vehicle
+from utils.config import load_config
 
 _MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
 
@@ -610,3 +611,16 @@ if __name__ == "__main__":
 
     # Initialize environment
     env = BaseEnv(config=env_config)
+
+
+
+if __name__ == "__main__":
+
+    # Load environment variables and config
+    env_config = load_config("env_config")
+
+    # Make environment
+    env = BaseEnv(env_config)
+
+
+    print(f'Using scenes: {env.files}')

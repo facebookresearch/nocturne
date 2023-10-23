@@ -94,7 +94,9 @@ def save_nocturne_video(
                     if model == "expert_discrete":
                         action, action_idx = discretize_action(env_config=env_config, action=action)
                     action_dict[agent.id] = action
-                    acceleration, steering = action.acceleration, action.steering
+                    if model == "expert":
+                        agent.expert_control = True
+                        action_dict = {}
                 else:
                     obs_tensor = torch.Tensor(next_obs_dict[agent.id]).unsqueeze(dim=0)
                     with torch.no_grad():
@@ -116,7 +118,7 @@ def save_nocturne_video(
 
         if timestep % snap_interval == 0:
             # If we're on a headless machine: activate display and render
-            if exp_config.where_am_i == "cluster":
+            if exp_config.where_am_i == "headless_machine":
                 with Display() as disp:
                     render_scene = env.scenario.getImage(**video_config)
                     frames.append(render_scene.T)

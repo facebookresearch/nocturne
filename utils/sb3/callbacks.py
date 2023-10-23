@@ -72,6 +72,10 @@ class CustomMultiAgentCallback(BaseCallback):
         # Obtain the sum of reward per episode (accross all agents)
         sum_rewards = rewards.sum() / self.n_episodes
 
+        # Obtain advantages
+        advantages = np.nan_to_num(self.locals["rollout_buffer"].advantages, nan=0)
+        ep_advantage_avg_norm = sum(advantages.sum(axis=1) / num_agents_per_step) / self.n_episodes
+
         # Get batch size
         batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
 
@@ -84,13 +88,23 @@ class CustomMultiAgentCallback(BaseCallback):
             agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
             hist = np.histogram(num_agents_per_step, bins=agent_bins)
             wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
-
+        
+        # Log all metrics on the level of individual agents
+        if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
+            indiv_rewards = ((rewards.sum(axis=0) / num_agents_per_step[0]) / self.n_episodes)[:num_agents_per_step[0]]
+            indiv_advantages = ((advantages.sum(axis=0) / num_agents_per_step[0]) / self.n_episodes)[:num_agents_per_step[0]]
+            for agent_idx in range(len(indiv_rewards)):
+                self.logger.record(f"rollout/ep_rew_agent_{agent_idx}", indiv_rewards[agent_idx])
+                self.logger.record(f"rollout/ep_adv_agent_{agent_idx}", indiv_advantages[agent_idx])
+            
+        # Log aggregate performance measures 
         self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
         self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)
         self.logger.record("rollout/ep_rew_sum", sum_rewards)
         self.logger.record("rollout/ep_len_mean", avg_ep_len)
         self.logger.record("rollout/perc_goal_achieved", avg_frac_goal_achieved)
         self.logger.record("rollout/perc_collided", avg_frac_collided)
+        self.logger.record("rollout/ep_adv_mean_norm", ep_advantage_avg_norm)
         self.logger.record("global_step", self.num_timesteps)
         self.logger.record("iteration", self.iteration)
         self.logger.record("num_frames_in_rollout", batch_size)
