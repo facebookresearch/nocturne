@@ -138,7 +138,8 @@ poetry install
 ### Common errors
 
 - `KeyringLocked Failed to unlock the collection!`. Solution: first run `export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring` in your terminal, then rerun `poetry install` [stackOverflow with more info](https://stackoverflow.com/questions/74438817/poetry-failed-to-unlock-the-collection)
-
+- If you want to run experiments on the GPU, make sure to install torch with cuda, eg. `pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118`
+  
 ### Development setup
 To configure the development setup, run:
 ```shell
