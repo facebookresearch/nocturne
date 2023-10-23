@@ -135,6 +135,10 @@ poetry install
 > Under the hood the `nocturne` package uses the `nocturne_cpp` Python package that wraps the Nocturne C++ code base and provides bindings for Python to interact with the C++ code using `pybind11`.
 ---
 
+### Common errors
+
+- `KeyringLocked Failed to unlock the collection!`. Solution: first run `export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring` in your terminal, then rerun `poetry install` [stackOverflow with more info](https://stackoverflow.com/questions/74438817/poetry-failed-to-unlock-the-collection)
+
 ### Development setup
 To configure the development setup, run:
 ```shell
