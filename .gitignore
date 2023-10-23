@@ -68,7 +68,7 @@ setup.py
 nocturne/_version.py
 
 # temporary files
-tmp/
+temp/
 # All waymo data
 data/
 data_all/
