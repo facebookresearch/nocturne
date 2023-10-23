@@ -7,7 +7,7 @@ env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 # all goals are achievable within 90 steps
 episode_length: 80
 # how many files of the total dataset to use. -1 indicates to use all of them
-num_files: 5
+num_files: 1
 dt: 0.1
 sims_per_step: 10
 img_as_state: false
@@ -90,4 +90,4 @@ subscriber:
   n_frames_stacked: 1 # Agent memory
 
 # Path to folder with traffic scene(s) from which to create an environment
-data_path: ./data
+data_path: ./data/train

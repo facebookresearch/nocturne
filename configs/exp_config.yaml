@@ -1,9 +1,9 @@
-project: nocturne_ppo_benchmark
+project: nocturne_ppo_exp
 env_id: Nocturne
 seed: 6
 track_wandb: true
-wandb_init_videos: []
-where_am_i: local   # Change to "cluster" when you're on the HPC
+wandb_init_videos: ['expert', 'expert_discrete']
+where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
 
 wandb:
@@ -11,11 +11,12 @@ wandb:
   save_code: false
 
 ma_callback:
-  save_model: false
+  log_indiv_metrics: true
+  save_model: true
   model_save_freq: 200_000
-  save_video: false
+  save_video: true
   video_save_freq: 20 # Make a video every k iterations (one iter is x steps)
-  video_deterministic: true
+  video_deterministic: false
   metrics_deterministic: false
 
 ppo:
@@ -24,5 +25,5 @@ ppo:
 
 
 learn:
-  total_timesteps: 400_000
-  progress_bar: true
+  total_timesteps: 10_000_000
+  progress_bar: false
