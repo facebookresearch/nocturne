@@ -8,22 +8,23 @@ exp_name: Nocturne
 
 wandb:
   sync_tensorboard: true
-  save_code: false
+  save_code: true
 
 ma_callback:
   log_indiv_metrics: true
   save_model: true
-  model_save_freq: 200_000
+  model_save_freq: 500 # In iterations
   save_video: true
-  video_save_freq: 20 # Make a video every k iterations (one iter is x steps)
-  video_deterministic: false
+  video_save_freq: 100 # Make a video every k iterations (one iter is x steps)
+  video_deterministic: true
   metrics_deterministic: false
 
 ppo:
   policy: MlpPolicy
   n_steps: 4096
-
+  ent_coef: 0.05 # Default in SB3 is 0
+  vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 10_000_000
+  total_timesteps: 40_000_000
   progress_bar: false
