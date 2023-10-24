@@ -132,7 +132,7 @@ def save_nocturne_video(
     movie_frames = np.array(frames, dtype=np.uint8)
 
     if log_wandb:
-        video_key = video_name if n_steps is None else "video"
+        video_key = video_name if n_steps is None else "agent"
         wandb.log(
             {
                 "step": n_steps,

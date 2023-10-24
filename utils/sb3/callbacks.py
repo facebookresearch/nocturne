@@ -1,7 +1,8 @@
 import logging
-
+import torch
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
+import os
 
 import wandb
 from utils.render import save_nocturne_video
@@ -19,6 +20,7 @@ class CustomMultiAgentCallback(BaseCallback):
         video_config=None,
         save_video_callbacks=None,
         training_end_callbacks=None,
+        wandb_run=None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -28,6 +30,7 @@ class CustomMultiAgentCallback(BaseCallback):
         self.save_video_callbacks = [] if save_video_callbacks is None else save_video_callbacks
         self.training_end_callbacks = [] if training_end_callbacks is None else training_end_callbacks
         self.iteration = 0
+        self.wandb_run = wandb_run
 
     def _on_training_start(self) -> None:
         """
@@ -74,14 +77,14 @@ class CustomMultiAgentCallback(BaseCallback):
 
         # Obtain advantages
         advantages = np.nan_to_num(self.locals["rollout_buffer"].advantages, nan=0)
-        ep_advantage_avg_norm = sum(advantages.sum(axis=1) / num_agents_per_step) / self.n_episodes
+        self.ep_advantage_avg_norm = sum(advantages.sum(axis=1) / num_agents_per_step) / self.n_episodes
 
         # Get batch size
         batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
 
         # Obtain the average ratio of agents that collided / achieved goal in the episode
-        avg_frac_collided = np.mean(self.locals["env"].frac_collided)
-        avg_frac_goal_achieved = np.mean(self.locals["env"].frac_goal_achieved)
+        self.avg_frac_collided = np.mean(self.locals["env"].frac_collided)
+        self.avg_frac_goal_achieved = np.mean(self.locals["env"].frac_goal_achieved)
 
         # Log
         if self.exp_config.track_wandb:
@@ -102,9 +105,9 @@ class CustomMultiAgentCallback(BaseCallback):
         self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)
         self.logger.record("rollout/ep_rew_sum", sum_rewards)
         self.logger.record("rollout/ep_len_mean", avg_ep_len)
-        self.logger.record("rollout/perc_goal_achieved", avg_frac_goal_achieved)
-        self.logger.record("rollout/perc_collided", avg_frac_collided)
-        self.logger.record("rollout/ep_adv_mean_norm", ep_advantage_avg_norm)
+        self.logger.record("rollout/perc_goal_achieved", self.avg_frac_goal_achieved)
+        self.logger.record("rollout/perc_collided", self.avg_frac_collided)
+        self.logger.record("rollout/ep_adv_mean_norm", self.ep_advantage_avg_norm)
         self.logger.record("global_step", self.num_timesteps)
         self.logger.record("iteration", self.iteration)
         self.logger.record("num_frames_in_rollout", batch_size)
@@ -122,6 +125,11 @@ class CustomMultiAgentCallback(BaseCallback):
                     deterministic=self.exp_config.ma_callback.video_deterministic,
                 )
 
+        # Save model
+        if self.exp_config.ma_callback.save_model:
+            if self.iteration % self.exp_config.ma_callback.model_save_freq == 0:
+                self.save_model()
+
     def _on_training_end(self) -> None:
         """
         This event is triggered before exiting the `learn()` method.
@@ -129,3 +137,35 @@ class CustomMultiAgentCallback(BaseCallback):
         super()._on_training_end()
         for training_end_callback in self.training_end_callbacks:
             training_end_callback(self.model)
+
+    def save_model(self) -> None:
+        """Save model to wandb."""
+        model_name = f"ppo_{self.num_timesteps}_steps"
+        model_path = os.path.join(wandb.run.dir, f"{model_name}.pt")
+
+        # Create model artifact
+        model_artifact = wandb.Artifact(
+            name=f"ppo_{self.num_timesteps}",
+            type="model",
+            metadata={**self.env_config, **self.exp_config},
+        )
+
+        # Save torch model
+        torch.save(
+            obj={
+                "iter": self.iteration,
+                "model_state_dict": self.locals["self"].policy.state_dict(),
+                "obs_space_dim": self.locals["env"].observation_space.shape[0],
+                "act_space_dim": self.locals["env"].action_space.n,
+                "norm_reward": self.ep_advantage_avg_norm,
+                "collision_rate": self.avg_frac_collided,
+                "goal_rate": self.avg_frac_collided,
+            },
+            f=model_path,
+        )
+
+        # Save model artifact
+        model_artifact.add_file(local_path=model_path)
+        wandb.save(model_path, base_path=wandb.run.dir)
+        self.wandb_run.log_artifact(model_artifact)
+        logging.info(f"-- Saved model artifact at iter {self.iteration} --")
