@@ -410,20 +410,40 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         Returns
         -------
             np.ndarray: Observation for the vehicle.
-        """
-        cur_position = _position_as_array(veh_obj.getPosition())
-        obs = np.concatenate(
-            (
-                self.scenario.ego_state(veh_obj) if self.config.subscriber.use_ego_state else [],
-                cur_position if self.config.subscriber.use_current_position else [],
-                self.scenario.flattened_visible_state(
+        """ 
+        cur_position = []
+        if self.config.subscriber.use_current_position:
+            cur_position = _position_as_array(veh_obj.getPosition())
+            if self.config.normalize_state: 
+                cur_position = self.center_and_normalize_max(cur_position)
+
+        ego_state = []
+        if self.config.subscriber.use_ego_state:
+            if self.config.normalize_state: 
+                ego_state = self.center_and_normalize_max(self.scenario.ego_state(veh_obj))
+            else:
+                ego_state = self.scenario.ego_state(veh_obj)
+
+        visible_state = []
+        if self.config.subscriber.use_observations:
+            if self.config.normalize_state:
+                visible_state = self.center_and_normalize_max(self.scenario.flattened_visible_state(
+                    veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
+                ))
+            else:
+                visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
-                if self.config.subscriber.use_observations
-                else [],
-            )
-        )
+        
+        # Concatenate
+        obs = np.concatenate((ego_state, visible_state, cur_position))
+
         return obs
+    
+    def center_and_normalize_max(self, x):
+        """Normalize something to be between [0, 1]."""
+        x -= np.mean(x, axis = 0)
+        return x / x.max()
 
     def make_all_vehicles_experts(self) -> None:
         """Force all vehicles to be experts."""
