@@ -32,10 +32,10 @@ scenario:
   # maximum number of each objects visible in the object state
   # if there are more objects, the closest ones are prioritized
   # if there are less objects, the features vector is padded with zeros
-  #max_visible_objects: 16
+  max_visible_objects: 16
   max_visible_road_points: 500
-  #max_visible_traffic_lights: 20
-  #max_visible_stop_signs: 4
+  max_visible_traffic_lights: 0
+  max_visible_stop_signs: 4
   # from the set of road points that comprise each polyline, we take
   # every n-th one of these
   sample_every_n: 1
@@ -76,15 +76,13 @@ rew_cfg:
   goal_speed_scaling: 40.0
 
 # Agent settings
+normalize_state: false
 subscriber:
   view_angle: 3.14 # the distance which the cone extends before agents are not visible; set to pi rad to correct for missing head angle
   view_dist: 80
   use_ego_state: true # if True, add information about the ego state
   use_observations: true # if True, add visible field
-  use_start_position: false # if True, add start (x, y)-position of the agent
   use_current_position: false # if True, add current (x, y)-position of the agent
-  use_target_position: false # if True, add target (x, y)-position of the agent
-  use_distance_to_target: false # if True, add distance to target (dx, dy) of the agent
 
   # for values greater than 1, we will stack inputs together (i.e. memory and equivalent of n_stacked_states)
   n_frames_stacked: 1 # Agent memory
