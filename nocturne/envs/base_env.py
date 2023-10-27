@@ -411,39 +411,41 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         Returns
         -------
             np.ndarray: Observation for the vehicle.
-        """ 
+        """
         cur_position = []
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
-            if self.normalize_state: 
+            if self.normalize_state:
                 cur_position = self.center_and_normalize_max(cur_position)
 
         ego_state = []
         if self.config.subscriber.use_ego_state:
-            print('hi')
-            if self.normalize_state: 
-                print('normalize')
+            print("hi")
+            if self.normalize_state:
+                print("normalize")
                 ego_state = self.center_and_normalize_max(self.scenario.ego_state(veh_obj))
             else:
-                print('dont')
+                print("dont")
                 ego_state = self.scenario.ego_state(veh_obj)
 
         visible_state = []
         if self.config.subscriber.use_observations:
             if self.normalize_state:
-                visible_state = self.center_and_normalize_max(self.scenario.flattened_visible_state(
-                    veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
-                ))
+                visible_state = self.center_and_normalize_max(
+                    self.scenario.flattened_visible_state(
+                        veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
+                    )
+                )
             else:
                 visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
-        
+
         # Concatenate
         obs = np.concatenate((ego_state, visible_state, cur_position))
 
         return obs
-    
+
     def center_and_normalize_max(self, x):
         """Normalize something to be between [0, 1]."""
         return x / x.max()
@@ -613,6 +615,7 @@ def _apply_action_to_vehicle(
         veh_obj.acceleration = accel
         veh_obj.steering = steer
 
+
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.
 
@@ -628,21 +631,10 @@ def _position_as_array(position: Vector2D) -> np.ndarray:
 
 
 if __name__ == "__main__":
-    # Load environment settings
-    with open("./configs/env_config.yaml", "r") as stream:
-        env_config = yaml.safe_load(stream)
-
-    # Initialize environment
-    env = BaseEnv(config=env_config)
-
-
-
-if __name__ == "__main__":
-
     # Load environment variables and config
     env_config = load_config("env_config")
 
-   # Initialize an environment
+    # Initialize an environment
     env = BaseEnv(config=env_config)
 
     # Reset
@@ -653,14 +645,9 @@ if __name__ == "__main__":
     dead_agent_ids = []
 
     for step in range(100):
-
         # Sample actions
-        action_dict = {
-            agent_id: env.action_space.sample() 
-            for agent_id in agent_ids
-            if agent_id not in dead_agent_ids
-        }
-        
+        action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
+
         # Step in env
         obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
 
