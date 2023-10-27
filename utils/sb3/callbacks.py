@@ -56,7 +56,7 @@ class CustomMultiAgentCallback(BaseCallback):
         """
         This event is triggered before updating the policy.
         """
-        # # Compute the number of episodes completed during this rollout
+        # Compute the number of episodes completed during this rollout
         self.n_episodes = self.locals["env"].n_episodes
 
         # Every rollout end (+ optim step) marks an iteration
@@ -94,8 +94,8 @@ class CustomMultiAgentCallback(BaseCallback):
         
         # Log all metrics on the level of individual agents
         if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
-            indiv_rewards = ((rewards.sum(axis=0)) / self.n_episodes)[:num_agents_per_step[0]]
-            indiv_advantages = ((advantages.sum(axis=0)) / self.n_episodes)[:num_agents_per_step[0]]
+            indiv_rewards = ((rewards.sum(axis=0)) / self.n_episodes)
+            indiv_advantages = ((advantages.sum(axis=0)) / self.n_episodes)
             for agent_idx in range(len(indiv_rewards)):
                 self.logger.record(f"rollout/ep_rew_agent_{agent_idx}", indiv_rewards[agent_idx])
                 self.logger.record(f"rollout/ep_adv_agent_{agent_idx}", indiv_advantages[agent_idx])

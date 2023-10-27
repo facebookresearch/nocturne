@@ -1,7 +1,7 @@
 project: test
 env_id: Nocturne
 seed: 42
-track_wandb: true
+track_wandb: false
 wandb_init_videos: ['expert', 'expert_discrete']
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
@@ -28,4 +28,3 @@ ppo:
 learn:
   total_timesteps: 1_000_000
   progress_bar: false
-§

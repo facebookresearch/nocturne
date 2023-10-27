@@ -444,7 +444,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
     def center_and_normalize_max(self, x):
         """Normalize something to be between [0, 1]."""
-        return x / x.max()
+        return x / (x.max() + 1e-10)
 
     def make_all_vehicles_experts(self) -> None:
         """Force all vehicles to be experts."""
