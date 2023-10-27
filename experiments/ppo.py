@@ -26,7 +26,7 @@ if __name__ == "__main__":
     video_config = load_config("video_config")
 
     # Set the maximum number of agents to control
-    env_config.max_num_vehicles = 1
+    env_config.max_num_vehicles = 2
 
     # Set up wandb
     RUN_ID = None
@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
     logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
+    logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
 
     # Set device
     exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -79,7 +80,7 @@ if __name__ == "__main__":
         env=env,
         seed=exp_config.seed,  # Seed for the pseudo random generators
         tensorboard_log=f"runs/{RUN_ID}" if RUN_ID is not None else None,
-        verbose=0,
+        verbose=1,
         device=exp_config.ppo.device,
     )
 

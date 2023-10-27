@@ -94,12 +94,12 @@ class CustomMultiAgentCallback(BaseCallback):
         
         # Log all metrics on the level of individual agents
         if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
-            indiv_rewards = ((rewards.sum(axis=0) / num_agents_per_step[0]) / self.n_episodes)[:num_agents_per_step[0]]
-            indiv_advantages = ((advantages.sum(axis=0) / num_agents_per_step[0]) / self.n_episodes)[:num_agents_per_step[0]]
+            indiv_rewards = ((rewards.sum(axis=0)) / self.n_episodes)[:num_agents_per_step[0]]
+            indiv_advantages = ((advantages.sum(axis=0)) / self.n_episodes)[:num_agents_per_step[0]]
             for agent_idx in range(len(indiv_rewards)):
                 self.logger.record(f"rollout/ep_rew_agent_{agent_idx}", indiv_rewards[agent_idx])
                 self.logger.record(f"rollout/ep_adv_agent_{agent_idx}", indiv_advantages[agent_idx])
-            
+    
         # Log aggregate performance measures 
         self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
         self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)

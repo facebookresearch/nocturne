@@ -76,7 +76,7 @@ rew_cfg:
   goal_speed_scaling: 40.0
 
 # Agent settings
-normalize_state: false
+normalize_state: true
 subscriber:
   view_angle: 3.14 # the distance which the cone extends before agents are not visible; set to pi rad to correct for missing head angle
   view_dist: 80

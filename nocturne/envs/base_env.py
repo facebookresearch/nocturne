@@ -89,6 +89,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         # Set observation space
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dict[list(obs_dict.keys())[0]].shape[0],))
+        self.normalize_state = self.config.normalize_state
 
         # Set action space
         if self.config.discretize_actions:
@@ -414,19 +415,22 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         cur_position = []
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
-            if self.config.normalize_state: 
+            if self.normalize_state: 
                 cur_position = self.center_and_normalize_max(cur_position)
 
         ego_state = []
         if self.config.subscriber.use_ego_state:
-            if self.config.normalize_state: 
+            print('hi')
+            if self.normalize_state: 
+                print('normalize')
                 ego_state = self.center_and_normalize_max(self.scenario.ego_state(veh_obj))
             else:
+                print('dont')
                 ego_state = self.scenario.ego_state(veh_obj)
 
         visible_state = []
         if self.config.subscriber.use_observations:
-            if self.config.normalize_state:
+            if self.normalize_state:
                 visible_state = self.center_and_normalize_max(self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 ))
@@ -442,7 +446,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     
     def center_and_normalize_max(self, x):
         """Normalize something to be between [0, 1]."""
-        x -= np.mean(x, axis = 0)
         return x / x.max()
 
     def make_all_vehicles_experts(self) -> None:
@@ -639,8 +642,40 @@ if __name__ == "__main__":
     # Load environment variables and config
     env_config = load_config("env_config")
 
-    # Make environment
-    env = BaseEnv(env_config)
+   # Initialize an environment
+    env = BaseEnv(config=env_config)
 
+    # Reset
+    obs_dict = env.reset()
 
-    print(f'Using scenes: {env.files}')
+    # Get info
+    agent_ids = [agent_id for agent_id in obs_dict.keys()]
+    dead_agent_ids = []
+
+    for step in range(100):
+
+        # Sample actions
+        action_dict = {
+            agent_id: env.action_space.sample() 
+            for agent_id in agent_ids
+            if agent_id not in dead_agent_ids
+        }
+        
+        # Step in env
+        obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
+
+        print(obs_dict[3])
+        print(obs_dict[3].min(), obs_dict[3].max())
+
+        # Update dead agents
+        for agent_id, is_done in done_dict.items():
+            if is_done and agent_id not in dead_agent_ids:
+                dead_agent_ids.append(agent_id)
+
+        # Reset if all agents are done
+        if done_dict["__all__"]:
+            obs_dict = env.reset()
+            dead_agent_ids = []
+
+    # Close environment
+    env.close()

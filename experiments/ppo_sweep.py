@@ -1,8 +1,9 @@
 """Cast a multi-agent env as vec env to use SB3's PPO."""
 import logging
-from dataclasses import dataclass, asdict
+from datetime import datetime
 import torch
 import wandb
+
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -14,10 +15,10 @@ from utils.sb3.callbacks import CustomMultiAgentCallback
 
 # Custom PPO class that supports multi-agent control
 from utils.sb3.custom_ppo import MultiAgentPPO
-from configs.sweep_config import sweep_config
+from configs.sweep_config import sweep_config_arch
+from utils.string import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
-
 
 def train_func():
     
@@ -27,26 +28,37 @@ def train_func():
     video_config = load_config("video_config")
 
     # Set up run
-    run = wandb.init(**exp_config.wandb)
+    date_time = datetime_to_str(dt=datetime.now())
+    RUN_ID = f"{exp_config.exp_name}_{date_time}"
+    run = wandb.init(
+        project=exp_config.project,
+        name=RUN_ID,
+        id=RUN_ID,
+        **exp_config.wandb,
+    )
 
     # GET PARAMETERS
     TOTAL_TIMESTEPS = wandb.config.total_timesteps
     SEED = wandb.config.seed
     ENT_COEF = wandb.config.ent_coef
     VF_COEF = wandb.config.vf_coef
-    NUM_AGENTS_CONTROLLED = wandb.config.num_controlled_agents
-
+    ACT_FUNC = torch.nn.ReLU if wandb.config.policy_act_func == "relu" else torch.nn.Tanh
+    policy_kwargs = dict( # Use custom MLP policy 
+        activation_fn=ACT_FUNC, 
+        net_arch=wandb.config.policy_layers
+    )
     # Set the maximum number of agents to control
-    env_config.max_num_vehicles = NUM_AGENTS_CONTROLLED
+    env_config.max_num_vehicles = wandb.config.num_controlled_agents
+    env_config.normalize_state = wandb.config.normalize_state
+    env_config.n_frames_stacked = wandb.config.memory
 
     # Make environment
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles
     )
-
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
-    logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
+    logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files} with obs_dim: {env.observation_space.shape[0]}")
 
     # Set device
     exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -74,12 +86,13 @@ def train_func():
     model = MultiAgentPPO(
         n_steps=exp_config.ppo.n_steps,
         policy=exp_config.ppo.policy,
+        policy_kwargs=policy_kwargs,
         ent_coef=ENT_COEF,
         vf_coef=VF_COEF,
         env=env,
         seed=SEED, # Seed for the pseudo random generators
-        tensorboard_log=f"runs/{run.id}",
-        verbose=0,
+        tensorboard_log=f"runs/{RUN_ID}",
+        verbose=1,
         device=exp_config.ppo.device,
     )
 
@@ -96,7 +109,7 @@ def train_func():
 if __name__ == "__main__":
 
     # Create sweep id
-    sweep_id = wandb.sweep(sweep_config)
+    sweep_id = wandb.sweep(sweep_config_arch)
 
     # Run sweep
     wandb.agent(sweep_id, function=train_func)
