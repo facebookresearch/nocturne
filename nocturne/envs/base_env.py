@@ -89,7 +89,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         # Set observation space
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dict[list(obs_dict.keys())[0]].shape[0],))
-        self.normalize_state = self.config.normalize_state
 
         # Set action space
         if self.config.discretize_actions:
@@ -420,17 +419,14 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         ego_state = []
         if self.config.subscriber.use_ego_state:
-            print("hi")
-            if self.normalize_state:
-                print("normalize")
+            if self.config.normalize_state:
                 ego_state = self.center_and_normalize_max(self.scenario.ego_state(veh_obj))
             else:
-                print("dont")
                 ego_state = self.scenario.ego_state(veh_obj)
 
         visible_state = []
         if self.config.subscriber.use_observations:
-            if self.normalize_state:
+            if self.config.normalize_state:
                 visible_state = self.center_and_normalize_max(
                     self.scenario.flattened_visible_state(
                         veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
@@ -651,8 +647,8 @@ if __name__ == "__main__":
         # Step in env
         obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
 
-        print(obs_dict[3])
-        print(obs_dict[3].min(), obs_dict[3].max())
+        # print(obs_dict[3])
+        # print(obs_dict[3].min(), obs_dict[3].max())
 
         # Update dead agents
         for agent_id, is_done in done_dict.items():
