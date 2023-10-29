@@ -7,7 +7,8 @@ env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 # all goals are achievable within 90 steps
 episode_length: 80
 # how many files of the total dataset to use. -1 indicates to use all of them
-num_files: 1
+num_files: 2
+sample_file_method: "random" # ALTERNATIVES: "no_replacement" (SUPPORTED) / "score-based" (TODO)
 dt: 0.1
 sims_per_step: 10
 img_as_state: false
@@ -16,8 +17,8 @@ include_head_angle: false # Whether to include the head tilt/angle as part of a 
 accel_discretization: 3
 accel_lower_bound: -2
 accel_upper_bound: 2
-steering_lower_bound: -0.25 # corresponds to about 40 degrees of max steering angle
-steering_upper_bound: 0.25 # corresponds to about 40 degrees of max steering angle
+steering_lower_bound: -0.5 # corresponds to about 40 degrees of max steering angle
+steering_upper_bound: 0.5 # corresponds to about 40 degrees of max steering angle
 steering_discretization: 3
 max_num_vehicles: 20
 randomize_goals: false
@@ -34,7 +35,7 @@ scenario:
   # if there are less objects, the features vector is padded with zeros
   max_visible_objects: 16
   max_visible_road_points: 500
-  max_visible_traffic_lights: 0
+  max_visible_traffic_lights: 0 # NOT SUPPORTED
   max_visible_stop_signs: 4
   # from the set of road points that comprise each polyline, we take
   # every n-th one of these

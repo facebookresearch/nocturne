@@ -37,14 +37,13 @@ def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
     return action, action_idx
 
 
-def save_nocturne_video(
+def make_video(
     env_config: Box,
     exp_config: Box,
     video_config: Box,
     model: Union[str, OnPolicyAlgorithm],
     n_steps: Optional[int],
     *,
-    log_wandb: bool = True,
     deterministic: bool = True,
     max_steps: int = 80,
     snap_interval: int = 4,
@@ -57,8 +56,7 @@ def save_nocturne_video(
         exp_config (Box): Algo configuration.
         video_config (Box): Rendering configuration.
         model (Union[str, OnPolicyAlgorithm]): Policy to use.
-        n_steps (Optional[int]): The gloabl step number. Defaults to None.
-        log_wandb (bool, optional): If true, log video to wandb. Defaults to True.
+        n_steps (Optional[int]): The global step number. Defaults to None.
         deterministic (bool, optional): If true, set policy to determistic mode. Defaults to True.
         max_steps (int, optional): Episode length. Defaults to 80.
         snap_interval (int, optional): Take snapshot every n steps. Defaults to 4.
@@ -67,78 +65,118 @@ def save_nocturne_video(
     Returns:
         Tuple[np.ndarray, pd.DataFrame]: Movie frames and action dataframe.
     """
-
-    total_steps = exp_config.learn.total_timesteps
-    video_name = model if isinstance(model, str) else f"Steps {str(n_steps).rjust(len(str(total_steps)), ' ')}"
+    if n_steps is not None:
+        formatted_global_step = '{:,}'.format(n_steps)
+        NUM_VIDEOS = min(env_config.num_files, exp_config.ma_callback.record_n_scenes)
+    else:
+        formatted_global_step = None
+        NUM_VIDEOS = 1
 
     # If non-deterministic, ensure that the environment is not seeded
     if not deterministic:
         env_config.seed = None
 
     # Make env
+    env_config.sample_file_method = "no_replacement"
     env = BaseEnv(env_config)
-    next_obs_dict = env.reset()
-    next_done_dict = {agent_id: False for agent_id in next_obs_dict}
 
-    frames = []
+    # Record video for specified number of scenes
+    for scene_idx in range(NUM_VIDEOS):
 
-    action_df = pd.DataFrame()
-    for timestep in range(max_steps):
-        action_dict = {}
-        for agent in env.controlled_vehicles:
-            if agent.id in next_obs_dict and not next_done_dict[agent.id]:
-                if model in ("expert", "expert_discrete"):
-                    agent.expert_control = True
-                    action = env.scenario.expert_action(agent, timestep)
-                    agent.expert_control = False
-                    if model == "expert_discrete":
-                        action, action_idx = discretize_action(env_config=env_config, action=action)
-                    action_dict[agent.id] = action
-                    if model == "expert":
-                        agent.expert_control = True
-                        action_dict = {}
-                else:
-                    obs_tensor = torch.Tensor(next_obs_dict[agent.id]).unsqueeze(dim=0)
-                    with torch.no_grad():
-                        action_idx, _ = model.predict(obs_tensor, deterministic=deterministic)
-                    action_dict[agent.id] = action_idx.item()
-                    acceleration, steering = env.idx_to_actions[action_idx.item()]
+        next_obs_dict = env.reset()
+        next_done_dict = {agent_id: False for agent_id in next_obs_dict}
 
-        next_obs_dict, _, next_done_dict, _ = env.step(action_dict)
-
+        frames = []
         if model in ("expert", "expert_discrete"):
-            action_dict = {
-                agent_id: discretize_action(env_config, action)[1] for agent_id, agent in action_dict.items()
-            }
-        action_df = pd.concat(
-            (action_df, pd.DataFrame(action_dict, index=[timestep])),
-            axis=0,
-            ignore_index=True,
-        )
+            wandb_log_keys = [
+                f"actions/agent_{{}}/expert_action_idx",
+                f"actions/agent_{{}}/expert_acceleration",
+                f"actions/agent_{{}}/expert_steering",
+            ]
+        else:
+            wandb_log_keys = [
+            f"actions/agent_{{}}/action_idx_{n_steps}",
+            f"actions/agent_{{}}/acceleration_{n_steps}",
+            f"actions/agent_{{}}/steering_{n_steps}",
+        ]
 
-        if timestep % snap_interval == 0:
-            # If we're on a headless machine: activate display and render
-            if exp_config.where_am_i == "headless_machine":
-                with Display() as disp:
+        for agent in env.controlled_vehicles:
+            for wandb_log_key in wandb_log_keys:
+                wandb.define_metric(
+                    wandb_log_key.format(agent.id), step_metric="timestep"
+                )
+
+        action_df = pd.DataFrame()
+        for timestep in range(max_steps):
+            action_dict = {}
+            for agent in env.controlled_vehicles:
+                if agent.id in next_obs_dict and not next_done_dict[agent.id]:
+                    if model in ("expert", "expert_discrete"):
+                        agent.expert_control = True
+                        action = env.scenario.expert_action(agent, timestep)
+                        agent.expert_control = False
+                        acceleration, steering = action.acceleration, action.steering
+                        if model == "expert_discrete":
+                            action, action_idx = discretize_action(env_config=env_config, action=action)
+                            acceleration, steering = env.idx_to_actions[action_idx.item()]
+                        action_dict[agent.id] = action
+                        if model == "expert":
+                            agent.expert_control = True
+                            action_dict = {}
+                    else:
+                        obs_tensor = torch.Tensor(next_obs_dict[agent.id]).unsqueeze(dim=0)
+                        with torch.no_grad():
+                            action_idx, _ = model.predict(obs_tensor, deterministic=deterministic)
+                        action_dict[agent.id] = action_idx.item()
+                        acceleration, steering = env.idx_to_actions[action_idx.item()]
+
+                    # Log actions per timestep
+                    if exp_config.ma_callback.log_agent_actions:
+                        if model != "expert":
+                            wandb.log({ 
+                                wandb_log_keys[0].format(agent.id): action_idx,
+                                wandb_log_keys[1].format(agent.id): acceleration, 
+                                wandb_log_keys[2].format(agent.id): steering,
+                                    "timestep": timestep,
+                            })
+
+            next_obs_dict, _, next_done_dict, _ = env.step(action_dict)
+
+            if model in ("expert", "expert_discrete"):
+                action_dict = {
+                    agent_id: discretize_action(env_config, action)[1] for agent_id, agent in action_dict.items()
+                }
+            action_df = pd.concat(
+                (action_df, pd.DataFrame(action_dict, index=[timestep])),
+                axis=0,
+                ignore_index=True,
+            )
+
+            if timestep % snap_interval == 0:
+                # If we're on a headless machine: activate display and render
+                if exp_config.where_am_i == "headless_machine":
+                    with Display() as disp:
+                        render_scene = env.scenario.getImage(**video_config)
+                        frames.append(render_scene.T)
+                else:
                     render_scene = env.scenario.getImage(**video_config)
                     frames.append(render_scene.T)
-            else:
-                render_scene = env.scenario.getImage(**video_config)
-                frames.append(render_scene.T)
 
-        if next_done_dict["__all__"]:
-            break
+            if next_done_dict["__all__"]:
+                break
 
-    movie_frames = np.array(frames, dtype=np.uint8)
+        movie_frames = np.array(frames, dtype=np.uint8)
 
-    if log_wandb:
-        video_key = video_name if n_steps is None else "agent"
+        # Log video to wandb
+        video_key = f"Policy | Scene #{scene_idx}" if n_steps is not None else model
         wandb.log(
             {
                 "step": n_steps,
-                video_key: wandb.Video(movie_frames, fps=frames_per_second, caption=video_name),
+                video_key: wandb.Video(movie_frames, fps=frames_per_second, caption=f'Global step: {formatted_global_step}'),
             },
         )
+    
     env.close()
+    env_config.sample_file_method = "random"
 
     return movie_frames, action_df
