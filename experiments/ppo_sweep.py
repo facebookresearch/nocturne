@@ -8,7 +8,7 @@ import wandb
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
 from utils.config import load_config
-from utils.render import save_nocturne_video
+from utils.render import make_video
 
 # Custom callback
 from utils.sb3.callbacks import CustomMultiAgentCallback
@@ -48,6 +48,7 @@ def train_func():
         net_arch=wandb.config.policy_layers
     )
     NORMALIZE_STATE = True if wandb.config.normalize_state == "true" else False
+    
     # Set the maximum number of agents to control
     env_config.max_num_vehicles = wandb.config.num_controlled_agents
     env_config.normalize_state = NORMALIZE_STATE
@@ -75,7 +76,7 @@ def train_func():
     # Make scene init video to check expert actions
     if exp_config.track_wandb:
         for model in exp_config.wandb_init_videos:
-            save_nocturne_video(
+            make_video(
                 env_config=env_config,
                 exp_config=exp_config,
                 video_config=video_config,

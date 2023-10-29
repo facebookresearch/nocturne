@@ -8,7 +8,7 @@ import wandb
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
 from utils.config import load_config
-from utils.render import save_nocturne_video
+from utils.render import make_video
 
 # Custom callback
 from utils.sb3.callbacks import CustomMultiAgentCallback
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     video_config = load_config("video_config")
 
     # Set the maximum number of agents to control
-    env_config.max_num_vehicles = 2
+    env_config.max_num_vehicles = 3
 
     # Set up wandb
     RUN_ID = None
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
     logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
     logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
+    logging.info(f"Action_space\n: {env.env.idx_to_actions}")
 
     # Set device
     exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     # Make scene init video to check expert actions
     if exp_config.track_wandb:
         for model in exp_config.wandb_init_videos:
-            save_nocturne_video(
+            make_video(
                 env_config=env_config,
                 exp_config=exp_config,
                 video_config=video_config,
