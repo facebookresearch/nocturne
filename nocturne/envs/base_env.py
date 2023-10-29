@@ -73,7 +73,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             "draw_target_positions": draw_target_positions,
             "padding": padding,
         }
-
         self.seed(self.config.seed)
 
         # Load the list of valid files
@@ -85,10 +84,9 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         if len(self.files) == 0:
             raise ValueError("Data path does not contain scenes.")
 
-        obs_dict = self.reset()
-
         # Set observation space
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dict[list(obs_dict.keys())[0]].shape[0],))
+        obs_dim = self._get_obs_space_dim(self.config)
+        self.observation_space = Box(low=-np.inf, high=np.inf, shape=obs_dim,)
 
         # Set action space
         if self.config.discretize_actions:
@@ -283,7 +281,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
         for _ in range(_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE):
-            self.file = np.random.choice(self.files)
+
+            # Sample new traffic scene
+            if self.config.sample_file_method == "no_replacement":
+                self.file = self.files.pop()
+            else: # Random with replacement (default)
+                self.file = np.random.choice(self.files)
+        
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
             self.scenario = self.simulation.getScenario()
 
@@ -415,19 +419,19 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
             if self.normalize_state:
-                cur_position = self.center_and_normalize_max(cur_position)
+                cur_position = self.normalize_max(cur_position)
 
         ego_state = []
         if self.config.subscriber.use_ego_state:
             if self.config.normalize_state:
-                ego_state = self.center_and_normalize_max(self.scenario.ego_state(veh_obj))
+                ego_state = self.normalize_max(self.scenario.ego_state(veh_obj))
             else:
                 ego_state = self.scenario.ego_state(veh_obj)
 
         visible_state = []
         if self.config.subscriber.use_observations:
             if self.config.normalize_state:
-                visible_state = self.center_and_normalize_max(
+                visible_state = self.normalize_max(
                     self.scenario.flattened_visible_state(
                         veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                     )
@@ -442,7 +446,24 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         return obs
 
-    def center_and_normalize_max(self, x):
+    def _get_obs_space_dim(self, config, base=0):
+        """
+        Calculate observation dimension based on the configs.
+        """
+        if sum([self.config.scenario.max_visible_objects, self.config.scenario.max_visible_road_points, 
+        self.config.scenario.max_visible_stop_signs, self.config.scenario.max_visible_traffic_lights]) > 0:
+            base = 10
+
+        obs_space_dim = (
+            base + 
+            (13 * self.config.scenario.max_visible_objects) + 
+            (13 * self.config.scenario.max_visible_road_points) + 
+            (3  * self.config.scenario.max_visible_stop_signs) + 
+            (12 * self.config.scenario.max_visible_traffic_lights)
+        )
+        return (obs_space_dim,)
+
+    def normalize_max(self, x):
         """Normalize something to be between [0, 1]."""
         return x / (x.max() + 1e-10)
 
