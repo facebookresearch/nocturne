@@ -15,7 +15,7 @@ from utils.sb3.callbacks import CustomMultiAgentCallback
 
 # Custom PPO class that supports multi-agent control
 from utils.sb3.custom_ppo import MultiAgentPPO
-from configs.sweep_config import sweep_config_arch
+from configs.sweep_configs import sweep_config_arch
 from utils.string import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
