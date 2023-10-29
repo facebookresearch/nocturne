@@ -5,7 +5,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 import os
 
 import wandb
-from utils.render import save_nocturne_video
+from utils.render import make_video
 
 
 class CustomMultiAgentCallback(BaseCallback):
@@ -31,6 +31,7 @@ class CustomMultiAgentCallback(BaseCallback):
         self.training_end_callbacks = [] if training_end_callbacks is None else training_end_callbacks
         self.iteration = 0
         self.wandb_run = wandb_run
+        self.new_artifact = True
 
     def _on_training_start(self) -> None:
         """
@@ -116,7 +117,7 @@ class CustomMultiAgentCallback(BaseCallback):
         if self.exp_config.ma_callback.save_video:
             if (self.iteration - 1) % self.exp_config.ma_callback.video_save_freq == 0:
                 logging.info(f"Making video at iter = {self.iteration} | global_step = {self.num_timesteps}")
-                save_nocturne_video(
+                make_video(
                     env_config=self.env_config,
                     exp_config=self.exp_config,
                     video_config=self.video_config,
@@ -134,18 +135,18 @@ class CustomMultiAgentCallback(BaseCallback):
         """
         This event is triggered before exiting the `learn()` method.
         """
-        super()._on_training_end()
-        for training_end_callback in self.training_end_callbacks:
-            training_end_callback(self.model)
+        if self.model_path is not None:
+            self.save_model()
+        logging.info(f"-- Saved model artifact at iter {self.iteration} --")
 
     def save_model(self) -> None:
         """Save model to wandb."""
-        model_name = f"ppo_{self.num_timesteps}_steps"
-        model_path = os.path.join(wandb.run.dir, f"{model_name}.pt")
-
+        self.model_name = f"ppo_policy_net_{self.num_timesteps}"
+        self.model_path = os.path.join(wandb.run.dir, f"{self.model_name}.pt")
+    
         # Create model artifact
         model_artifact = wandb.Artifact(
-            name=f"ppo_{self.num_timesteps}",
+            name=self.model_name,
             type="model",
             metadata={**self.env_config, **self.exp_config},
         )
@@ -161,11 +162,11 @@ class CustomMultiAgentCallback(BaseCallback):
                 "collision_rate": self.avg_frac_collided,
                 "goal_rate": self.avg_frac_collided,
             },
-            f=model_path,
+            f=self.model_path,
         )
 
         # Save model artifact
-        model_artifact.add_file(local_path=model_path)
-        wandb.save(model_path, base_path=wandb.run.dir)
+        model_artifact.add_file(local_path=self.model_path)
+        wandb.save(self.model_path, base_path=wandb.run.dir)
         self.wandb_run.log_artifact(model_artifact)
-        logging.info(f"-- Saved model artifact at iter {self.iteration} --")
+        logging.info(f"Saving model checkpoint to {self.model_path} | Global_step: {self.num_timesteps}")
