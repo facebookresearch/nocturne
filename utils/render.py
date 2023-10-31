@@ -115,10 +115,12 @@ def make_video(
                         agent.expert_control = True
                         action = env.scenario.expert_action(agent, timestep)
                         agent.expert_control = False
-                        acceleration, steering = action.acceleration, action.steering
+                        if action is not None:
+                            acceleration, steering = action.acceleration, action.steering
                         if model == "expert_discrete":
-                            action, action_idx = discretize_action(env_config=env_config, action=action)
-                            acceleration, steering = env.idx_to_actions[action_idx.item()]
+                            if action is not None:
+                                action, action_idx = discretize_action(env_config=env_config, action=action)
+                                acceleration, steering = env.idx_to_actions[action_idx.item()]
                         action_dict[agent.id] = action
                         if model == "expert":
                             agent.expert_control = True
@@ -144,7 +146,7 @@ def make_video(
 
             if model in ("expert", "expert_discrete"):
                 action_dict = {
-                    agent_id: discretize_action(env_config, action)[1] for agent_id, agent in action_dict.items()
+                    agent_id: discretize_action(env_config, action)[1] for agent_id, agent in action_dict.items() if action is not None
                 }
             action_df = pd.concat(
                 (action_df, pd.DataFrame(action_dict, index=[timestep])),
