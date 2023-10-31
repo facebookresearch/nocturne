@@ -8,7 +8,7 @@ env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 episode_length: 80
 # how many files of the total dataset to use. -1 indicates to use all of them
 num_files: 2
-sample_file_method: "random" # ALTERNATIVES: "no_replacement" (SUPPORTED) / "score-based" (TODO)
+sample_file_method: "random" # ALTERNATIVES: "no_replacement" (SUPPORTED) / "score-based" (TODO: @Daphne)
 dt: 0.1
 sims_per_step: 10
 img_as_state: false
@@ -76,8 +76,24 @@ rew_cfg:
   # sense as the episodes are 9 seconds long, i.e. we'd have to go more than 40 m/s to get there
   goal_speed_scaling: 40.0
 
-# Agent settings
-normalize_state: true
+# # # # State normalization settings # # # # 
+normalize_state: true 
+# Ego feature names + max values in each category
+ego_state_feat_max:
+  veh_len: 16
+  veh_width: 4
+  speed: 40
+  target_dist: 300 
+  target_azimuth: 3.14
+  target_heading: 3.14
+  rel_target_speed_dist: 40
+  curr_accel: 5 # Vehicle acceleration
+  curr_steering: 3
+  curr_head_angle: 10e05 # Not used at the moment
+
+vis_obs_max: 85 # The maximum value across visible state elements
+
+# # # # Agent settings # # # # 
 subscriber:
   view_angle: 3.14 # the distance which the cone extends before agents are not visible; set to pi rad to correct for missing head angle
   view_dist: 80
