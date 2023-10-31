@@ -66,3 +66,9 @@ setup.py
 *.whl
 *.tar.gz
 nocturne/_version.py
+
+# temporary files
+temp/
+# All waymo data
+data/
+data_all/
