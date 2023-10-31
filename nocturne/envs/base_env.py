@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 """Default Nocturne env with minor adaptations."""
-
 import json
 import logging
 from collections import defaultdict, deque
@@ -93,6 +92,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             self._set_discrete_action_space()
         else:
             self._set_continuous_action_space()
+
 
     def apply_actions(self, action_dict: Dict[int, ActType]) -> None:
         """Apply a dict of actions to the vehicle objects.
@@ -418,28 +418,22 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         cur_position = []
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
-            if self.normalize_state:
-                cur_position = self.normalize_max(cur_position)
-
+            if self.config.normalize_state:
+                cur_position = cur_position / np.linalg.norm(cur_position)
+                
         ego_state = []
         if self.config.subscriber.use_ego_state:
+            ego_state = self.scenario.ego_state(veh_obj)
             if self.config.normalize_state:
-                ego_state = self.normalize_max(self.scenario.ego_state(veh_obj))
-            else:
-                ego_state = self.scenario.ego_state(veh_obj)
-
+                ego_state = self.normalize_ego_state(ego_state)
+                
         visible_state = []
         if self.config.subscriber.use_observations:
-            if self.config.normalize_state:
-                visible_state = self.normalize_max(
-                    self.scenario.flattened_visible_state(
-                        veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
-                    )
-                )
-            else:
-                visible_state = self.scenario.flattened_visible_state(
+            visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
+            if self.config.normalize_state:
+                visible_state = self.normalize_obs(visible_state)
 
         # Concatenate
         obs = np.concatenate((ego_state, visible_state, cur_position))
@@ -450,27 +444,31 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         """
         Calculate observation dimension based on the configs.
         """
-        if sum([self.config.scenario.max_visible_objects, self.config.scenario.max_visible_road_points, 
-        self.config.scenario.max_visible_stop_signs, self.config.scenario.max_visible_traffic_lights]) > 0:
-            base = 10
+        obs_space_dim = 0
 
-        obs_space_dim = (
-            base + 
-            (13 * self.config.scenario.max_visible_objects) + 
-            (13 * self.config.scenario.max_visible_road_points) + 
-            (3  * self.config.scenario.max_visible_stop_signs) + 
-            (12 * self.config.scenario.max_visible_traffic_lights)
-        )
+        if self.config.subscriber.use_ego_state:
+            obs_space_dim += 10
+
+        if self.config.subscriber.use_current_position:
+            obs_space_dim += 2
+
+        if self.config.subscriber.use_observations:
+            obs_space_dim += (
+                base + 
+                (13 * self.config.scenario.max_visible_objects) + 
+                (13 * self.config.scenario.max_visible_road_points) + 
+                (3  * self.config.scenario.max_visible_stop_signs) + 
+                (12 * self.config.scenario.max_visible_traffic_lights)
+            )
         return (obs_space_dim,)
 
-    def normalize_max(self, x):
-        """Normalize something to be between [0, 1]."""
-        return x / (x.max() + 1e-10)
+    def normalize_ego_state(self, state):
+        """Divide every feature in the ego state by the maximum value of that feature."""
+        return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
 
-    def make_all_vehicles_experts(self) -> None:
-        """Force all vehicles to be experts."""
-        for veh in self.scenario.getVehicles():
-            veh.expert_control = True
+    def normalize_obs(self, state):
+        """Divide all visible state elements by the maximum value across the visible state."""
+        return state / self.config.vis_obs_max
 
     def render(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the environment.
@@ -667,10 +665,7 @@ if __name__ == "__main__":
 
         # Step in env
         obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
-
-        # print(obs_dict[3])
-        # print(obs_dict[3].min(), obs_dict[3].max())
-
+        
         # Update dead agents
         for agent_id, is_done in done_dict.items():
             if is_done and agent_id not in dead_agent_ids:
