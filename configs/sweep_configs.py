@@ -4,7 +4,7 @@ sweep_config_arch = {
     'metric': {'name': 'rollout/ep_rew_mean_norm', 'goal':'maximize'},
     'method': 'random',
     'parameters': {
-        'total_timesteps': {'values': [10_000_000]},
+        'total_timesteps': {'values': [20_000_000]},
         'policy_layers': {'values': [[64, 64], [512, 256, 64], [1048, 512, 128]]},
         'normalize_state': {'values': ['true', 'false']},
         'policy_act_func': {'values': ['tanh', 'relu']},
