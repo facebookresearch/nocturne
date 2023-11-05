@@ -4,7 +4,6 @@ from datetime import datetime
 import torch
 import wandb
 
-
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
 from utils.config import load_config
