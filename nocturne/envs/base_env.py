@@ -268,8 +268,12 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
     def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
         self,
+        filename=None,
     ) -> Dict[int, ObsType]:
         """Reset the environment.
+        Args
+        ----
+        filename: If provided, use this scene.
 
         Returns
         -------
@@ -283,7 +287,9 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         for _ in range(_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE):
 
             # Sample new traffic scene
-            if self.config.sample_file_method == "no_replacement":
+            if filename is not None:
+                self.file = filename
+            elif self.config.sample_file_method == "no_replacement":
                 self.file = self.files.pop()
             else: # Random with replacement (default)
                 self.file = np.random.choice(self.files)

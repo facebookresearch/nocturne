@@ -25,6 +25,7 @@ class TrajectoryIterator(IterableDataset):
     def __init__(self, data_path, env_config, with_replacement=True, file_limit=None):
         self.data_path = data_path
         self.config = env_config
+        self.env = BaseEnv(env_config)
         self.with_replacement = with_replacement
         self.valid_veh_dict = json.load(open(f"{self.data_path}/valid_files.json", "r", encoding="utf-8"))
         self.file_names = sorted(list(self.valid_veh_dict.keys()))[:file_limit]
@@ -59,7 +60,7 @@ class TrajectoryIterator(IterableDataset):
             expert_actions_df = self._discretize_expert_actions(filename)
 
             # (3) Obtain corrected observations
-            expert_obs, expert_acts, expert_next_obs, expert_dones = self._step_through_scene(expert_actions_df)
+            expert_obs, expert_acts, expert_next_obs, expert_dones = self._step_through_scene(expert_actions_df, filename)
 
             # (4) Return
             for obs, act, next_obs, done in zip(expert_obs, expert_acts, expert_next_obs, expert_dones):
@@ -116,19 +117,19 @@ class TrajectoryIterator(IterableDataset):
 
         return df_actions
     
-    def _step_through_scene(self, expert_actions_df: pd.DataFrame):
+    def _step_through_scene(self, expert_actions_df: pd.DataFrame, filename: str):
         """
         Step through a traffic scenario using a set of discretized expert actions 
         to construct a set of corrected state-action pairs. Note: A state-action pair 
         is the observation + the action chosen given that observation.
         """
         # Make and reset environment
-        env = BaseEnv(self.config)
+        self.observation_space = gym.spaces.Box(
+            -np.inf, np.inf, self.env.observation_space.shape, np.float32
+        )
         
-        self.observation_space = gym.spaces.Box(-np.inf, np.inf, env.observation_space.shape, np.float32)
-        
-        next_obs_dict = env.reset()
-        
+        # Reset
+        next_obs_dict = self.env.reset(filename)
         num_agents = expert_actions_df.shape[1]
 
         # Storage
@@ -137,7 +138,7 @@ class TrajectoryIterator(IterableDataset):
             (
                 expert_actions_df.shape[0],
                 num_agents,
-                env.observation_space.shape[0],
+                self.env.observation_space.shape[0],
             ), fill_value=np.nan
         )
         next_obs_arr = np.full_like(obs_arr, fill_value=np.nan)
@@ -147,7 +148,7 @@ class TrajectoryIterator(IterableDataset):
         dead_agent_ids = []
 
         # Select agents of interest
-        agents_of_interest = env.controlled_vehicles
+        agents_of_interest = self.env.controlled_vehicles
 
         # (TODO: Add option to step through in expert controlled mode)
         for agent in agents_of_interest:
@@ -169,7 +170,7 @@ class TrajectoryIterator(IterableDataset):
                     expert_action_arr[timestep, agent_idx] = action_dict[agent.id]
 
             # Execute actions
-            next_obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
+            next_obs_dict, rew_dict, done_dict, info_dict = self.env.step(action_dict)
 
             # The i'th observation `next_obs[i]` in this array is the observation
             # after the agent has taken action `acts[i]`.
@@ -232,23 +233,18 @@ if __name__ == "__main__":
 
     env_config = load_config("env_config")
 
-    # Make dataset
-    dataset = TrajectoryIterator(
+    # Create iterator
+    waymo_iterator = TrajectoryIterator(
         data_path=env_config.data_path,
         env_config=env_config,
-        file_limit=1,
+        file_limit=env_config.num_files,
     )   
 
-    # Make dataloader
-    data_loader = iter(
+    # Rollout to get obs-act-obs-done trajectories 
+    rollouts = next(iter(
         DataLoader(
-            dataset,
-            batch_size=500,
+            waymo_iterator,
+            batch_size=400,
             pin_memory=True,
-    ))
-
-    
-
-
-
+    )))
     
