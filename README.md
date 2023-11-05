@@ -152,11 +152,3 @@ pre-commit install
 # Optional: Install poetry docs dependencies
 poetry install --only=docs
 ```
-
-## Ongoing work
-
-Here is a list of features that we are developing:
-
-- @Daphne: Support for SB3's PPO algorithm with multi-agent control
-- @Alex: Logging and unit testing
-- @Tiyas: Sample efficient RL by prioritized scene replay
