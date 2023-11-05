@@ -74,14 +74,14 @@ if __name__ == "__main__":
 
     # Set up PPO model
     model = MultiAgentPPO(
+        env=env,
         n_steps=exp_config.ppo.n_steps,
         policy=exp_config.ppo.policy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
-        env=env,
         seed=exp_config.seed,  # Seed for the pseudo random generators
         tensorboard_log=f"runs/{RUN_ID}" if RUN_ID is not None else None,
-        verbose=1,
+        verbose=exp_config.verbose,
         device=exp_config.ppo.device,
     )
 

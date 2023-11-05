@@ -158,10 +158,10 @@ def make_video(
                 # If we're on a headless machine: activate display and render
                 if exp_config.where_am_i == "headless_machine":
                     with Display() as disp:
-                        render_scene = env.scenario.getImage(**video_config)
+                        render_scene = env.scenario.getImage(**video_config.render)
                         frames.append(render_scene.T)
                 else:
-                    render_scene = env.scenario.getImage(**video_config)
+                    render_scene = env.scenario.getImage(**video_config.render)
                     frames.append(render_scene.T)
 
             if next_done_dict["__all__"]:
