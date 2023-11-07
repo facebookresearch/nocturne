@@ -1,14 +1,16 @@
 """Render functions to create a video of a traffic scene."""
 
+import os
+from pathlib import Path
 from typing import Optional, Tuple, Union
-
 import numpy as np
 import pandas as pd
-import torch
 from box import Box
-from pyvirtualdisplay import Display
+import subprocess
+import pickle
+from tempfile import mkdtemp
+from memory_profiler import profile
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
-
 import wandb
 from nocturne import Action
 from nocturne.envs.base_env import BaseEnv
@@ -36,7 +38,6 @@ def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
 
     return action, action_idx
 
-
 def make_video(
     env_config: Box,
     exp_config: Box,
@@ -49,7 +50,11 @@ def make_video(
     snap_interval: int = 4,
     frames_per_second: int = 4,
 ) -> Tuple[np.ndarray, pd.DataFrame]:
-    """Make a video of a traffic scene.
+    """Make a video of a traffic scene. 
+
+    NOTE: Xvfb has a memory leak, which causes the memory usage to continually increase with each video rendered. 
+    Our workaround is to run this function in a separate process, and kill the process after the video is rendered.
+    More info about the memory leak in Xvfb: http://blog.jeffterrace.com/2012/07/xvfb-memory-leak-workaround.html
 
     Args:
         env_config (Box): RL environment configuration.
@@ -61,9 +66,6 @@ def make_video(
         max_steps (int, optional): Episode length. Defaults to 80.
         snap_interval (int, optional): Take snapshot every n steps. Defaults to 4.
         frames_per_second (int, optional): Speed with which to replay video. Defaults to 4.
-
-    Returns:
-        Tuple[np.ndarray, pd.DataFrame]: Movie frames and action dataframe.
     """
     if n_steps is not None:
         formatted_global_step = '{:,}'.format(n_steps)
@@ -78,107 +80,80 @@ def make_video(
 
     # Make env
     env_config.sample_file_method = "no_replacement"
-    env = BaseEnv(env_config)
 
-    # Record video for specified number of scenes
-    for scene_idx in range(NUM_VIDEOS):
+    # Write env config and model to pickle
+    try:
+        temp_dir = Path(mkdtemp())
+        with open(temp_dir / "env_config.pkl" , "wb") as env_config_file:
+            pickle.dump(obj=env_config, file=env_config_file)
+        with open(temp_dir / "video_config.pkl" , "wb") as video_config_file:
+            pickle.dump(obj=video_config, file=video_config_file)
+        if model not in ("expert", "expert_discrete"):
+            with open(temp_dir / "policy_model.pkl", "wb") as model_file:
+                pickle.dump(obj=model.policy, file=model_file)
 
-        next_obs_dict = env.reset()
-        next_done_dict = {agent_id: False for agent_id in next_obs_dict}
+        env = BaseEnv(env_config)  # TODO: Write inputs to temp storage and pass path to render_video.py
 
-        frames = []
-        if model in ("expert", "expert_discrete"):
-            wandb_log_keys = [
-                f"actions/agent_{{}}/expert_action_idx",
-                f"actions/agent_{{}}/expert_acceleration",
-                f"actions/agent_{{}}/expert_steering",
-            ]
-        else:
-            wandb_log_keys = [
-            f"actions/agent_{{}}/action_idx_{n_steps}",
-            f"actions/agent_{{}}/acceleration_{n_steps}",
-            f"actions/agent_{{}}/steering_{n_steps}",
-        ]
+        # Record video for specified number of scenes
+        for scene_idx in range(NUM_VIDEOS):
 
-        for agent in env.controlled_vehicles:
-            for wandb_log_key in wandb_log_keys:
-                wandb.define_metric(
-                    wandb_log_key.format(agent.id), step_metric="timestep"
-                )
-
-        action_df = pd.DataFrame()
-        for timestep in range(max_steps):
-            action_dict = {}
-            for agent in env.controlled_vehicles:
-                if agent.id in next_obs_dict and not next_done_dict[agent.id]:
-                    if model in ("expert", "expert_discrete"):
-                        agent.expert_control = True
-                        action = env.scenario.expert_action(agent, timestep)
-                        agent.expert_control = False
-                        if action is not None:
-                            acceleration, steering = action.acceleration, action.steering
-                        if model == "expert_discrete":
-                            if action is not None:
-                                action, action_idx = discretize_action(env_config=env_config, action=action)
-                                acceleration, steering = env.idx_to_actions[action_idx.item()]
-                        action_dict[agent.id] = action
-                        if model == "expert":
-                            agent.expert_control = True
-                            action_dict = {}
-                    else:
-                        obs_tensor = torch.Tensor(next_obs_dict[agent.id]).unsqueeze(dim=0)
-                        with torch.no_grad():
-                            action_idx, _ = model.predict(obs_tensor, deterministic=deterministic)
-                        action_dict[agent.id] = action_idx.item()
-                        acceleration, steering = env.idx_to_actions[action_idx.item()]
-
-                    # Log actions per timestep
-                    if exp_config.ma_callback.log_agent_actions:
-                        if model != "expert":
-                            wandb.log({ 
-                                wandb_log_keys[0].format(agent.id): action_idx,
-                                wandb_log_keys[1].format(agent.id): acceleration, 
-                                wandb_log_keys[2].format(agent.id): steering,
-                                    "timestep": timestep,
-                            })
-
-            next_obs_dict, _, next_done_dict, _ = env.step(action_dict)
+            _ = env.reset()
 
             if model in ("expert", "expert_discrete"):
-                action_dict = {
-                    agent_id: discretize_action(env_config, action)[1] for agent_id, agent in action_dict.items() if action is not None
-                }
-            action_df = pd.concat(
-                (action_df, pd.DataFrame(action_dict, index=[timestep])),
-                axis=0,
-                ignore_index=True,
+                wandb_log_keys = [
+                    f"actions/agent_{{}}/expert_action_idx",
+                    f"actions/agent_{{}}/expert_acceleration",
+                    f"actions/agent_{{}}/expert_steering",
+                ]
+            else:
+                wandb_log_keys = [
+                f"actions/agent_{{}}/action_idx_{n_steps}",
+                f"actions/agent_{{}}/acceleration_{n_steps}",
+                f"actions/agent_{{}}/steering_{n_steps}",
+            ]
+
+            for agent in env.controlled_vehicles:
+                for wandb_log_key in wandb_log_keys:
+                    wandb.define_metric(
+                        wandb_log_key.format(agent.id), step_metric="timestep"
+                    )
+
+            # Render the frames
+            subprocess.call(
+                [
+                    "python",
+                    "utils/render_in_subprocess.py", #TODO @Daphne: Change this so that hardcoded path is removed
+                    temp_dir,
+                    model if isinstance(model, str) else "custom",
+                    str(scene_idx),
+                    str(max_steps),
+                    str(snap_interval),
+                    "--deterministic" if deterministic else "--no-deterministic",
+                    "--headless-machine" if exp_config.where_am_i == "headless_machine" else "--no-headless-machine",
+                ]
             )
 
-            if timestep % snap_interval == 0:
-                # If we're on a headless machine: activate display and render
-                if exp_config.where_am_i == "headless_machine":
-                    with Display() as disp:
-                        render_scene = env.scenario.getImage(**video_config.render)
-                        frames.append(render_scene.T)
-                else:
-                    render_scene = env.scenario.getImage(**video_config.render)
-                    frames.append(render_scene.T)
+            # Load frames from temp pickles
+            with open(temp_dir / "frames.pkl", "rb") as movie_frames_file:
+                movie_frames = pickle.load(movie_frames_file)
 
-            if next_done_dict["__all__"]:
-                break
+            # Log video to wandb
+            video_key = f"Policy | Scene #{scene_idx}" if n_steps is not None else model
+            wandb.log(
+                {
+                    "step": n_steps,
+                    video_key: wandb.Video(movie_frames, fps=frames_per_second, caption=f'Global step: {formatted_global_step}'),
+                },
+            )
+        
+        env.close()
+        env_config.sample_file_method = "random"
 
-        movie_frames = np.array(frames, dtype=np.uint8)
+    finally:
+        # Remove files in temp_dir
+        for file in temp_dir.glob("*"):
+            if file.is_file():
+                os.remove(file)
 
-        # Log video to wandb
-        video_key = f"Policy | Scene #{scene_idx}" if n_steps is not None else model
-        wandb.log(
-            {
-                "step": n_steps,
-                video_key: wandb.Video(movie_frames, fps=frames_per_second, caption=f'Global step: {formatted_global_step}'),
-            },
-        )
-    
-    env.close()
-    env_config.sample_file_method = "random"
-
-    return movie_frames, action_df
+        # Remove temp_dir
+        os.rmdir(temp_dir)
