@@ -29,14 +29,16 @@ def train(env_config, exp_config, video_config):
         num_envs=env_config.max_num_vehicles,
         train_on_single_scene=exp_config.train_on_single_scene,
     )
-
     # Set up wandb
     RUN_ID = None
     if exp_config.track_wandb:
         # Set up run
-        #datetime_ = datetime_to_str(dt=datetime.now())
-        #RUN_ID = f"{exp_config.exp_name}_{datetime_}"
-        RUN_ID = f"{env.env.files[0]}_S{exp_config.seed }"
+        datetime_ = datetime_to_str(dt=datetime.now())
+        RUN_ID = f"{exp_config.exp_name}_{datetime_}"
+    
+        # Add scene to config
+        exp_config.scene = env.filename
+
         run = wandb.init(
             project=exp_config.project,
             name=RUN_ID,
@@ -68,6 +70,7 @@ def train(env_config, exp_config, video_config):
                 env_config=env_config,
                 exp_config=exp_config,
                 video_config=video_config,
+                filename=[env.filename],
                 model=model,
                 n_steps=None,
             )

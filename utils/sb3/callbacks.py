@@ -12,7 +12,6 @@ class CustomMultiAgentCallback(BaseCallback):
     """
     A custom callback that derives from ``BaseCallback``.
     """
-
     def __init__(
         self,
         env_config,
@@ -32,6 +31,7 @@ class CustomMultiAgentCallback(BaseCallback):
         self.iteration = 0
         self.wandb_run = wandb_run
         self.new_artifact = True
+        self.model_path = None
 
     def _on_training_start(self) -> None:
         """
@@ -121,6 +121,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     env_config=self.env_config,
                     exp_config=self.exp_config,
                     video_config=self.video_config,
+                    filenames=[self.locals["env"].filename],
                     model=self.model,
                     n_steps=self.num_timesteps,
                     deterministic=self.exp_config.ma_callback.video_deterministic,
@@ -137,6 +138,9 @@ class CustomMultiAgentCallback(BaseCallback):
         """
         if self.model_path is not None:
             self.save_model()
+
+        # TODO: make final video
+
         logging.info(f"-- Saved model artifact at iter {self.iteration} --")
 
     def save_model(self) -> None:

@@ -10,6 +10,7 @@ from utils.render import discretize_action
 def render(
     directory: str,
     model: str,
+    filename: str,
     scene_idx: int,
     max_steps: int,
     snap_interval: int,
@@ -33,7 +34,11 @@ def render(
 
     # Select correct scene
     for scene_idx in range(scene_idx + 1):
-        next_obs_dict = env.reset()
+        if "tfrecord" in filename:
+            next_obs_dict = env.reset(filename)
+        else:
+            next_obs_dict = env.reset()
+
         next_done_dict = {agent_id: False for agent_id in next_obs_dict}
 
     # Render the frames

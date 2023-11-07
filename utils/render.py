@@ -44,12 +44,13 @@ def make_video(
     model: Union[str, OnPolicyAlgorithm],
     n_steps: Optional[int],
     *,
+    filenames = None,
     deterministic: bool = True,
     max_steps: int = 80,
     snap_interval: int = 4,
     frames_per_second: int = 4,
 ) -> Tuple[np.ndarray, pd.DataFrame]:
-    """Make a video of a traffic scene. 
+    """Make a video of policy in traffic scene. 
 
     NOTE: Xvfb has a memory leak, which causes the memory usage to continually increase with each video rendered. 
     Our workaround is to run this function in a separate process, and kill the process after the video is rendered.
@@ -61,6 +62,7 @@ def make_video(
         video_config (Box): Rendering configuration.
         model (Union[str, OnPolicyAlgorithm]): Policy to use.
         n_steps (Optional[int]): The global step number. Defaults to None.
+        filenames (Optional, List of str): The filename of the scene to render, if None, a random scene is selected. 
         deterministic (bool, optional): If true, set policy to determistic mode. Defaults to True.
         max_steps (int, optional): Episode length. Defaults to 80.
         snap_interval (int, optional): Take snapshot every n steps. Defaults to 4.
@@ -96,7 +98,10 @@ def make_video(
         # Record video for specified number of scenes
         for scene_idx in range(NUM_VIDEOS):
 
-            _ = env.reset()
+            if filenames is not None:
+                _ = env.reset(filenames[scene_idx])
+            else: 
+                _ = env.reset()
 
             if model in ("expert", "expert_discrete"):
                 wandb_log_keys = [
@@ -124,6 +129,7 @@ def make_video(
                     "utils/render_in_subprocess.py", #TODO @Daphne: Change this so that hardcoded path is removed
                     temp_dir,
                     model if isinstance(model, str) else "custom",
+                    str(filenames[scene_idx]) if filenames else " ",
                     str(scene_idx),
                     str(max_steps),
                     str(snap_interval),
