@@ -9,7 +9,6 @@ from box import Box
 import subprocess
 import pickle
 from tempfile import mkdtemp
-from memory_profiler import profile
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 import wandb
 from nocturne import Action

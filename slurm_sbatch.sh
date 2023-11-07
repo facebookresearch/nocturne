@@ -7,7 +7,7 @@
 #SBATCH --output=out.txt
 #SBATCH --error=err.txt
 #SBATCH --ntasks=1
-#SBATCH --time=1:00:00
+#SBATCH --time=4:00:00
 #SBATCH --mem=10GB
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mail-user=cornelisse.daphne@nyu.edu

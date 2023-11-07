@@ -4,6 +4,7 @@ from datetime import datetime
 
 import torch
 import wandb
+import numpy as np
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -19,21 +20,23 @@ from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
-if __name__ == "__main__":
-    # Load environment and experiment configurations
-    env_config = load_config("env_config")
-    exp_config = load_config("exp_config")
-    video_config = load_config("video_config")
+def train(env_config, exp_config, video_config):
+    """Train RL agent using PPO."""
 
-    # Set the maximum number of agents to control
-    env_config.max_num_vehicles = 3
+    # Make environment
+    env = MultiAgentAsVecEnv(
+        config=env_config, 
+        num_envs=env_config.max_num_vehicles,
+        train_on_single_scene=exp_config.train_on_single_scene,
+    )
 
     # Set up wandb
     RUN_ID = None
     if exp_config.track_wandb:
         # Set up run
-        datetime = datetime_to_str(dt=datetime.now())
-        RUN_ID = f"{exp_config.exp_name}_{datetime}_CONTROL_{env_config.max_num_vehicles}_AGENTS"
+        #datetime_ = datetime_to_str(dt=datetime.now())
+        #RUN_ID = f"{exp_config.exp_name}_{datetime_}"
+        RUN_ID = f"{env.env.files[0]}_S{exp_config.seed }"
         run = wandb.init(
             project=exp_config.project,
             name=RUN_ID,
@@ -41,9 +44,6 @@ if __name__ == "__main__":
             id=RUN_ID,
             **exp_config.wandb,
         )
-
-    # Make environment
-    env = MultiAgentAsVecEnv(config=env_config, num_envs=env_config.max_num_vehicles)
 
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
     logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         video_config=video_config,
         wandb_run=run if RUN_ID is not None else None,
     )
- 
+
     # Make scene init video to check expert actions
     if exp_config.track_wandb:
         for model in exp_config.wandb_init_videos:
@@ -94,3 +94,14 @@ if __name__ == "__main__":
     # Finish
     if exp_config.track_wandb:
         run.finish()
+
+if __name__ == "__main__":
+
+    # Load environment and experiment configurations
+    env_config = load_config("env_config")
+    exp_config = load_config("exp_config")
+    video_config = load_config("video_config")
+
+    # Run
+    exp_config.seed = int(np.random.choice([42, 6, 0]))
+    train(env_config, exp_config, video_config) 

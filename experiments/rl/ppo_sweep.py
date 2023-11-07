@@ -56,8 +56,10 @@ def train_func():
         config=env_config, 
         num_envs=env_config.max_num_vehicles
     )
-    logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
-    logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files} with obs_dim: {env.observation_space.shape[0]}")
+     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
+    logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
+    logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
+    logging.info(f"Action_space\n: {env.env.idx_to_actions}")
 
     # Set device
     exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -5,6 +5,7 @@
 """Default Nocturne env with minor adaptations."""
 import json
 import logging
+import random
 from collections import defaultdict, deque
 from enum import Enum
 from itertools import islice, product
@@ -77,7 +78,14 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         # Load the list of valid files
         with open(self.config.data_path / "valid_files.json", encoding="utf-8") as file:
             self.valid_veh_dict = json.load(file)
-            files = sorted(list(self.valid_veh_dict.keys()))
+
+            if self.config.fix_file_order:
+                files = sorted(list(self.valid_veh_dict.keys()))
+            else:
+                files = list(self.valid_veh_dict.keys())
+                random.shuffle(files)
+            
+            # Select files
             if self.config.num_files != -1:
                 self.files = files[: self.config.num_files]
         if len(self.files) == 0:

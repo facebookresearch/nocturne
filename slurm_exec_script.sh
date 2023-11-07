@@ -1,2 +1,2 @@
 source .venv/bin/activate
-python experiments/ppo.py 
+python experiments/rl/ppo.py 
