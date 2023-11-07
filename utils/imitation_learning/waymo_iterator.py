@@ -1,20 +1,17 @@
 import json
 import logging
 import numpy as np
+import pandas as pd
+from itertools import product
+
 import gymnasium as gym
-from imitation.data.types import TransitionsMinimal
 from torch.utils.data import IterableDataset
+from torch.utils.data import DataLoader
+from gym.spaces import Discrete
+
 from utils.config import load_config
-from dataclasses import asdict
 from nocturne import Simulation
 from nocturne.envs.base_env import BaseEnv
-from pathlib import Path
-from itertools import islice, product
-import torch
-from torch.utils.data import DataLoader
-from gym.spaces import Box, Discrete
-
-import pandas as pd
 
 # Global setting
 logging.basicConfig(level="INFO")
