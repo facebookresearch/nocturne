@@ -40,19 +40,22 @@ this will save an sbatch and and execute script.
 
 ### Step 2: Submit the jobs
 
-The jobs using
+Run
 ```Python
-sbatch path_to_your_sbatch_script.sh
+sbatch experiments/slurm/run_scripts/sbatch_test.sh
 ```
+to submit the job arrays, done!
 
 
-### Notes
+## Testing
 
-Load python for testing
+Load python for testing (no need to request an interactive node)
 ```
 module load python/intel/3.8.6
 ```
 
 
-### DO
+## `TODOs`
 
+- Remove hard-coded python paths in the `sbatch_generator.py` script
+- Scale up setup such that every defined sweep gets a unique id
