@@ -17,12 +17,12 @@ img_as_state: false
 discretize_actions: true
 include_head_angle: false # Whether to include the head tilt/angle as part of a vehicle's action
 accel_discretization: 5
-accel_lower_bound: -2
-accel_upper_bound: 2
-steering_lower_bound: -0.5
-steering_upper_bound: 0.5
-steering_discretization: 3
-max_num_vehicles: 10
+accel_lower_bound: -3
+accel_upper_bound: 3
+steering_lower_bound: -0.7
+steering_upper_bound: 0.7
+steering_discretization: 5
+max_num_vehicles: 20
 randomize_goals: false
 scenario:
   # initial timestep of the scenario (which ranges from timesteps 0 to 90)

@@ -1,15 +1,12 @@
 '''
 A script for generating SLURM submission scripts which sweep parameters.
-
-Usage
------
-# TODO@Daphne: Add usage instructions and add this all to docs / tutorials
 '''
 
 import os
 import re
 from typing import Dict
 
+LOG_FOLDER = 'experiments/slurm/logs/'
 
 # Default SLURM fields
 DEFAULT_SLURM_FIELDS = {
@@ -21,8 +18,8 @@ DEFAULT_SLURM_FIELDS = {
     'memory_unit': 'GB',
     'time_d': 0,'time_h': 0, 'time_m': 0, 'time_s': 0,  
     'max_sim_jobs': None,
-    'output': 'output_%A_%a.txt',
-    'error': 'error_%A_%a.txt',
+    'output': f'{LOG_FOLDER}output_%A_%a.txt',
+    'error': f'{LOG_FOLDER}error_%A_%a.txt',
 }
 
 # a template for the entire submit script
@@ -86,7 +83,7 @@ def _cli_var(var):
     return f'{tmp}=${{{var}}}'
 
 
-# templates for param array construction and element access
+# Templates for param array construction and element access
 PARAM_ARR = '{param}_values'
 PARAM_EXPRS = {
     'param_arr_init':
@@ -136,7 +133,7 @@ def _get_params_bash(params, values):
     return init_lines, assign_lines
 
 
-def get_scripts(fields: Dict = DEFAULT_SLURM_FIELDS, params: Dict = {}, param_order=None):
+def get_scripts(fields: Dict = DEFAULT_SLURM_FIELDS, params: Dict = {}, param_order=None, run_script=None):
     '''
     returns a string of a SLURM submission script using the passed fields
     and which creates an array of jobs which sweep the given params
@@ -195,7 +192,7 @@ def get_scripts(fields: Dict = DEFAULT_SLURM_FIELDS, params: Dict = {}, param_or
     return TEMPLATE_SBATCH.format(**subs), TEMPLATE_BASH.format(**subs)
 
 
-def save_scripts(sbatch_filename, bash_filename, file_path, fields, params, param_order=None):
+def save_scripts(sbatch_filename, bash_filename, file_path, run_script, fields, params, param_order=None):
     '''
     creates and writes to file a SLURM submission script using the passed
     fields and which creates an array of jobs which sweep the given params
@@ -213,7 +210,7 @@ def save_scripts(sbatch_filename, bash_filename, file_path, fields, params, para
     '''
     
     # Create scripts
-    sbatch_script, bash_script = get_scripts(fields, params, param_order)
+    sbatch_script, bash_script = get_scripts(fields, params, param_order, run_script)
 
     if not file_path:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -229,25 +226,28 @@ if __name__ == '__main__':
 
     # Define SBATCH params
     fields = {
-        'time_h': 1,
-        'num_gpus': 1,
-        'max_sim_jobs': 25,
+        'time_h': 10, # Time per job
+        'num_gpus': 1, # GPUs per job 
+        'max_sim_jobs': 25, 
     }
 
     # Define sweep conf
     params = {
-        'steer_disc': [5], # Action space; 5 is the default
-        'accel_disc': [5, 9], # Action space; 5 is the default
-        #'ent_coef' : [0, 0.025, 0.05] # Entropy coefficient in the policy loss
-        # 'vf_coef'  : [0.5, 0.25], # Value coefficient in the policy loss
-        # 'seed' : [42, 8], # Random seed
-        # 'policy_layers': [[64, 64], [512, 256, 64], [1024, 512, 256, 64]] # Size of the policy network
+        'sweep_name': ['sweep_act_space_indiv'], # Project name
+        'steer_disc': [5, 9, 15], # Action space; 5 is the default
+        'accel_disc': [5, 9, 15], # Action space; 5 is the default
+        'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
+        'vf_coef'  : [0.5, 0.25], # Value coefficient in the policy loss
+        'seed' : [8, 42, 3], # Random seed
+        'activation_fn': ['tanh', 'relu'],
+        'num_files': [1],
     }
 
     save_scripts(
-        sbatch_filename="sbatch_test.sh",
+        sbatch_filename="sbatch_sweep.sh",
         bash_filename="bash_exec.sh", #NOTE: don't change this name
         file_path="experiments/slurm/run_scripts/",
+        run_script="experiments/rl/ppo_w_cli_args.py",
         fields=fields,
         params=params,
     )

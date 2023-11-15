@@ -6,26 +6,28 @@ Navigate to `sbatch_generator.py` and define field and sweep params:
 ```Python
 # Define SBATCH params
 fields = {
-    'time_h': 5, # Max time per job
-    'num_gpus': 1, # Number of gpus per job
-    'max_sim_jobs': 25, # Max jobs to be run simultaneously
+    'time_h': 10, # Time per job
+    'num_gpus': 1, # GPUs per job 
+    'max_sim_jobs': 25, 
 }
 
 # Define sweep conf
 params = {
+    'sweep_name': ['sweep_act_space_indiv'], # Project name
     'steer_disc': [5, 9, 15], # Action space; 5 is the default
     'accel_disc': [5, 9, 15], # Action space; 5 is the default
-    'ent_coef' : [0, 0.025, 0.05], # Entropy coefficient in the policy loss
+    'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
     'vf_coef'  : [0.5, 0.25], # Value coefficient in the policy loss
-    'seed' : [42, 8], # Random seed
-    'policy_layers': [[64, 64], [512, 256, 64], [1024, 512, 256, 64]] # Size of the policy network
+    'seed' : [8, 42, 3], # Random seed
+    'activation_fn': ['tanh', 'relu'],
+    'num_files': [1],
 }
 
-# Save 
 save_scripts(
-    sbatch_filename="sbatch_test.sh",
-    bash_filename="bash_exec.sh", #NOTE: don't change this name
+    sbatch_filename="sbatch_sweep.sh",
+    bash_filename="bash_exec.sh", 
     file_path="experiments/slurm/run_scripts/",
+    run_script="experiments/rl/ppo_w_cli_args.py",
     fields=fields,
     params=params,
 )
@@ -59,3 +61,30 @@ module load python/intel/3.8.6
 
 - Remove hard-coded python paths in the `sbatch_generator.py` script
 - Scale up setup such that every defined sweep gets a unique id
+
+
+
+## Run ppo via the command line with args
+
+
+Check the arguments of the script using `--help`:
+
+```shell
+(.venv) Singularity> python experiments/rl/ppo_w_cli_args.py --help
+                                                                                                                                                                                                                                               
+ Usage: ppo_w_cli_args.py [OPTIONS]                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                                             
+ Train RL agent using PPO with CLI arguments.                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                             
+╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --steer-disc           INTEGER  [default: 5]                                                                                                                                                                                                              │
+│ --accel-disc           INTEGER  [default: 5]                                                                                                                                                                                                              │
+│ --ent-coef             FLOAT    [default: 0.0]                                                                                                                                                                                                            │
+│ --vf-coef              FLOAT    [default: 0.5]                                                                                                                                                                                                            │
+│ --seed                 INTEGER  [default: 42]                                                                                                                                                                                                             │
+│ --policy-layers        INTEGER  [default: 64, 64]                                                                                                                                                                                                         │
+│ --activation-fn        TEXT     [default: tanh]                                                                                                                                                                                                           │
+│ --help                          Show this message and exit.                                                                                                                                                                                               │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+

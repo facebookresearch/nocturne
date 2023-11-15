@@ -1,16 +1,16 @@
-project: ppo_single_scene_perfect
+project: slurm_test
 env_id: Nocturne
 seed: 42
 track_wandb: true
 wandb_init_videos: ['expert', 'expert_discrete']
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
-verbose: 0
+verbose: 1
 train_on_single_scene: true
 
 wandb:
   sync_tensorboard: true
-  save_code: true
+  save_code: false
 
 ma_callback:
   log_indiv_metrics: false
@@ -19,8 +19,8 @@ ma_callback:
   model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
   record_n_scenes: 1 # Number of different scenes to make videos of 
-  video_save_freq: 1 # Make a video every k iterations (one iter is x steps)
-  video_deterministic: true
+  video_save_freq: 200 # Make a video every k iterations (one iter is x steps)
+  video_deterministic: false
   metrics_deterministic: false
 
 ppo:
@@ -30,5 +30,5 @@ ppo:
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 5000
+  total_timesteps: 20_000_000
   progress_bar: false

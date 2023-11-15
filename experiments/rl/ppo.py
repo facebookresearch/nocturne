@@ -70,7 +70,7 @@ def train(env_config, exp_config, video_config):
                 env_config=env_config,
                 exp_config=exp_config,
                 video_config=video_config,
-                filename=[env.filename],
+                filenames=[env.filename],
                 model=model,
                 n_steps=None,
             )
@@ -106,5 +106,5 @@ if __name__ == "__main__":
     video_config = load_config("video_config")
 
     # Run
-    exp_config.seed = int(np.random.choice([42, 6, 0]))
+    exp_config.seed = int(np.random.choice([42, 6, 0], size=1))
     train(env_config, exp_config, video_config) 
