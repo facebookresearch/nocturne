@@ -41,6 +41,7 @@ scenario:
   # from the set of road points that comprise each polyline, we take
   # every n-th one of these
   sample_every_n: 1
+  reducing_threshold: 0.0001 # if the distance between three consecutive points is less than this value, we remove the middle point
   # if true we add all the road-edges (the edges you can collide with)
   # to the visible road points first and only add the other points
   # (road lines, lane lines) etc. if we have remaining states after

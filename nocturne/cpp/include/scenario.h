@@ -90,6 +90,8 @@ class Scenario : public sf::Drawable {
             config, "max_visible_stop_signs", kMaxVisibleStopSigns))),
         sample_every_n_(std::get<int64_t>(
             utils::FindWithDefault(config, "sample_every_n", int64_t(1)))),
+        reducing_threshold_(std::get<float>(
+            utils::FindWithDefault(config, "reducing_threshold", 0.01f))),
         road_edge_first_(std::get<bool>(
             utils::FindWithDefault(config, "road_edge_first", false))),
         moving_threshold_(std::get<float>(
@@ -319,7 +321,7 @@ class Scenario : public sf::Drawable {
   // from the set of road points that comprise each polyline, we take
   // every n-th one
   const int64_t sample_every_n_ = 1;
-
+  const float_t reducing_threshold_ = 0.01;
   const bool road_edge_first_ = false;
 
   // The distance to goal must be greater than this

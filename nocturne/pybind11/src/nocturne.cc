@@ -16,6 +16,7 @@ PYBIND11_MODULE(nocturne_cpp, m) {
 
   DefineAction(m);
   DefineObject(m);
+  DefineRoadPoint(m);
   DefineRoadLine(m);
   DefineScenario(m);
   DefineSimulation(m);

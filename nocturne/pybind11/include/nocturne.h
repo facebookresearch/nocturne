@@ -12,6 +12,7 @@ namespace nocturne {
 
 void DefineAction(py::module& m);
 void DefineObject(py::module& m);
+void DefineRoadPoint(py::module& m);
 void DefineRoadLine(py::module& m);
 void DefineScenario(py::module& m);
 void DefineSimulation(py::module& m);

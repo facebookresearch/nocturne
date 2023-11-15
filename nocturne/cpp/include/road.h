@@ -73,33 +73,36 @@ class RoadLine : public sf::Drawable {
 
   RoadLine(RoadType road_type,
            const std::initializer_list<geometry::Vector2D>& geometry_points,
-           int64_t sample_every_n = 1, bool check_collision = false)
+           int64_t sample_every_n = 1, bool check_collision = false, float_t reducing_threshold = 0.01)
       : road_type_(road_type),
         geometry_points_(geometry_points),
         sample_every_n_(sample_every_n),
-        check_collision_(check_collision) {
+        check_collision_(check_collision),
+        reducing_threshold_(reducing_threshold) {
     InitRoadPoints();
     InitRoadLineGraphics();
   }
 
   RoadLine(RoadType road_type,
            const std::vector<geometry::Vector2D>& geometry_points,
-           int64_t sample_every_n = 1, bool check_collision = false)
+           int64_t sample_every_n = 1, bool check_collision = false, float_t reducing_threshold = 0.01)
       : road_type_(road_type),
         geometry_points_(geometry_points),
         sample_every_n_(sample_every_n),
-        check_collision_(check_collision) {
+        check_collision_(check_collision),
+        reducing_threshold_(reducing_threshold) {
     InitRoadPoints();
     InitRoadLineGraphics();
   }
 
   RoadLine(RoadType road_type,
            std::vector<geometry::Vector2D>&& geometry_points,
-           int64_t sample_every_n = 1, bool check_collision = false)
+           int64_t sample_every_n = 1, bool check_collision = false, float_t reducing_threshold = 0.01)
       : road_type_(road_type),
         geometry_points_(std::move(geometry_points)),
         sample_every_n_(sample_every_n),
-        check_collision_(check_collision) {
+        check_collision_(check_collision),
+        reducing_threshold_(reducing_threshold) {
     InitRoadPoints();
     InitRoadLineGraphics();
   }
@@ -132,6 +135,7 @@ class RoadLine : public sf::Drawable {
   std::vector<RoadPoint> road_points_;
 
   const bool check_collision_ = false;
+  const float_t reducing_threshold_ = 0.0;
 
   std::vector<sf::Vertex> graphic_points_;
 };
