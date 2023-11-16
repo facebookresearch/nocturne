@@ -1,4 +1,4 @@
-project: slurm_test
+project: checks
 env_id: Nocturne
 seed: 42
 track_wandb: true

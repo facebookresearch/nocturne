@@ -93,12 +93,12 @@ def make_video(
             with open(temp_dir / "policy_model.pkl", "wb") as model_file:
                 pickle.dump(obj=model.policy, file=model_file)
 
-        env = BaseEnv(env_config)  # TODO: Write inputs to temp storage and pass path to render_video.py
+        env = BaseEnv(env_config) 
 
         # Record video for specified number of scenes
         for scene_idx in range(NUM_VIDEOS):
 
-            if filenames is not None:
+            if filenames[0] is not None:
                 _ = env.reset(filenames[scene_idx])
             else: 
                 _ = env.reset()
@@ -129,7 +129,7 @@ def make_video(
                     "utils/render_in_subprocess.py", #TODO @Daphne: Change this so that hardcoded path is removed
                     temp_dir,
                     model if isinstance(model, str) else "custom",
-                    str(filenames[scene_idx]) if filenames else " ",
+                    str(filenames[scene_idx]) if filenames[0] is not None else " ",
                     str(scene_idx),
                     str(max_steps),
                     str(snap_interval),

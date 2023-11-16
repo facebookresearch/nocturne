@@ -31,6 +31,9 @@ POLICY_DICT = {
     "medium": [512, 256, 128], 
     "large": [1024, 512, 256, 128],
 }
+POLICY_TYPE_DICT = {
+    "mlp": "MlpPolicy",
+}
 
 def run_ppo(
     sweep_name: str="ppo",
@@ -39,10 +42,11 @@ def run_ppo(
     ent_coef: float=0.,
     vf_coef: float=0.5,
     seed: int=42,
-    policy_arch: str="base_mlp", #TODO: Add policies
+    policy_arch: str="mlp",
+    policy_size: str="small", #TODO: Add policies
     activation_fn: str="tanh",
     total_timesteps: int=100_000,
-    num_files: int=1,
+    num_files: int=10,
     single_scene: int=0,
 ) -> None:
     """Train RL agent using PPO with CLI arguments."""
@@ -59,8 +63,9 @@ def run_ppo(
     exp_config.learn.total_timesteps = total_timesteps
     exp_config.train_on_single_scene = single_scene
     # Use custom policy 
-    policy_layers = POLICY_DICT[policy_arch] if policy_arch != "base_mlp" else [64, 64]
-    afunc = torch.nn.Tanh
+    policy_type = POLICY_TYPE_DICT[policy_arch]
+    policy_layers = POLICY_DICT[policy_size]
+    afunc = torch.nn.Tanh if activation_fn == "tanh" else torch.nn.ReLU
     policy_kwargs = dict( 
         activation_fn=afunc, 
         net_arch=policy_layers,
@@ -126,7 +131,7 @@ def run_ppo(
     model = MultiAgentPPO(
         env=env,
         n_steps=exp_config.ppo.n_steps,
-        policy=exp_config.ppo.policy,
+        policy=policy_type,
         policy_kwargs=policy_kwargs,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
