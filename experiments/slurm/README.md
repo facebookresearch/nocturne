@@ -55,6 +55,7 @@ Load python for testing (no need to request an interactive node)
 ```
 module load python/intel/3.8.6
 ```
+NOTE: Make sure to run the jobs in a new terminal, otherwise it will use this Python version.
 
 
 ## `TODOs`

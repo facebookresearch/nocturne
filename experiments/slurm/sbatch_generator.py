@@ -39,6 +39,9 @@ TEMPLATE_SBATCH = '''
 #SBATCH --cpus-per-task={num_cpus}
 #SBATCH --gres=gpu:{num_gpus}
 
+trial=${{SLURM_ARRAY_TASK_ID}}
+sleep "$(expr $trial \* 2)"
+
 SINGULARITY_IMAGE=hpc/nocturne.sif
 OVERLAY_FILE=hpc/overlay-15GB-500K.ext3
 
@@ -54,7 +57,8 @@ TEMPLATE_BASH = '''
 trial=${{SLURM_ARRAY_TASK_ID}}
 {param_val_assign}
 
-source /scratch/dc4971/nocturne_lab/.venv/bin/activate && python experiments/rl/ppo_w_cli_args.py {param_cli_list}
+source /scratch/dc4971/nocturne_lab/.venv/bin/activate
+python experiments/rl/ppo_w_cli_args.py {param_cli_list}
 '''
 
 # functions for making bash expressions
@@ -222,30 +226,32 @@ def save_scripts(sbatch_filename, bash_filename, file_path, run_script, fields, 
 
 if __name__ == '__main__':
 
-    SWEEP_NAME = 'sweep_act_space_indiv'
+    SWEEP_NAME = 'sweep_n10_mlp'
 
     # Define SBATCH params
     fields = {
-        'time_h': 1, # Time per job
+        'time_h': 15, # Max time per job
         'num_gpus': 1, # GPUs per job 
-        'max_sim_jobs': 25, 
+        'max_sim_jobs': 25, # Max jobs at the same time
+        'job_name': SWEEP_NAME,
     }
 
     # Define sweep conf
     params = {
         'sweep_name': [SWEEP_NAME], # Project name
-        'steer_disc': [5], # Action space; 5 is the default
+        'steer_disc': [5, 9, 15], # Action space; 5 is the default
         'accel_disc': [5], # Action space; 5 is the default
-        'ent_coef' : [0],   # Entropy coefficient in the policy loss
+        'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
         'vf_coef'  : [0.5], # Value coefficient in the policy loss
-        'seed' : [8], # Random seed
+        'seed' : [8, 42, 6], # Random seed
+        'policy_arch': ['small', 'medium', 'large'],
         'activation_fn': ['tanh'],
-        'num_files': [1],
-        'total_timesteps': [10_000] # Total training time
+        'num_files': [10], # Number of traffic scenes to train on 
+        'total_timesteps': [100_000_000], # Total training time
     }
 
     save_scripts(
-        sbatch_filename="sbatch_sweep.sh",
+        sbatch_filename=f"sbatch_{SWEEP_NAME}.sh",
         bash_filename="bash_exec.sh", #NOTE: don't change this name
         file_path="experiments/slurm/run_scripts/",
         run_script="experiments/rl/ppo_w_cli_args.py",
