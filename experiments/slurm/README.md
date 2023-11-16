@@ -44,9 +44,9 @@ this will save an sbatch and and execute script.
 
 Run
 ```Python
-sbatch experiments/slurm/run_scripts/sbatch_test.sh
+sbatch experiments/slurm/run_scripts/sbatch_sweep.sh
 ```
-to submit the job arrays, done!
+to submit the job arrays. This script will call the `bash_exec.sh` for each array index.
 
 
 ## Testing
@@ -59,9 +59,8 @@ module load python/intel/3.8.6
 
 ## `TODOs`
 
-- Remove hard-coded python paths in the `sbatch_generator.py` script
+- Set paths to python script and bash exec script using variables (in `sbatch_generator.py`)
 - Scale up setup such that every defined sweep gets a unique id
-
 
 
 ## Run ppo via the command line with args

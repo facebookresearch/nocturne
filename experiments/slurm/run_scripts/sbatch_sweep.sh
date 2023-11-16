@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --array=0-323%25
+#SBATCH --array=0-0%25
 #SBATCH --job-name=my_job
 #SBATCH --output=experiments/slurm/logs/output_%A_%a.txt
 #SBATCH --error=experiments/slurm/logs/error_%A_%a.txt
 #SBATCH --mem=10GB
-#SBATCH --time=0-10:0:0
+#SBATCH --time=0-1:0:0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1

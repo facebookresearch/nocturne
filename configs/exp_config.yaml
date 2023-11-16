@@ -5,7 +5,7 @@ track_wandb: true
 wandb_init_videos: ['expert', 'expert_discrete']
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
-verbose: 1
+verbose: 0
 train_on_single_scene: true
 
 wandb:

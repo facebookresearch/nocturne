@@ -26,6 +26,8 @@ env_config = load_config("env_config")
 exp_config = load_config("exp_config")
 video_config = load_config("video_config")
 
+#POLICY_DICT = {}
+
 def run_ppo(
     sweep_name: str="ppo",
     steer_disc: int=5, 
@@ -33,8 +35,9 @@ def run_ppo(
     ent_coef: float=0.,
     vf_coef: float=0.5,
     seed: int=42,
-    policy_layers: List[int] = [512, 256, 128],
+    policy_arch: str = "base_mlp", #TODO: Add policies
     activation_fn: str="tanh",
+    total_timesteps: int = 100_000,
     num_files: int = 1,
 ) -> None:
     """Train RL agent using PPO with CLI arguments."""
@@ -48,9 +51,11 @@ def run_ppo(
     exp_config.ent_coef = ent_coef
     exp_config.vf_coef = vf_coef
     exp_config.seed = seed
-    # Custom model
+    exp_config.learn.total_timesteps = total_timesteps
+    # Use custom policy 
+    policy_layers = [64, 64] if policy_arch != "base_mlp" else [64, 64]
     afunc = torch.nn.Tanh
-    policy_kwargs = dict( # Use custom MLP policy 
+    policy_kwargs = dict( 
         activation_fn=afunc, 
         net_arch=policy_layers,
     )
@@ -62,6 +67,7 @@ def run_ppo(
         num_envs=env_config.max_num_vehicles,
         train_on_single_scene=exp_config.train_on_single_scene,
     )
+
     # Set up wandb
     RUN_ID = None
     if exp_config.track_wandb:

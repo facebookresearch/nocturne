@@ -49,14 +49,12 @@ echo "Successfully launched image."
 '''.strip()
 
 TEMPLATE_BASH = '''
-source .venv/bin/activate
-
 {param_arr_init}
 
 trial=${{SLURM_ARRAY_TASK_ID}}
 {param_val_assign}
 
-python experiments/rl/ppo_w_cli_args.py {param_cli_list}
+source /scratch/dc4971/nocturne_lab/.venv/bin/activate && python experiments/rl/ppo_w_cli_args.py {param_cli_list}
 '''
 
 # functions for making bash expressions
@@ -224,23 +222,26 @@ def save_scripts(sbatch_filename, bash_filename, file_path, run_script, fields, 
 
 if __name__ == '__main__':
 
+    SWEEP_NAME = 'sweep_act_space_indiv'
+
     # Define SBATCH params
     fields = {
-        'time_h': 10, # Time per job
+        'time_h': 1, # Time per job
         'num_gpus': 1, # GPUs per job 
         'max_sim_jobs': 25, 
     }
 
     # Define sweep conf
     params = {
-        'sweep_name': ['sweep_act_space_indiv'], # Project name
-        'steer_disc': [5, 9, 15], # Action space; 5 is the default
-        'accel_disc': [5, 9, 15], # Action space; 5 is the default
-        'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
-        'vf_coef'  : [0.5, 0.25], # Value coefficient in the policy loss
-        'seed' : [8, 42, 3], # Random seed
-        'activation_fn': ['tanh', 'relu'],
+        'sweep_name': [SWEEP_NAME], # Project name
+        'steer_disc': [5], # Action space; 5 is the default
+        'accel_disc': [5], # Action space; 5 is the default
+        'ent_coef' : [0],   # Entropy coefficient in the policy loss
+        'vf_coef'  : [0.5], # Value coefficient in the policy loss
+        'seed' : [8], # Random seed
+        'activation_fn': ['tanh'],
         'num_files': [1],
+        'total_timesteps': [10_000] # Total training time
     }
 
     save_scripts(
