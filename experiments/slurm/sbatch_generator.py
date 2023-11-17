@@ -244,10 +244,10 @@ if __name__ == '__main__':
         'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
         'vf_coef'  : [0.5], # Value coefficient in the policy loss
         'seed' : [8, 42, 6], # Random seed
-        'policy_arch': ['small', 'medium', 'large'],
-        'activation_fn': ['tanh'],
+        'policy_size': ['small', 'medium', 'large'],
+        'policy_arch': ['mlp'],
         'num_files': [10], # Number of traffic scenes to train on 
-        'total_timesteps': [100_000_000], # Total training time
+        'total_timesteps': [100_000_000], # Total training steps
     }
 
     save_scripts(

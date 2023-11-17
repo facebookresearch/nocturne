@@ -18,7 +18,7 @@ ma_callback:
   save_model: true
   model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
-  record_n_scenes: 3 # Number of different scenes to make videos of 
+  record_n_scenes: 10 # Number of different scenes to make videos of 
   video_save_freq: 200 # Make a video every k iterations (one iter is x steps)
   video_deterministic: false
   metrics_deterministic: false

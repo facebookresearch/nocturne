@@ -26,8 +26,8 @@ env_config = load_config("env_config")
 exp_config = load_config("exp_config")
 video_config = load_config("video_config")
 
-POLICY_DICT = {
-    "small": [256, 128], 
+POLICY_SIZE_DICT = {
+    "small": [128, 128], 
     "medium": [512, 256, 128], 
     "large": [1024, 512, 256, 128],
 }
@@ -43,7 +43,7 @@ def run_ppo(
     vf_coef: float=0.5,
     seed: int=42,
     policy_arch: str="mlp",
-    policy_size: str="small", #TODO: Add policies
+    policy_size: str="small",
     activation_fn: str="tanh",
     total_timesteps: int=100_000,
     num_files: int=10,
@@ -62,9 +62,12 @@ def run_ppo(
     exp_config.seed = seed
     exp_config.learn.total_timesteps = total_timesteps
     exp_config.train_on_single_scene = single_scene
+    exp_config.policy_arch = policy_arch
+    exp_config.policy_size = policy_size
+    exp_config.activation_func = activation_fn
     # Use custom policy 
     policy_type = POLICY_TYPE_DICT[policy_arch]
-    policy_layers = POLICY_DICT[policy_size]
+    policy_layers = POLICY_SIZE_DICT[policy_size]
     afunc = torch.nn.Tanh if activation_fn == "tanh" else torch.nn.ReLU
     policy_kwargs = dict( 
         activation_fn=afunc, 
