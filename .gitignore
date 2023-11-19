@@ -72,7 +72,7 @@ temp/
 
 # Waymo data
 data/
-data_all/
+data_full/
 
 # Logging output
 logs/

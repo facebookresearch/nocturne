@@ -15,7 +15,7 @@ from utils.render import make_video
 from utils.sb3.callbacks import CustomMultiAgentCallback
 
 # Custom PPO class that supports multi-agent control
-from utils.sb3.custom_ppo import MultiAgentPPO
+from utils.sb3.ma_ppo import MultiAgentPPO
 from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
@@ -48,7 +48,7 @@ def train(env_config, exp_config, video_config):
         )
 
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
-    logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
+    logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files}")
     logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
     logging.info(f"Action_space\n: {env.env.idx_to_actions}")
 

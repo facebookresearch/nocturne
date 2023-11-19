@@ -16,7 +16,7 @@ from utils.render import make_video
 from utils.sb3.callbacks import CustomMultiAgentCallback
 
 # Custom PPO class that supports multi-agent control
-from utils.sb3.custom_ppo import MultiAgentPPO
+from utils.sb3.ma_ppo import MultiAgentPPO
 from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)

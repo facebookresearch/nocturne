@@ -1,5 +1,3 @@
-"""Module containing regularized PPO algorithm."""
-
 import logging
 
 import numpy as np
