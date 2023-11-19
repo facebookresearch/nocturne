@@ -1,11 +1,11 @@
-project: checks
+project: hr_ppo
 env_id: Nocturne
 seed: 42
 track_wandb: true
 wandb_init_videos: ['expert', 'expert_discrete']
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
-verbose: 1
+verbose: 0
 train_on_single_scene: false
 
 wandb:
@@ -18,17 +18,20 @@ ma_callback:
   save_model: true
   model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
-  record_n_scenes: 10 # Number of different scenes to make videos of 
-  video_save_freq: 200 # Make a video every k iterations (one iter is x steps)
+  record_n_scenes: 1 # Number of different scenes to make videos of 
+  video_save_freq: 20 # Make a video every k iterations (one iter is x steps)
   video_deterministic: false
   metrics_deterministic: false
 
 ppo:
   policy: MlpPolicy
   n_steps: 4096
-  ent_coef: 0.025 # Default in SB3 is 0
+  ent_coef: 0.005 # Default in SB3 is 0
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 20_000_000
+  total_timesteps: 1_000_000
   progress_bar: false
+
+# human-regularized RL
+reg_weight: 0.5
