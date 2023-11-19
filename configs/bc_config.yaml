@@ -1,8 +1,12 @@
-
-# Data setttings
+# Data 
 raw_data_path: ./data/train # Path to raw traffic scenes
 
-# Train settings
+# Model 
+save_model: true # Save model after training
+model_name: "human_policy" # Name of saved model
+save_model_path: ./models/il/ # Path to save model
+
+# Train 
 total_samples: 10_000 # Number of obs-act-next_obs-done pairs to generate
-n_epochs: 1000 # Training epochs
+n_epochs: 200 # Training epochs
 
