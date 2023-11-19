@@ -136,11 +136,20 @@ class CustomMultiAgentCallback(BaseCallback):
         """
         This event is triggered before exiting the `learn()` method.
         """
+        if self.exp_config.ma_callback.save_video:
+            logging.info(f"Making video at last iter = {self.iteration} | global_step = {self.num_timesteps}")
+            make_video(
+                env_config=self.env_config,
+                exp_config=self.exp_config,
+                video_config=self.video_config,
+                filenames=[self.locals["env"].filename],
+                model=self.model,
+                n_steps=self.num_timesteps,
+                deterministic=self.exp_config.ma_callback.video_deterministic,
+            )
+        
         if self.model_path is not None:
             self.save_model()
-
-        # TODO: make final video
-
         logging.info(f"-- Saved model artifact at iter {self.iteration} --")
 
     def save_model(self) -> None:
