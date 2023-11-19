@@ -10,6 +10,7 @@ class LightNocturneEnvWrapper:
 
     def __init__(self, config):
         self.env = BaseEnv(config)
+        self.files = self.env.files
 
         # Make action and observation spaces compatible with SB3 (requires gymnasium)
         self.action_space = gym.spaces.Discrete(self.env.action_space.n)
@@ -44,8 +45,8 @@ class LightNocturneEnvWrapper:
         return obs, rews, dones, infos
 
 
-    def reset(self):
-        obs_dict = self.env.reset()
+    def reset(self, filename=None):
+        obs_dict = self.env.reset(filename)
 
         self.num_agents = len(self.env.controlled_vehicles)
         self.agent_ids = []
