@@ -7,6 +7,7 @@ import os
 import wandb
 from utils.eval import EvaluatePolicy
 from utils.render import make_video
+from stable_baselines3.common.policies import ActorCriticPolicy
 
 
 class CustomMultiAgentCallback(BaseCallback):

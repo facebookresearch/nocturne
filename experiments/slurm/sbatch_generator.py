@@ -1,7 +1,7 @@
 '''
 A script for generating SLURM submission scripts which sweep parameters.
 '''
-
+import numpy as np
 import os
 import re
 from typing import Dict
@@ -226,7 +226,7 @@ def save_scripts(sbatch_filename, bash_filename, file_path, run_script, fields, 
 
 if __name__ == '__main__':
 
-    SWEEP_NAME = 'sweep_n10_mlp'
+    SWEEP_NAME = 'sweep_hr_ppo'
 
     # Define SBATCH params
     fields = {
@@ -239,15 +239,16 @@ if __name__ == '__main__':
     # Define sweep conf
     params = {
         'sweep_name': [SWEEP_NAME], # Project name
-        'steer_disc': [5, 9, 15], # Action space; 5 is the default
+        'steer_disc': [5, 7], # Action space; 5 is the default
         'accel_disc': [5], # Action space; 5 is the default
-        'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
+        'ent_coef' : [0, 0.001],   # Entropy coefficient in the policy loss
         'vf_coef'  : [0.5], # Value coefficient in the policy loss
-        'seed' : [8, 42, 6], # Random seed
-        'policy_size': ['small', 'medium', 'large'],
+        'seed' : [8, 42], # Random seed
+        'policy_size': ['small'],
         'policy_arch': ['mlp'],
         'num_files': [10], # Number of traffic scenes to train on 
-        'total_timesteps': [100_000_000], # Total training steps
+        'total_timesteps': [45_000_000], # Total training steps
+        'reg_weight': list(np.round(np.arange(0., .5, 0.05), 3)),
     }
 
     save_scripts(
