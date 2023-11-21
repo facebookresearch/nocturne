@@ -13,29 +13,7 @@ from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 import wandb
 from nocturne import Action
 from nocturne.envs.base_env import BaseEnv
-
-
-def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
-    """Discretize actions."""
-    acceleration_actions = np.linspace(
-        start=env_config.accel_lower_bound,
-        stop=env_config.accel_upper_bound,
-        num=env_config.accel_discretization,
-    )
-    acceleration_idx = np.abs(action.acceleration - acceleration_actions).argmin()
-    action.acceleration = acceleration_actions[acceleration_idx]
-
-    steering_actions = np.linspace(
-        start=env_config.steering_lower_bound,
-        stop=env_config.steering_upper_bound,
-        num=env_config.steering_discretization,
-    )
-    steering_idx = np.abs(action.steering - steering_actions).argmin()
-    action.steering = steering_actions[steering_idx]
-
-    action_idx = acceleration_idx * env_config.steering_discretization + steering_idx
-
-    return action, action_idx
+from utils.discrete import discretize_action
 
 def make_video(
     env_config: Box,

@@ -14,7 +14,6 @@ from typing import Any, Dict, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
-import yaml
 from box import Box as ConfigBox
 from gym import Env
 from gym.spaces import Box, Discrete
@@ -564,10 +563,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             self.config.steering_upper_bound,
             self.config.steering_discretization,
         )
-
         self.idx_to_actions = {}
+        self.actions_to_idx = {}
         for i, (accel, steer) in enumerate(product(self.accel_grid, self.steering_grid)):
             self.idx_to_actions[i] = [accel, steer]
+            self.actions_to_idx[accel, steer] = [i]
 
     def _set_continuous_action_space(self) -> None:
         """Set the continuous action space."""
