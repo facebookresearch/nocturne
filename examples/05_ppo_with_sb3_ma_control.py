@@ -3,7 +3,6 @@ import logging
 from datetime import datetime
 
 import torch
-
 import wandb
 
 # Multi-agent as vectorized environment
@@ -15,7 +14,7 @@ from utils.sb3.callbacks import CustomMultiAgentCallback
 
 # Custom PPO class that supports multi-agent control
 from utils.sb3.custom_ppo import MultiAgentPPO
-from utils.string import datetime_to_str
+from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,6 +64,7 @@ if __name__ == "__main__":
         seed=exp_config.seed,  # Seed for the pseudo random generators
         tensorboard_log=f"runs/{RUN_ID}" if RUN_ID is not None else None,
         verbose=1,
+        device=exp_config.ppo.device,
     )
 
     # Learn

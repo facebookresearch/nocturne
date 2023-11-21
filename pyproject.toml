@@ -49,6 +49,8 @@ gymnasium = "^0.29.1"
 moviepy = "^1.0.3"
 imageio = "^2.31.5"
 pyvirtualdisplay = "^3.0"
+typer = "^0.9.0"
+stable-baselines3 = "^2.1.0"
 
 [tool.poetry.group.research.dependencies]
 ipykernel = "^6.25.2"

@@ -1,11 +1,3 @@
 {
-    "example_scenario.json": [],
-    "intersection_scenario.json": [
-        0,
-        37,
-        34,
-        39,
-        71,
-        76
-    ]
+    "example_scenario.json": []
 }

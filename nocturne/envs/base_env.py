@@ -3,9 +3,9 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 """Default Nocturne env with minor adaptations."""
-
 import json
 import logging
+import random
 from collections import defaultdict, deque
 from enum import Enum
 from itertools import islice, product
@@ -20,6 +20,7 @@ from gym import Env
 from gym.spaces import Box, Discrete
 
 from nocturne import Action, Simulation, Vector2D, Vehicle
+from utils.config import load_config
 
 _MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
 
@@ -72,28 +73,34 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             "draw_target_positions": draw_target_positions,
             "padding": padding,
         }
-
         self.seed(self.config.seed)
 
         # Load the list of valid files
         with open(self.config.data_path / "valid_files.json", encoding="utf-8") as file:
             self.valid_veh_dict = json.load(file)
-            files = sorted(list(self.valid_veh_dict.keys()))
+
+            if self.config.fix_file_order:
+                files = sorted(list(self.valid_veh_dict.keys()))
+            else:
+                files = list(self.valid_veh_dict.keys())
+                random.shuffle(files)
+            
+            # Select files
             if self.config.num_files != -1:
                 self.files = files[: self.config.num_files]
         if len(self.files) == 0:
             raise ValueError("Data path does not contain scenes.")
 
-        obs_dict = self.reset()
-
         # Set observation space
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dict[list(obs_dict.keys())[0]].shape[0],))
+        obs_dim = self._get_obs_space_dim(self.config)
+        self.observation_space = Box(low=-np.inf, high=np.inf, shape=obs_dim,)
 
         # Set action space
         if self.config.discretize_actions:
             self._set_discrete_action_space()
         else:
             self._set_continuous_action_space()
+
 
     def apply_actions(self, action_dict: Dict[int, ActType]) -> None:
         """Apply a dict of actions to the vehicle objects.
@@ -269,8 +276,12 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
     def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
         self,
+        filename=None,
     ) -> Dict[int, ObsType]:
         """Reset the environment.
+        Args
+        ----
+        filename: If provided, use this scene.
 
         Returns
         -------
@@ -282,7 +293,15 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
         for _ in range(_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE):
-            self.file = np.random.choice(self.files)
+
+            # Sample new traffic scene
+            if filename is not None:
+                self.file = filename
+            elif self.config.sample_file_method == "no_replacement":
+                self.file = self.files.pop()
+            else: # Random with replacement (default)
+                self.file = np.random.choice(self.files)
+        
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
             self.scenario = self.simulation.getScenario()
 
@@ -410,24 +429,60 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         -------
             np.ndarray: Observation for the vehicle.
         """
-        cur_position = _position_as_array(veh_obj.getPosition())
-        obs = np.concatenate(
-            (
-                self.scenario.ego_state(veh_obj) if self.config.subscriber.use_ego_state else [],
-                cur_position if self.config.subscriber.use_current_position else [],
-                self.scenario.flattened_visible_state(
+        cur_position = []
+        if self.config.subscriber.use_current_position:
+            cur_position = _position_as_array(veh_obj.getPosition())
+            if self.config.normalize_state:
+                cur_position = cur_position / np.linalg.norm(cur_position)
+                
+        ego_state = []
+        if self.config.subscriber.use_ego_state:
+            ego_state = self.scenario.ego_state(veh_obj)
+            if self.config.normalize_state:
+                ego_state = self.normalize_ego_state(ego_state)
+                
+        visible_state = []
+        if self.config.subscriber.use_observations:
+            visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
-                if self.config.subscriber.use_observations
-                else [],
-            )
-        )
+            if self.config.normalize_state:
+                visible_state = self.normalize_obs(visible_state)
+
+        # Concatenate
+        obs = np.concatenate((ego_state, visible_state, cur_position))
+
         return obs
 
-    def make_all_vehicles_experts(self) -> None:
-        """Force all vehicles to be experts."""
-        for veh in self.scenario.getVehicles():
-            veh.expert_control = True
+    def _get_obs_space_dim(self, config, base=0):
+        """
+        Calculate observation dimension based on the configs.
+        """
+        obs_space_dim = 0
+
+        if self.config.subscriber.use_ego_state:
+            obs_space_dim += 10
+
+        if self.config.subscriber.use_current_position:
+            obs_space_dim += 2
+
+        if self.config.subscriber.use_observations:
+            obs_space_dim += (
+                base + 
+                (13 * self.config.scenario.max_visible_objects) + 
+                (13 * self.config.scenario.max_visible_road_points) + 
+                (3  * self.config.scenario.max_visible_stop_signs) + 
+                (12 * self.config.scenario.max_visible_traffic_lights)
+            )
+        return (obs_space_dim,)
+
+    def normalize_ego_state(self, state):
+        """Divide every feature in the ego state by the maximum value of that feature."""
+        return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
+
+    def normalize_obs(self, state):
+        """Divide all visible state elements by the maximum value across the visible state."""
+        return state / self.config.vis_obs_max
 
     def render(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the environment.
@@ -589,6 +644,7 @@ def _apply_action_to_vehicle(
         veh_obj.acceleration = accel
         veh_obj.steering = steer
 
+
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.
 
@@ -604,9 +660,35 @@ def _position_as_array(position: Vector2D) -> np.ndarray:
 
 
 if __name__ == "__main__":
-    # Load environment settings
-    with open("./configs/env_config.yaml", "r") as stream:
-        env_config = yaml.safe_load(stream)
+    # Load environment variables and config
+    env_config = load_config("env_config")
 
-    # Initialize environment
+    # Initialize an environment
     env = BaseEnv(config=env_config)
+
+    # Reset
+    obs_dict = env.reset()
+
+    # Get info
+    agent_ids = [agent_id for agent_id in obs_dict.keys()]
+    dead_agent_ids = []
+
+    for step in range(100):
+        # Sample actions
+        action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
+
+        # Step in env
+        obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
+        
+        # Update dead agents
+        for agent_id, is_done in done_dict.items():
+            if is_done and agent_id not in dead_agent_ids:
+                dead_agent_ids.append(agent_id)
+
+        # Reset if all agents are done
+        if done_dict["__all__"]:
+            obs_dict = env.reset()
+            dead_agent_ids = []
+
+    # Close environment
+    env.close()

@@ -1,0 +1,8 @@
+
+# Data setttings
+raw_data_path: ./data/train # Path to raw traffic scenes
+
+# Train settings
+total_samples: 10_000 # Number of obs-act-next_obs-done pairs to generate
+n_epochs: 1000 # Training epochs
+
