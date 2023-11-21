@@ -1,7 +1,8 @@
 """Cast a multi-agent env as vec env to use SB3's PPO."""
 import logging
 from datetime import datetime
-
+from typing import List, Union
+import typer
 import torch
 import wandb
 import numpy as np
@@ -22,11 +23,63 @@ from utils.random_utils import init_seed
 
 logging.basicConfig(level=logging.INFO)
 
-def train(env_config, exp_config, video_config):
-    """Train RL agent using PPO."""
+# Default settings
+env_config = load_config("env_config")
+exp_config = load_config("exp_config")
+video_config = load_config("video_config")
+
+POLICY_SIZE_DICT = {
+    "small": [128, 128], 
+    "medium": [512, 256, 128], 
+    "large": [1024, 512, 256, 128],
+}
+POLICY_TYPE_DICT = {
+    "mlp": "MlpPolicy",
+}
+
+def run_hr_ppo(
+    sweep_name: str="hr_ppo",
+    steer_disc: int=5, 
+    accel_disc: int=5, 
+    ent_coef: float=0.,
+    vf_coef: float=0.5,
+    seed: int=42,
+    policy_arch: str="mlp",
+    policy_size: str="small",
+    activation_fn: str="tanh",
+    total_timesteps: int=100_000,
+    num_files: int=10,
+    single_scene: int=0,
+    reg_weight: float=0.0,
+) -> None:
+    """Train RL agent using PPO with CLI arguments."""
+
+    # ==== Update run params ==== #
+    # Environment
+    env_config.steer_disc = steer_disc
+    env_config.accel_disc = accel_disc
+    env_config.num_files = num_files
+    # Experiment
+    exp_config.ent_coef = ent_coef
+    exp_config.vf_coef = vf_coef
+    exp_config.learn.total_timesteps = total_timesteps
+    exp_config.train_on_single_scene = single_scene
+    exp_config.policy_arch = policy_arch
+    exp_config.policy_size = policy_size
+    exp_config.activation_func = activation_fn
+    exp_config.reg_weight = reg_weight
+    # Use custom policy pi
+    policy_type = POLICY_TYPE_DICT[policy_arch]
+    policy_layers = POLICY_SIZE_DICT[policy_size]
+    afunc = torch.nn.Tanh if activation_fn == "tanh" else torch.nn.ReLU
+    policy_kwargs = dict( 
+        activation_fn=afunc, 
+        net_arch=policy_layers,
+    )
+    # ==== Update run params ==== #
 
     # Ensure reproducability
-    init_seed(env_config, exp_config, exp_config.seed)
+    init_seed(env_config, exp_config, seed)
 
     # Make environment
     env = MultiAgentAsVecEnv(
@@ -34,31 +87,34 @@ def train(env_config, exp_config, video_config):
         num_envs=env_config.max_num_vehicles,
         train_on_single_scene=exp_config.train_on_single_scene,
     )
+
     # Set up wandb
     RUN_ID = None
     if exp_config.track_wandb:
+        
         # Set up run
         datetime_ = datetime_to_str(dt=datetime.now())
-        RUN_ID = f"reg_weight_{exp_config.reg_weight}_{datetime_}"
+        RUN_ID = f"{exp_config.exp_name}_{datetime_}"
     
         # Add scene to config
         exp_config.scene = env.filename
 
         run = wandb.init(
-            project=exp_config.project,
+            project=sweep_name,
             name=RUN_ID,
             config={**exp_config, **env_config},
             id=RUN_ID,
             **exp_config.wandb,
         )
+    
+    # Log basic exp info
+    logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
+    logging.info(f"Learning in {env_config.num_files} scene(s): {env.env.files}")
+    logging.info(f"Obs_space     : {env.observation_space.shape[0]} ---")
+    logging.info(f"Action_space\n: {env.env.idx_to_actions}")
 
     # Set device
     exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
-    logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files}")
-    logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
-    logging.info(f"Action_space\n: {env.env.idx_to_actions}")
 
     # Initialize custom callback
     custom_callback = CustomMultiAgentCallback(
@@ -111,17 +167,8 @@ def train(env_config, exp_config, video_config):
     if exp_config.track_wandb:
         run.finish()
 
+
 if __name__ == "__main__":
 
-    # Load environment and experiment configurations
-    env_config = load_config("env_config")
-    exp_config = load_config("exp_config")
-    video_config = load_config("video_config")
-
-    # Regularization weights
-    lambdas = list(np.round(np.arange(0., .45, 0.05), 3))
-
     # Run
-    for lam in lambdas:
-        exp_config.reg_weight = lam
-        train(env_config, exp_config, video_config) 
+    typer.run(run_hr_ppo)

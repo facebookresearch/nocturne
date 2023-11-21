@@ -36,4 +36,4 @@ learn:
 
 # human-regularized RL
 reg_weight: 0.1
-human_policy_path: ./models/il/human_policy_2023_11_19.pt
+human_policy_path: /scratch/dc4971/nocturne_lab/models/il/human_policy_2023_11_20.pt

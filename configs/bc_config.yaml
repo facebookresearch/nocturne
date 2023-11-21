@@ -8,5 +8,5 @@ save_model_path: ./models/il/ # Path to save model
 
 # Train 
 total_samples: 10_000 # Number of obs-act-next_obs-done pairs to generate
-n_epochs: 300 # Training epochs
+n_epochs: 100 # Training epochs
 
