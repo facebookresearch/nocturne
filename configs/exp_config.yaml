@@ -13,6 +13,7 @@ wandb:
   save_code: false
 
 ma_callback:
+  log_human_metrics: true
   log_indiv_metrics: false
   log_agent_actions: false
   save_model: true
@@ -34,4 +35,5 @@ learn:
   progress_bar: false
 
 # human-regularized RL
-reg_weight: 0.5
+reg_weight: 0.1
+human_policy_path: ./models/il/human_policy_2023_11_19.pt

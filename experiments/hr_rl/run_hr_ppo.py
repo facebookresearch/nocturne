@@ -78,11 +78,8 @@ def train(env_config, exp_config, video_config):
             )
 
     # Load human reference policy
-    trained_il_model_path = "models/il/human_policy_2023_11_19.pt"
-    saved_variables = torch.load(trained_il_model_path, map_location=exp_config.ppo.device)
-    # Create policy object
+    saved_variables = torch.load(exp_config.human_policy_path, map_location=exp_config.ppo.device)
     human_policy = ActorCriticPolicy(**saved_variables["data"])
-    # Load weights
     human_policy.load_state_dict(saved_variables["state_dict"])
     human_policy.to(exp_config.ppo.device)
    
@@ -117,5 +114,10 @@ if __name__ == "__main__":
     exp_config = load_config("exp_config")
     video_config = load_config("video_config")
 
+    # Regularization weights
+    lambdas = np.round(np.arange(0., .45, 0.05), 3)
+
     # Run
-    train(env_config, exp_config, video_config) 
+    for lam in lambdas:
+        exp_config.reg_weight = lam
+        train(env_config, exp_config, video_config) 
