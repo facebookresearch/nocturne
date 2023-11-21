@@ -8,7 +8,10 @@ PROJECT="Nocturne (lab version)"
 PROJECT_DOCKER=docker://daphnecor/nocturne
 SINGULARITY_IMAGE=./hpc/nocturne.sif
 OVERLAY_LOC=/scratch/work/public/overlay-fs-ext3
-OVERLAY_FILE=overlay-15GB-500K.ext3
+OVERLAY_FILE=hpc/overlay-15GB-500K.ext3
+
+# Overwrite wandb cache dir to avoid storage capacity problems
+WANDB_CACHE_DIR='${WANDB_CACHE_DIR}'
 
 # Check if singularity image exists, if not pull Singularity image from Docker Hub
 if [ ! -f "${SINGULARITY_IMAGE}" ]; then
@@ -20,7 +23,7 @@ fi
 if [ ! -f "${OVERLAY_FILE}" ]; then  # Overlay file does not exist
     echo "Setting up ${PROJECT_DOCKER} with initial overlay ${OVERLAY_FILE}.gz"
 
-    if [ ! -f "${OVERLAY_FILE}.gz" ]; then  # Overlay file has not been copied yet
+    if [ ! -f "${OVERLAY_FILE}.gz" ]; then  # Overlay file has not been copiepd yet
         echo "Copying overlay ${OVERLAY_FILE}.gz from ${OVERLAY_LOC}..."
         cp -rp "${OVERLAY_LOC}/${OVERLAY_FILE}.gz" . -n
         echo "Unzipping overlay ${OVERLAY_FILE}.gz..."
@@ -51,7 +54,7 @@ else  # Overlay Singularity image and overlay file exist
     echo "  (1) activate venv: 'source .venv/bin/activate'"
 
     # Launch singularity image in use mode
-    singularity exec --nv --overlay "${OVERLAY_FILE}:rw" \
+    singularity exec --nv --overlay "${OVERLAY_FILE}:ro" \
         "${SINGULARITY_IMAGE}" \
         /bin/bash
 

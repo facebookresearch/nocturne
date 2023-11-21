@@ -26,7 +26,7 @@ class MultiAgentAsVecEnv(VecEnv):
         VecEnv (SB3 VecEnv): SB3 VecEnv base class.
     """
 
-    def __init__(self, config, num_envs):
+    def __init__(self, config, num_envs, train_on_single_scene=False):
         # Create Nocturne env
         self.env = BaseEnv(config)
 
@@ -42,6 +42,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.frac_collided = []  # Log fraction of agents that collided
         self.frac_goal_achieved = []  # Log fraction of agents that achieved their goal
         self.agents_in_scene = []
+        self.filename = self.env.files[0] if train_on_single_scene else None # If provided, always use the same file 
 
     def _reset_seeds(self) -> None:
         """Reset all environments' seeds."""
@@ -50,7 +51,7 @@ class MultiAgentAsVecEnv(VecEnv):
     def reset(self, seed=None):
         """Reset environment and return initial observations."""
         # Reset Nocturne env
-        obs_dict = self.env.reset()
+        obs_dict = self.env.reset(self.filename)
 
         # Reset storage
         self.agent_ids = []

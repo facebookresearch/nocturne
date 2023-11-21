@@ -9,34 +9,11 @@ from box import Box
 import subprocess
 import pickle
 from tempfile import mkdtemp
-from memory_profiler import profile
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 import wandb
 from nocturne import Action
 from nocturne.envs.base_env import BaseEnv
-
-
-def discretize_action(env_config: Box, action: Action) -> Tuple[Action, int]:
-    """Discretize actions."""
-    acceleration_actions = np.linspace(
-        start=env_config.accel_lower_bound,
-        stop=env_config.accel_upper_bound,
-        num=env_config.accel_discretization,
-    )
-    acceleration_idx = np.abs(action.acceleration - acceleration_actions).argmin()
-    action.acceleration = acceleration_actions[acceleration_idx]
-
-    steering_actions = np.linspace(
-        start=env_config.steering_lower_bound,
-        stop=env_config.steering_upper_bound,
-        num=env_config.steering_discretization,
-    )
-    steering_idx = np.abs(action.steering - steering_actions).argmin()
-    action.steering = steering_actions[steering_idx]
-
-    action_idx = acceleration_idx * env_config.steering_discretization + steering_idx
-
-    return action, action_idx
+from utils.discrete import discretize_action
 
 def make_video(
     env_config: Box,
@@ -45,12 +22,13 @@ def make_video(
     model: Union[str, OnPolicyAlgorithm],
     n_steps: Optional[int],
     *,
+    filenames = None,
     deterministic: bool = True,
     max_steps: int = 80,
     snap_interval: int = 4,
     frames_per_second: int = 4,
 ) -> Tuple[np.ndarray, pd.DataFrame]:
-    """Make a video of a traffic scene. 
+    """Make a video of policy in traffic scene. 
 
     NOTE: Xvfb has a memory leak, which causes the memory usage to continually increase with each video rendered. 
     Our workaround is to run this function in a separate process, and kill the process after the video is rendered.
@@ -62,6 +40,7 @@ def make_video(
         video_config (Box): Rendering configuration.
         model (Union[str, OnPolicyAlgorithm]): Policy to use.
         n_steps (Optional[int]): The global step number. Defaults to None.
+        filenames (Optional, List of str): The filename of the scene to render, if None, a random scene is selected. 
         deterministic (bool, optional): If true, set policy to determistic mode. Defaults to True.
         max_steps (int, optional): Episode length. Defaults to 80.
         snap_interval (int, optional): Take snapshot every n steps. Defaults to 4.
@@ -92,12 +71,15 @@ def make_video(
             with open(temp_dir / "policy_model.pkl", "wb") as model_file:
                 pickle.dump(obj=model.policy, file=model_file)
 
-        env = BaseEnv(env_config)  # TODO: Write inputs to temp storage and pass path to render_video.py
+        env = BaseEnv(env_config) 
 
         # Record video for specified number of scenes
         for scene_idx in range(NUM_VIDEOS):
 
-            _ = env.reset()
+            if filenames[0] is not None:
+                _ = env.reset(filenames[scene_idx])
+            else: 
+                _ = env.reset()
 
             if model in ("expert", "expert_discrete"):
                 wandb_log_keys = [
@@ -125,6 +107,7 @@ def make_video(
                     "utils/render_in_subprocess.py", #TODO @Daphne: Change this so that hardcoded path is removed
                     temp_dir,
                     model if isinstance(model, str) else "custom",
+                    str(filenames[scene_idx]) if filenames[0] is not None else " ",
                     str(scene_idx),
                     str(max_steps),
                     str(snap_interval),

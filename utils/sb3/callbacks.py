@@ -5,6 +5,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 import os
 
 import wandb
+from utils.eval import EvaluatePolicy
 from utils.render import make_video
 
 
@@ -12,7 +13,6 @@ class CustomMultiAgentCallback(BaseCallback):
     """
     A custom callback that derives from ``BaseCallback``.
     """
-
     def __init__(
         self,
         env_config,
@@ -32,6 +32,7 @@ class CustomMultiAgentCallback(BaseCallback):
         self.iteration = 0
         self.wandb_run = wandb_run
         self.new_artifact = True
+        self.model_path = None
 
     def _on_training_start(self) -> None:
         """
@@ -121,6 +122,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     env_config=self.env_config,
                     exp_config=self.exp_config,
                     video_config=self.video_config,
+                    filenames=[self.locals["env"].filename],
                     model=self.model,
                     n_steps=self.num_timesteps,
                     deterministic=self.exp_config.ma_callback.video_deterministic,
@@ -135,9 +137,31 @@ class CustomMultiAgentCallback(BaseCallback):
         """
         This event is triggered before exiting the `learn()` method.
         """
+        if self.exp_config.ma_callback.save_video:
+            logging.info(f"Making video at last iter = {self.iteration} in deterministic mode | global_step = {self.num_timesteps}")
+            # Set deterministic to True
+            self.exp_config.ma_callback.video_deterministic = True
+            make_video(
+                env_config=self.env_config,
+                exp_config=self.exp_config,
+                video_config=self.video_config,
+                filenames=[self.locals["env"].filename],
+                model=self.model,
+                n_steps=self.num_timesteps,
+                deterministic=self.exp_config.ma_callback.video_deterministic,
+            )
+        
         if self.model_path is not None:
             self.save_model()
-        logging.info(f"-- Saved model artifact at iter {self.iteration} --")
+
+        if self.exp_config.ma_callback.log_human_metrics:
+            evaluator = EvaluatePolicy(
+                env_config=self.env_config, 
+                exp_config=self.exp_config,
+                run=self.wandb_run,
+                policy=self.model,
+            )
+            table = evaluator._get_scores()
 
     def save_model(self) -> None:
         """Save model to wandb."""

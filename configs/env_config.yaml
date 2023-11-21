@@ -8,7 +8,8 @@ env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 episode_length: 80
 warmup_period: 10 # In the RL setting we use a warmup of 10 steps
 # How many files of the total dataset to use. -1 indicates to use all of them
-num_files: 5
+num_files: 10
+fix_file_order: true # If true, always select the SAME files (when creating the environent), if false, pick files at random
 sample_file_method: "random" # ALTERNATIVES: "no_replacement" (SUPPORTED) / "score-based" (TODO: @Daphne)
 dt: 0.1
 sims_per_step: 10
@@ -16,11 +17,11 @@ img_as_state: false
 discretize_actions: true
 include_head_angle: false # Whether to include the head tilt/angle as part of a vehicle's action
 accel_discretization: 5
-accel_lower_bound: -2
-accel_upper_bound: 2
-steering_lower_bound: -0.5
-steering_upper_bound: 0.5
-steering_discretization: 3
+accel_lower_bound: -3
+accel_upper_bound: 3
+steering_lower_bound: -0.7
+steering_upper_bound: 0.7
+steering_discretization: 5
 max_num_vehicles: 20
 randomize_goals: false
 scenario:

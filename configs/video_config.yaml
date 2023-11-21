@@ -5,6 +5,6 @@ render:
   draw_target_positions: true
 
 logging:
-  render_interval: 5
+  render_interval: 3
   fps: 4
   where_am_i: headless_machine
