@@ -18,7 +18,6 @@ def init_seed(env_config:Box, exp_config: Box, seed) -> None:
     random.seed(exp_config.seed)
     np.random.seed(exp_config.seed)
     torch.manual_seed(exp_config.seed)
-    torch.backends.cudnn.deterministic = exp_config.torch_deterministic
 
 
 def set_seed_everywhere(seed):

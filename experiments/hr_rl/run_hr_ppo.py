@@ -119,7 +119,7 @@ if __name__ == "__main__":
     video_config = load_config("video_config")
 
     # Regularization weights
-    lambdas = list(np.round(np.arange(0., .45, 0.05), 3))
+    lambdas = list(np.round(np.arange(0.15, .45, 0.15), 3))
 
     # Run
     for lam in lambdas:

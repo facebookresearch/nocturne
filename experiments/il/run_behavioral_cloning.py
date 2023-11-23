@@ -2,9 +2,11 @@ import numpy as np
 from torch.utils.data import DataLoader
 import wandb
 from datetime import datetime
+import stable_baselines3.common.logger as sb_logger
 
 from imitation.algorithms import bc
 from imitation.data.types import Transitions
+from imitation.util import logger as imit_logger
 
 from utils.wrappers import LightNocturneEnvWrapper
 from utils.config import load_config
@@ -31,8 +33,8 @@ if __name__ == "__main__":
 
     # Create iterator
     waymo_iterator = TrajectoryIterator(
-        data_path=env_config.data_path,
         env_config=env_config,
+        data_path=env_config.data_path,
         file_limit=env_config.num_files,
     )   
 
@@ -43,7 +45,7 @@ if __name__ == "__main__":
             batch_size=bc_config.total_samples,
             pin_memory=True,
     )))
-
+    
     # Convert to dataset of imitation "transitions" 
     transitions = Transitions(
         obs=rollouts[0].to(device),
@@ -96,8 +98,8 @@ if __name__ == "__main__":
         render=True,
     )
 
-    print(f"Reward before training: {reward_before_training:.2f}")
-    print(f"Reward after  training: {reward_after_training:.2f}")
+    #print(f"Reward before training: {reward_before_training:.2f}")
+    #print(f"Reward after  training: {reward_after_training:.2f}")
 
     # Save model
     date_ = date_to_str(datetime.now())

@@ -31,7 +31,7 @@ def plot_agent_trajectory(agent_df, act_space_dim):
     axs[1].set_ylabel(r'mph')
     axs[1].set_title('Vehicle speed')
     
-    markerline, stemlines, baseline = axs[2].stem(agent_df['timestep'].values, np.abs(agent_df.expert_act - agent_df.policy_act), linefmt='grey', bottom=1.1, label="$|a_t^{expert} - a_t^{π}|$")
+    markerline, stemlines, baseline = axs[2].stem(agent_df['timestep'].values, np.abs(agent_df.expert_act - agent_df.policy_act), linefmt='grey', bottom=0, label="$|a_t^{expert} - a_t^{π}|$")
     plt.setp(markerline, marker='o', markersize=3, color='black')  # Adjust marker size here for axs[0]
     plt.setp(stemlines, linewidth=1)
     axs[2].legend(facecolor='white', framealpha=1)

@@ -81,11 +81,9 @@ class EvaluatePolicy:
         )
             
         for file in self.eval_files:
-            
-            # Make sure the agent ids are in the same order (currently can't make copies of the env)
-            obs_dict = self.env.reset(file)
-            self.agent_ids = [agent_id for agent_id in obs_dict.keys()]
 
+            print(f"Evaluating policy on {file}...")
+            
             # Step through scene in expert control mode to obtain ground truth
             expert_actions, expert_pos, expert_speed, expert_gr, expert_edge_cr, expert_veh_cr = self._step_through_scene(
                 file, mode="expert", 
@@ -137,7 +135,7 @@ class EvaluatePolicy:
             
             if self.return_trajectories:
                 scene_trajs = pd.DataFrame({
-                    "traffic_scene": file, #TODO: repeat 
+                    "traffic_scene": file,  
                     "timestep": np.tile(list(range(self.env_config.episode_length)), self.num_agents), 
                     "agent_id": np.repeat(list(range(self.num_agents)), self.env_config.episode_length),
                     "policy_pos_x": policy_pos[:, :, 0].flatten(), # num_agents * 80
@@ -173,8 +171,11 @@ class EvaluatePolicy:
         obs_dict = self.env.reset(filename)
         num_steps = self.env_config.episode_length
         self.num_agents = len(self.env.controlled_vehicles)
-        agent_id_to_idx_dict = {agent_id: idx for idx, agent_id in enumerate(self.agent_ids)} 
-        last_info_dicts = {agent_id: {} for agent_id in self.agent_ids}
+
+        # Make sure the agent ids are in the same order
+        agent_ids = np.sort([veh.id for veh in self.env.controlled_vehicles])
+        agent_id_to_idx_dict = {agent_id: idx for idx, agent_id in enumerate(agent_ids)} 
+        last_info_dicts = {agent_id: {} for agent_id in agent_ids}
         dead_agent_ids = []
         
         # Storage
@@ -211,8 +212,8 @@ class EvaluatePolicy:
                             agent_positions[veh_idx, timestep] = np.array([veh_obj.position.x, veh_obj.position.y])
                             agent_speed[veh_idx, timestep] = veh_obj.speed
                             action_indices[veh_idx, timestep] = action_idx
-                        # else:
-                        #     #print(f'veh {veh_obj.id} at t = {timestep} returns None action!')
+                        else:
+                            print(f'veh {veh_obj.id} at t = {timestep} returns None action!')
 
                 action_dict = {} 
 
@@ -249,7 +250,7 @@ class EvaluatePolicy:
                     last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
             if done_dict["__all__"]:
-                for agent_id in self.agent_ids:
+                for agent_id in agent_ids:
                     goal_achieved += last_info_dicts[agent_id]["goal_achieved"]
                     veh_edge_collision += last_info_dicts[agent_id]["veh_edge_collision"]
                     veh_veh_collision += last_info_dicts[agent_id]["veh_veh_collision"]
@@ -361,10 +362,12 @@ if __name__ == "__main__":
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
 
+    env_config.data_path = "./data_10/train"
+
     # Load trained human reference policy
     human_policy = load_policy(
         data_path="./models/il",
-        file_name="human_policy_single_scene_2023_11_22",   
+        file_name="human_policy_10_scenes_2023_11_21",   
     )
 
     # Evaluate policy

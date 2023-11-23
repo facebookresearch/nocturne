@@ -74,6 +74,10 @@ temp/
 data/
 data_full/
 data_all/
+data_10/
 
 # Logging output
 logs/
+
+# Trained models
+models/
