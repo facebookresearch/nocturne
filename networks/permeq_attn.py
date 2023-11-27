@@ -10,9 +10,10 @@ from torch import nn
 from utils.sb3.reg_ppo import RegularizedPPO
 
 
-class PermEqNetwork(nn.Module):
+class PermEqAttentionNetwork(nn.Module):
     """
-    Custom network for policy and value function. Networks are not shared but have the same architecture.
+    Custom network for policy and value function with Attention. 
+    Networks are not shared but have the same architecture.
     
     Args:
         feature_dim (int): dimension of the input features
@@ -44,6 +45,8 @@ class PermEqNetwork(nn.Module):
         # POLICY NETWORK
         self.policy_net_ego_state = self._build_ego_state_net(arch_ego_state)
         self.policy_net_obs = self._build_obs_net(arch_obs)
+        self.policy_obs_attention_layer = nn.MultiheadAttention(embed_dim=arch_obs[-1], num_heads=1, batch_first=True)
+
         self.policy_out_layer = nn.Sequential(
             nn.Linear(arch_ego_state[-1] + arch_obs[-1], self.latent_dim_pi),
             self.activ_func,
@@ -51,6 +54,7 @@ class PermEqNetwork(nn.Module):
         # VALUE NETWORK
         self.value_net_ego_state = self._build_ego_state_net(arch_ego_state)
         self.value_net_obs = self._build_obs_net(arch_obs)
+        self.value_obs_attention_layer = nn.MultiheadAttention(embed_dim=arch_obs[-1], num_heads=1, batch_first=True)
         self.value_out_layer = nn.Sequential(
             nn.Linear(arch_ego_state[-1] + arch_obs[-1], self.latent_dim_vf),
             self.activ_func,
@@ -69,11 +73,14 @@ class PermEqNetwork(nn.Module):
         ego_state, obs = features[:, :self.ego_state_dim], features[:, self.ego_state_dim:]
 
         # Process the ego state and observation separately
-        policy_ego_processed = self.policy_net_ego_state(ego_state)
-        policy_obs_processed = self.policy_net_obs(obs)
+        ego_state = self.policy_net_ego_state(ego_state)
+        obs = self.policy_net_obs(obs)
+
+        # Apply self-attention to the obstructed view
+        obs_attn, _ = self.policy_obs_attention_layer(obs, obs, obs)
 
         # Merge the processed ego state and observation and pass through the output layer
-        policy_out = self.policy_out_layer(torch.cat((policy_ego_processed, policy_obs_processed), dim=1))
+        policy_out = self.policy_out_layer(torch.cat((ego_state, obs_attn), dim=1))
         
         return policy_out
 
@@ -84,11 +91,14 @@ class PermEqNetwork(nn.Module):
         ego_state, obs = features[:, :self.ego_state_dim], features[:, self.ego_state_dim:]
 
         # Process the ego state and observation separately
-        val_ego_processed = self.value_net_ego_state(ego_state)
-        val_obs_processed = self.value_net_obs(obs)
+        ego_state = self.value_net_ego_state(ego_state)
+        obs = self.value_net_obs(obs)
+
+        # Apply self-attention to the obstructed view
+        obs_attn, _ = self.policy_obs_attention_layer(obs, obs, obs)
 
         # Merge the processed ego state and observation and pass through the output layer
-        val_out = self.value_out_layer(torch.cat((val_ego_processed, val_obs_processed), dim=1))
+        val_out = self.value_out_layer(torch.cat((ego_state, obs_attn), dim=1))
         
         return val_out
     
@@ -114,7 +124,7 @@ class PermEqNetwork(nn.Module):
         net = nn.Sequential(*net_layers)
         return net
 
-class PEActorCriticPolicy(ActorCriticPolicy):
+class PEAttentionActorCriticPolicy(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: spaces.Space,
@@ -136,13 +146,7 @@ class PEActorCriticPolicy(ActorCriticPolicy):
 
     def _build_mlp_extractor(self) -> None:
         # Build the network architecture
-        self.mlp_extractor = PermEqNetwork(self.features_dim)
-        # self.mlp_extractor = PermEqNetwork(
-        #     self.features_dim,
-        #     arch_ego_state=[8, 4, 2],
-        #     act_func="tanh",
-        #     arch_obs=[500, 200, 50],
-        # )
+        self.mlp_extractor = PermEqAttentionNetwork(self.features_dim)
 
 
 if __name__ == "__main__":
@@ -163,7 +167,7 @@ if __name__ == "__main__":
     obs = torch.Tensor(obs)[:2]
 
     # Make model
-    net = PermEqNetwork(
+    net = PermEqAttentionNetwork(
         feature_dim=obs.shape[1], 
         last_layer_dim_pi=64, 
         last_layer_dim_vf=64
@@ -177,7 +181,7 @@ if __name__ == "__main__":
         reg_weight=None, # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
-        policy=PEActorCriticPolicy,
+        policy=PEAttentionActorCriticPolicy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
         seed=exp_config.seed,  # Seed for the pseudo random generators
