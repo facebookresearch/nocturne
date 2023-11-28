@@ -2,7 +2,7 @@ project: hr_ppo_2scenes
 env_id: Nocturne
 seed: 42
 track_wandb: true
-wandb_init_videos: ['expert', 'expert_discrete']
+wandb_init_videos: [] #['expert', 'expert_discrete']
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
 verbose: 0
@@ -30,9 +30,9 @@ ppo:
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 3_000_000
+  total_timesteps: 2_000_000
   progress_bar: false
 
 # human-regularized RL
-reg_weight: 0.3
+reg_weight: 0.0
 human_policy_path: models/il/human_policy_2_scenes_2023_11_22.pt
