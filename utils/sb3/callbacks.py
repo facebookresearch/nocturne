@@ -114,7 +114,17 @@ class CustomMultiAgentCallback(BaseCallback):
         self.logger.record("global_step", self.num_timesteps)
         self.logger.record("iteration", self.iteration)
         self.logger.record("num_frames_in_rollout", batch_size)
-
+        
+        # Sanity check: log observation min and max
+        observations = self.locals["rollout_buffer"].observations
+        valid_obs_mask = (~np.isnan(self.locals["rollout_buffer"].observations))
+        
+        self.logger.record("rollout/obs_min", np.min(observations[valid_obs_mask]))
+        self.logger.record("rollout/obs_max", np.max(observations[valid_obs_mask]))
+        if self.exp_config.track_wandb:
+            wandb.log({"rollout/obs_dist": wandb.Histogram(np_histogram=np.histogram(observations[valid_obs_mask]))})
+        
+        
         # Make a video with a random scene
         if self.exp_config.ma_callback.save_video:
             if (self.iteration - 1) % self.exp_config.ma_callback.video_save_freq == 0:
