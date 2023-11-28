@@ -1,12 +1,16 @@
 """Cast a multi-agent env as vec env to use SB3's PPO."""
 import logging
 from datetime import datetime
-from typing import List, Union
+from typing import Callable
 import typer
 import torch
 import wandb
+from gymnasium import spaces
 import numpy as np
 from stable_baselines3.common.policies import ActorCriticPolicy
+
+# Import networks
+from networks.permeq import PermEqNetwork
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -29,12 +33,13 @@ exp_config = load_config("exp_config")
 video_config = load_config("video_config")
 
 POLICY_SIZE_DICT = {
-    "small": [128, 128], 
-    "medium": [512, 256, 128], 
-    "large": [1024, 512, 256, 128],
+    "small": [126, 64], 
+    "medium": [256, 128, 64], 
+    "large": [512, 128, 64],
 }
 POLICY_TYPE_DICT = {
     "mlp": "MlpPolicy",
+    "sep_mlp": "SepMlpPolicy",
 }
 
 def run_hr_ppo(
@@ -44,10 +49,10 @@ def run_hr_ppo(
     ent_coef: float=0.,
     vf_coef: float=0.5,
     seed: int=42,
-    policy_arch: str="mlp",
+    policy_arch: str="sep_mlp",
     policy_size: str="small",
     activation_fn: str="tanh",
-    total_timesteps: int=100_000,
+    total_timesteps: int=1_000_000,
     num_files: int=10,
     single_scene: int=0,
     reg_weight: float=0.0,
@@ -68,14 +73,36 @@ def run_hr_ppo(
     exp_config.policy_size = policy_size
     exp_config.activation_func = activation_fn
     exp_config.reg_weight = reg_weight
-    # Use custom policy pi
-    policy_type = POLICY_TYPE_DICT[policy_arch]
-    policy_layers = POLICY_SIZE_DICT[policy_size]
-    afunc = torch.nn.Tanh if activation_fn == "tanh" else torch.nn.ReLU
-    policy_kwargs = dict( 
-        activation_fn=afunc, 
-        net_arch=policy_layers,
-    )
+    
+    # Build policy
+    class PermEqActorCriticPolicy(ActorCriticPolicy):
+        def __init__(
+            self,
+            observation_space: spaces.Space,
+            action_space: spaces.Space,
+            lr_schedule: Callable[[float], float],
+            *args,
+            **kwargs,
+        ):
+            # Disable orthogonal initialization
+            kwargs["ortho_init"] = False
+            super().__init__(
+                observation_space,
+                action_space,
+                lr_schedule,
+                # Pass remaining arguments to base class
+                *args,
+                **kwargs,
+            )
+
+        def _build_mlp_extractor(self) -> None:
+            # Build the network architecture
+            self.mlp_extractor = PermEqNetwork(
+                self.features_dim,
+                act_func=activation_fn,
+                arch_obs=POLICY_SIZE_DICT[policy_size],
+            )
+            
     # ==== Update run params ==== #
 
     # Ensure reproducability
@@ -148,7 +175,7 @@ def run_hr_ppo(
         reg_weight=exp_config.reg_weight, # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
-        policy=exp_config.ppo.policy,
+        policy=PermEqActorCriticPolicy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
         seed=exp_config.seed,  # Seed for the pseudo random generators

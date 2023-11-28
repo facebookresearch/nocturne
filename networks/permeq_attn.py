@@ -32,6 +32,8 @@ class PermEqAttentionNetwork(nn.Module):
         act_func: str = "tanh", 
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 64,
+        batch_first=True,
+        num_heads=1,
     ):
         super().__init__()
         self.ego_state_dim = 10 # Always has 10 elements 
@@ -43,22 +45,18 @@ class PermEqAttentionNetwork(nn.Module):
         self.latent_dim_vf = last_layer_dim_vf
 
         # POLICY NETWORK
-        self.policy_net_ego_state = self._build_ego_state_net(arch_ego_state)
-        self.policy_net_obs = self._build_obs_net(arch_obs)
-        self.policy_obs_attention_layer = nn.MultiheadAttention(embed_dim=arch_obs[-1], num_heads=1, batch_first=True)
-
-        self.policy_out_layer = nn.Sequential(
+        self.policy_self_attn = nn.MultiheadAttention(embed_dim=self.observation_dim, num_heads=num_heads, batch_first=batch_first)
+        self.policy_linear_net_ego_state = self._build_ego_state_net(arch_ego_state)
+        self.policy_linear_net_obs = self._build_obs_net(arch_obs)
+        self.policy_linear_out = nn.Sequential(
             nn.Linear(arch_ego_state[-1] + arch_obs[-1], self.latent_dim_pi),
             self.activ_func,
         )
         # VALUE NETWORK
-        self.value_net_ego_state = self._build_ego_state_net(arch_ego_state)
-        self.value_net_obs = self._build_obs_net(arch_obs)
-        self.value_obs_attention_layer = nn.MultiheadAttention(embed_dim=arch_obs[-1], num_heads=1, batch_first=True)
-        self.value_out_layer = nn.Sequential(
-            nn.Linear(arch_ego_state[-1] + arch_obs[-1], self.latent_dim_vf),
-            self.activ_func,
-        )
+        self.value_self_attn = nn.MultiheadAttention(embed_dim=self.observation_dim, num_heads=1, batch_first=batch_first)
+        self.value_linear_net_ego_state = self._build_ego_state_net(arch_ego_state)
+        self.value_linear_net_obs = self._build_obs_net(arch_obs)
+        self.value_linear_out = nn.Sequential(nn.Linear(arch_ego_state[-1] + arch_obs[-1], self.latent_dim_vf), self.activ_func)
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -72,15 +70,15 @@ class PermEqAttentionNetwork(nn.Module):
         # Partition the input into the ego state and the observations
         ego_state, obs = features[:, :self.ego_state_dim], features[:, self.ego_state_dim:]
 
-        # Process the ego state and observation separately
-        ego_state = self.policy_net_ego_state(ego_state)
-        obs = self.policy_net_obs(obs)
-
         # Apply self-attention to the obstructed view
-        obs_attn, _ = self.policy_obs_attention_layer(obs, obs, obs)
+        obs_attn, _ = self.policy_self_attn(obs, obs, obs)
+
+        # Process the ego state and observation separately (FFN)
+        ego_state = self.policy_linear_net_ego_state(ego_state)
+        obs = self.policy_linear_net_obs(obs_attn)
 
         # Merge the processed ego state and observation and pass through the output layer
-        policy_out = self.policy_out_layer(torch.cat((ego_state, obs_attn), dim=1))
+        policy_out = self.policy_linear_out(torch.cat((ego_state, obs), dim=1))
         
         return policy_out
 
@@ -90,15 +88,15 @@ class PermEqAttentionNetwork(nn.Module):
         # Partition the input into the ego state and the observations
         ego_state, obs = features[:, :self.ego_state_dim], features[:, self.ego_state_dim:]
 
-        # Process the ego state and observation separately
-        ego_state = self.value_net_ego_state(ego_state)
-        obs = self.value_net_obs(obs)
+        # Apply self-attention to the raw obstructed view
+        obs_attn, _ = self.value_self_attn(obs, obs, obs)
 
-        # Apply self-attention to the obstructed view
-        obs_attn, _ = self.policy_obs_attention_layer(obs, obs, obs)
+        # Process the ego state and observation separately
+        ego_state = self.value_linear_net_ego_state(ego_state)
+        obs = self.value_linear_net_obs(obs_attn)
 
         # Merge the processed ego state and observation and pass through the output layer
-        val_out = self.value_out_layer(torch.cat((ego_state, obs_attn), dim=1))
+        val_out = self.value_linear_out(torch.cat((ego_state, obs), dim=1))
         
         return val_out
     

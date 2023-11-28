@@ -58,7 +58,10 @@ class PermEqNetwork(nn.Module):
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        :return: (torch.Tensor, torch.Tensor) latent_policy, latent_value of the specified network.
+        Args:
+            features (torch.Tensor): input tensor of shape (batch_size, feature_dim)
+        Return:
+            (torch.Tensor, torch.Tensor) latent_policy, latent_value of the specified network.
             If all layers are shared, then ``latent_policy == latent_value``
         """
         return self.forward_actor(features), self.forward_critic(features)
@@ -114,7 +117,7 @@ class PermEqNetwork(nn.Module):
         net = nn.Sequential(*net_layers)
         return net
 
-class PEActorCriticPolicy(ActorCriticPolicy):
+class PermEqActorCriticPolicy(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: spaces.Space,
@@ -137,12 +140,6 @@ class PEActorCriticPolicy(ActorCriticPolicy):
     def _build_mlp_extractor(self) -> None:
         # Build the network architecture
         self.mlp_extractor = PermEqNetwork(self.features_dim)
-        # self.mlp_extractor = PermEqNetwork(
-        #     self.features_dim,
-        #     arch_ego_state=[8, 4, 2],
-        #     act_func="tanh",
-        #     arch_obs=[500, 200, 50],
-        # )
 
 
 if __name__ == "__main__":
@@ -162,22 +159,13 @@ if __name__ == "__main__":
     obs = env.reset()
     obs = torch.Tensor(obs)[:2]
 
-    # Make model
-    net = PermEqNetwork(
-        feature_dim=obs.shape[1], 
-        last_layer_dim_pi=64, 
-        last_layer_dim_vf=64
-    )
-
-    net(obs)
-
     # Test
     model = RegularizedPPO(
         reg_policy=None,
         reg_weight=None, # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
-        policy=PEActorCriticPolicy,
+        policy=PermEqActorCriticPolicy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
         seed=exp_config.seed,  # Seed for the pseudo random generators
