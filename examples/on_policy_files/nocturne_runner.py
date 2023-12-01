@@ -16,8 +16,8 @@ import setproctitle
 import torch
 import wandb
 
-from algos.ppo.base_runner import Runner
-from algos.ppo.a3c_runner import A3CRunner
+# from algos.ppo.base_runner import Runner
+from algos.ppo.a3c_runner import Runner
 from algos.ppo.env_wrappers import SubprocVecEnv, DummyVecEnv
 
 from nocturne.envs.wrappers import create_ppo_env
@@ -84,8 +84,7 @@ def make_render_env(cfg):
     return DummyVecEnv([get_env_fn(0)])
 
 
-# class NocturneSharedRunner(Runner):
-class NocturneSharedRunner(A3CRunner):
+class NocturneSharedRunner(Runner):
     """
     Runner class to perform training, evaluation and data collection for the Nocturne envs.
 
