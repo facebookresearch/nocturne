@@ -21,10 +21,7 @@ class R_A3C():
         self.tpdv = dict(dtype=torch.float32, device=device)
         self.policy = policy
 
-        self.clip_param = args.clip_param
-        self.ppo_epoch = args.ppo_epoch
-        self.num_mini_batch = args.num_mini_batch
-        self.data_chunk_length = args.data_chunk_length
+        self.a3c_epoch = args.a3c_epoch
         self.value_loss_coef = args.value_loss_coef
         self.entropy_coef = args.entropy_coef
         self.max_grad_norm = args.max_grad_norm
