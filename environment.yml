@@ -14,7 +14,7 @@ dependencies:
     - imageio==2.10.1
     - moviepy==1.0.3
     - opencv-python==4.5.5.64
-    - gym==0.20.0
+    - gym==0.26.2
     - wandb==0.12.15
     - imageio==2.10.1
     - setproctitle==1.2.3
