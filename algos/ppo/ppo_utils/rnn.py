@@ -31,6 +31,8 @@ class RNNLayer(nn.Module):
         self.to(device)
 
     def forward(self, x, hxs, masks):
+        # print("rnn:",masks.shape)
+        # print(masks)
         if x.size(0) == hxs.size(0):
             x, hxs = self.rnn(
                 x.unsqueeze(0),

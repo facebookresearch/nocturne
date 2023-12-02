@@ -62,6 +62,7 @@ class R_A3CPolicy:
                     masks,
                     available_actions=None,
                     deterministic=False):
+        print("a3c get action:", masks.shape)
         """
         Compute actions and value function predictions for the given inputs.
         :param obs (np.ndarray): local agent inputs to the actor.

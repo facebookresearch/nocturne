@@ -197,10 +197,12 @@ class NocturneSharedRunner(Runner):
     @torch.no_grad()
     def collect(self, step):
         """Collect rollout data."""
+        print("nocturne runner collect:", self.buffer.masks.shape)
+        print(step)
+        print(self.buffer.masks[step])
         self.trainer.prep_rollout()
         value, action, action_log_prob, rnn_states, rnn_states_critic \
-            = self.trainer.policy.get_actions(np.concatenate(self.buffer.share_obs[step]),
-                                              np.concatenate(self.buffer.obs[step]),
+            = self.trainer.policy.get_actions(np.concatenate(self.buffer.obs[step]),
                                               np.concatenate(self.buffer.rnn_states[step]),
                                               np.concatenate(self.buffer.rnn_states_critic[step]),
                                               np.concatenate(self.buffer.masks[step]))
@@ -497,9 +499,13 @@ def main(cfg):
         assert (not cfg.algorithm.use_recurrent_policy
                 and not cfg.algorithm.use_naive_recurrent_policy), (
                     "check recurrent policy!")
+    # elif cfg.algorithm.algorithm_name == "a3c":
+    #     assert (not cfg.algorithm.use_recurrent_policy
+    #             and not cfg.algorithm.use_naive_recurrent_policy), (
+    #                 "check recurrent policy!")
     elif cfg.algorithm.algorithm_name == "a3c":
-        assert (not cfg.algorithm.use_recurrent_policy
-                and not cfg.algorithm.use_naive_recurrent_policy), (
+        assert (cfg.algorithm.use_recurrent_policy
+                or cfg.algorithm.use_naive_recurrent_policy), (
                     "check recurrent policy!")
     else:
         raise NotImplementedError

@@ -14,7 +14,7 @@ from pyvirtualdisplay import Display
 VERSION_NUMBER = 2
 
 PROJECT_PATH = Path.resolve(Path(__file__).parent.parent)
-DATA_FOLDER = '/home/alex/Desktop/cs175nocturne/nocturne/data'
+DATA_FOLDER = '/home/kei423/data/'
 TRAIN_DATA_PATH = os.path.join(DATA_FOLDER, 'training')
 VALID_DATA_PATH = os.path.join(DATA_FOLDER, 'validation')
 TEST_DATA_PATH = os.path.join(DATA_FOLDER, 'testing')

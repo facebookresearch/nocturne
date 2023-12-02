@@ -58,6 +58,7 @@ class R_Actor(nn.Module):
                 masks,
                 available_actions=None,
                 deterministic=False):
+        # print("actor forward:", masks.shape)
         """
         Compute actions from the given inputs.
         :param obs: (np.ndarray / torch.Tensor) observation inputs into network.
@@ -175,6 +176,7 @@ class R_Critic(nn.Module):
         self.to(device)
 
     def forward(self, cent_obs, rnn_states, masks):
+        # print("critic:", masks.shape)
         """
         Compute actions from the given inputs.
         :param cent_obs: (np.ndarray / torch.Tensor) observation inputs into network.

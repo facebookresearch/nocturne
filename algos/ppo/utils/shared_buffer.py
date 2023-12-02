@@ -287,6 +287,8 @@ class SharedReplayBuffer(object):
         episode_length, n_rollout_threads, num_agents = self.rewards.shape[0:3]
         batch_size = n_rollout_threads * episode_length * num_agents
 
+        if num_mini_batch is None:
+            num_mini_batch = 1
         if mini_batch_size is None:
             assert batch_size >= num_mini_batch, (
                 "PPO requires the number of processes ({}) "

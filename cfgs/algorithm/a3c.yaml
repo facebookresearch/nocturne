@@ -25,7 +25,7 @@ use_orthogonal: True # Whether to use Orthogonal initialization for weights and 
 gain: 0.01 # The gain # of last action layer
 # recurrent parameters
 use_naive_recurrent_policy: False # Whether to use a naive recurrent policy by stacking states I believe?
-use_recurrent_policy: False # Whether to use a recurrent policy
+use_recurrent_policy: True # Whether to use a recurrent policy
 recurrent_N: 1 # The number of recurrent layers
 
 # optimizer parameters

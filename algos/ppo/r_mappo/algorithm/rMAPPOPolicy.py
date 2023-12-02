@@ -67,6 +67,7 @@ class R_MAPPOPolicy:
                     masks,
                     available_actions=None,
                     deterministic=False):
+        print("ppo get action:", masks.shape)
         """
         Compute actions and value function predictions for the given inputs.
         :param cent_obs (np.ndarray): centralized input to the critic.
