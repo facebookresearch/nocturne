@@ -36,7 +36,7 @@ steering_discretization: 21
 head_angle_lower_bound: -1.6
 head_angle_upper_bound: 1.6
 head_angle_discretization: 5
-max_num_vehicles: 20 # we want to upper bound how many agents there can be in the scene
+max_num_vehicles: 5 # we want to upper bound how many agents there can be in the scene
                      # this is mostly useful because RL libraries expect it
 # TODO(eugenevinitsky) actually implement this
 randomize_goals: False
