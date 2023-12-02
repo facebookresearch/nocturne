@@ -497,6 +497,10 @@ def main(cfg):
         assert (not cfg.algorithm.use_recurrent_policy
                 and not cfg.algorithm.use_naive_recurrent_policy), (
                     "check recurrent policy!")
+    elif cfg.algorithm.algorithm_name == "a3c":
+        assert (not cfg.algorithm.use_recurrent_policy
+                and not cfg.algorithm.use_naive_recurrent_policy), (
+                    "check recurrent policy!")
     else:
         raise NotImplementedError
 
