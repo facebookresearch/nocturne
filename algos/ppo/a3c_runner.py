@@ -72,11 +72,9 @@ class Runner(object):
         from algos.ppo.r_mappo.algorithm.rA3CPolicy import R_A3CPolicy as Policy
         share_observation_space = self.envs.share_observation_space[
             0] if self.use_centralized_V else self.envs.observation_space[0]
-
         # policy network
         self.policy = Policy(self.all_args,
                              self.envs.observation_space[0],
-                             share_observation_space,
                              self.envs.action_space[0],
                              device=self.device)
 
