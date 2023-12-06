@@ -602,6 +602,23 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         )
         self.idx_to_actions = None
 
+    def unflatten_obs(self, obs_flat):
+        "Unsqueeeze the flattened object."""
+
+        # OBS FLAT ORDER: road_objects, road_points, traffic_lights, stop_signs
+        # Find the ends of each section
+        ROAD_OBJECTS_END = 13 * self.config.scenario.max_visible_objects
+        ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
+        TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
+        STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
+        
+        # Unflatten
+        road_objects = obs_flat[:ROAD_OBJECTS_END]
+        road_points = obs_flat[ROAD_OBJECTS_END:ROAD_POINTS_END]
+        traffic_lights = obs_flat[ROAD_POINTS_END:TL_END]
+        stop_signs = obs_flat[TL_END:STOP_SIGN_END]
+        
+        return road_objects, road_points, traffic_lights, stop_signs
 
 def _angle_sub(current_angle: float, target_angle: float) -> float:
     """Subtract two angles to find the minimum angle between them.
@@ -658,7 +675,6 @@ def _apply_action_to_vehicle(
         accel, steer = idx_to_actions[action]
         veh_obj.acceleration = accel
         veh_obj.steering = steer
-
 
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.
