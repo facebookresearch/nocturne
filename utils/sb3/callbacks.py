@@ -1,5 +1,6 @@
 import logging
 import torch
+import torch.nn as nn
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 import os
@@ -73,7 +74,7 @@ class CustomMultiAgentCallback(BaseCallback):
 
         # Average normalized by the number of agents in the scene
         num_agents_per_step = np.array(self.locals["env"].agents_in_scene)
-        ep_rewards_avg_norm = sum(rewards.sum(axis=1) / num_agents_per_step) / self.n_episodes
+        self.ep_rewards_avg_norm = sum(rewards.sum(axis=1) / num_agents_per_step) / self.n_episodes
 
         # Obtain the sum of reward per episode (accross all agents)
         sum_rewards = rewards.sum() / self.n_episodes
@@ -105,7 +106,7 @@ class CustomMultiAgentCallback(BaseCallback):
     
         # Log aggregate performance measures 
         self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
-        self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)
+        self.logger.record("rollout/ep_rew_mean_norm", self.ep_rewards_avg_norm)
         self.logger.record("rollout/ep_rew_sum", sum_rewards)
         self.logger.record("rollout/ep_len_mean", avg_ep_len)
         self.logger.record("rollout/perc_goal_achieved", self.avg_frac_goal_achieved)
@@ -142,12 +143,15 @@ class CustomMultiAgentCallback(BaseCallback):
         # Save model
         if self.exp_config.ma_callback.save_model:
             if self.iteration % self.exp_config.ma_callback.model_save_freq == 0:
-                self.save_model()
+                self._save_model()
 
     def _on_training_end(self) -> None:
         """
         This event is triggered before exiting the `learn()` method.
         """
+        # Save model to wandb
+        self._save_model()
+
         if self.exp_config.ma_callback.save_video:
             logging.info(f"Making video at last iter = {self.iteration} in deterministic mode | global_step = {self.num_timesteps}")
             # Set deterministic to True
@@ -162,9 +166,6 @@ class CustomMultiAgentCallback(BaseCallback):
                 deterministic=self.exp_config.ma_callback.video_deterministic,
             )
         
-        if self.model_path is not None:
-            self.save_model()
-
         if self.exp_config.ma_callback.log_human_metrics:
             evaluator = EvaluatePolicy(
                 env_config=self.env_config, 
@@ -174,9 +175,10 @@ class CustomMultiAgentCallback(BaseCallback):
             )
             table = evaluator._get_scores()
 
-    def save_model(self) -> None:
+    def _save_model(self) -> None:
         """Save model to wandb."""
-        self.model_name = f"ppo_policy_net_{self.num_timesteps}"
+
+        self.model_name = f"nocturne-hr-ppo-{wandb.run.id}"
         self.model_path = os.path.join(wandb.run.dir, f"{self.model_name}.pt")
     
         # Create model artifact
@@ -189,13 +191,25 @@ class CustomMultiAgentCallback(BaseCallback):
         # Save torch model
         torch.save(
             obj={
-                "iter": self.iteration,
-                "model_state_dict": self.locals["self"].policy.state_dict(),
-                "obs_space_dim": self.locals["env"].observation_space.shape[0],
-                "act_space_dim": self.locals["env"].action_space.n,
-                "norm_reward": self.ep_advantage_avg_norm,
-                "collision_rate": self.avg_frac_collided,
-                "goal_rate": self.avg_frac_collided,
+                "state_dict": self.locals["self"].policy.state_dict(),
+                "data": self.locals["self"].policy._get_constructor_parameters(),
+                "model": {
+                    "model_cls": self.locals["self"].policy.__class__,
+                    "feat_dim": self.locals["env"].observation_space.shape[0], # Input dimension
+                    "act_func": self.locals["self"].policy.mlp_extractor.act_func, # Activation function used
+                    "arch_ego_state": self.locals["self"].policy.mlp_extractor.arch_ego_state, 
+                    "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
+                    "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
+                    "arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared,
+                },
+                "train": {
+                    "global_step": self.num_timesteps,
+                    "trained_in_k_scenes": len(self.locals["env"].env.files),
+                    "act_space_dim": self.locals["env"].action_space.n,
+                    "norm_reward": self.ep_rewards_avg_norm,
+                    "coll_rate": self.avg_frac_collided,
+                    "goal_rate": self.avg_frac_goal_achieved,
+                },
             },
             f=self.model_path,
         )
@@ -203,5 +217,5 @@ class CustomMultiAgentCallback(BaseCallback):
         # Save model artifact
         model_artifact.add_file(local_path=self.model_path)
         wandb.save(self.model_path, base_path=wandb.run.dir)
-        self.wandb_run.log_artifact(model_artifact)
+        self.wandb_run.log_artifact(model_artifact, aliases=[f"lam_{self.exp_config.reg_weight}"])
         logging.info(f"Saving model checkpoint to {self.model_path} | Global_step: {self.num_timesteps}")

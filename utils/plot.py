@@ -13,7 +13,9 @@ def plot_agent_trajectory(agent_df, act_space_dim):
     )
     acc = (agent_df.policy_act.values[nonnan_ids] == agent_df.expert_act.values[nonnan_ids]).sum() / nonnan_ids.shape[0]
 
-    fig, axs = plt.subplots(1, 3, figsize=(15, 4))
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+
+    fig.suptitle(f'Scene: {agent_df.traffic_scene.iloc[0][9:27]} | Agent # {agent_df.agent_id.iloc[0]}')
     
     # Plot expert and agent positions
     axs[0].plot(agent_df.expert_pos_x, agent_df.expert_pos_y, '.-', color='g', label='Expert')
@@ -37,7 +39,7 @@ def plot_agent_trajectory(agent_df, act_space_dim):
     axs[2].legend(facecolor='white', framealpha=1)
     axs[2].set_xlabel(r'$t$')
     axs[2].set_ylabel('Joint action index')
-    axs[2].set_title(f'Action accuracy: {acc*100} % ($D^A$ = {act_space_dim})')
+    axs[2].set_title(f'Action accuracy: {np.round(acc*100, 2)} % ($D^A$ = {act_space_dim})')
 
     # Adding grids with a specific alpha value to both subplots
     axs[0].grid(alpha=0.5)  # Grid for axs[0] with alpha value

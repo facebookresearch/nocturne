@@ -2,6 +2,7 @@ import os
 import math
 import numpy as np
 import pandas as pd
+import logging
 import torch
 import wandb
 import glob
@@ -82,7 +83,7 @@ class EvaluatePolicy:
             
         for file in self.eval_files:
 
-            print(f"Evaluating policy on {file}...")
+            logging.info(f"Evaluating policy on {file}...")
             
             # Step through scene in expert control mode to obtain ground truth
             expert_actions, expert_pos, expert_speed, expert_gr, expert_edge_cr, expert_veh_cr = self._step_through_scene(
@@ -186,12 +187,16 @@ class EvaluatePolicy:
 
         # Set control mode
         if mode == "expert":
+            logging.debug(f'EXPERT MODE')
             for obj in self.env.controlled_vehicles:
                 obj.expert_control = True
         if mode == "policy":
+            logging.debug(f'POLICY MODE')
             for obj in self.env.controlled_vehicles:
                 obj.expert_control = False
-                
+        
+        logging.debug(f'agent_ids: {agent_ids}')
+        
         # Step through scene
         for timestep in range(num_steps):   
             
@@ -213,7 +218,7 @@ class EvaluatePolicy:
                             agent_speed[veh_idx, timestep] = veh_obj.speed
                             action_indices[veh_idx, timestep] = action_idx
                         else:
-                            print(f'veh {veh_obj.id} at t = {timestep} returns None action!')
+                            logging.debug(f'veh {veh_obj.id} at t = {timestep} returns None action!')
 
                 action_dict = {} 
 
@@ -328,7 +333,7 @@ class EvaluatePolicy:
                         veh_distances_per_step[veh_i, veh_j, step] = distance_between_veh_ij
 
                         if distance_between_veh_ij < safe_distance:
-                            print(f"Vehicles {veh_i + 1} and {veh_j + 1} are too close!")
+                            logging.debug(f"Vehicles {veh_i + 1} and {veh_j + 1} are too close!")
 
         # Aggregate
         distance_violations_matrix = (veh_distances_per_step < safe_distances_per_step).sum(axis=2)
@@ -362,12 +367,34 @@ if __name__ == "__main__":
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
 
-    env_config.data_path = "./data_10/train"
+    # env_config.data_path = "./data_10/train"
 
-    # Load trained human reference policy
+    # # Load trained human reference policy
+    # human_policy = load_policy(
+    #     data_path="./models/il",
+    #     file_name="human_policy_10_scenes_2023_11_21",   
+    # )
+
+    # # Evaluate policy
+    # evaluator = EvaluatePolicy(
+    #     env_config=env_config, 
+    #     exp_config=exp_config,
+    #     policy=human_policy,
+    #     log_to_wandb=False,
+    #     deterministic=True,
+    #     reg_coef=0.0,
+    #     return_trajectories=True,
+    # )
+
+    # il_results_check = evaluator._get_scores()
+
+    # Set data path
+    env_config.data_path = "./data/train/"
+
+    # Load human reference policy
     human_policy = load_policy(
         data_path="./models/il",
-        file_name="human_policy_10_scenes_2023_11_21",   
+        file_name="human_policy_2_scenes_2023_11_22",   
     )
 
     # Evaluate policy
@@ -375,10 +402,11 @@ if __name__ == "__main__":
         env_config=env_config, 
         exp_config=exp_config,
         policy=human_policy,
+        eval_files=["tfrecord-00012-of-01000_389.json"],
         log_to_wandb=False,
         deterministic=True,
         reg_coef=0.0,
         return_trajectories=True,
     )
 
-    il_results_check = evaluator._get_scores()
+    df_il_res_2, df_il_trajs_2 = evaluator._get_scores()
