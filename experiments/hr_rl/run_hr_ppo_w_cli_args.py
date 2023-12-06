@@ -10,7 +10,9 @@ import numpy as np
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 # Import networks
-from networks.permeq import PermEqNetwork
+from networks.mlp import MLP
+from networks.mlp_late_fusion import LateFusionMLP
+from networks.attn_late_fusion import LateFusionAttn
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -32,14 +34,11 @@ env_config = load_config("env_config")
 exp_config = load_config("exp_config")
 video_config = load_config("video_config")
 
-POLICY_SIZE_DICT = {
-    "small": [126, 64], 
-    "medium": [256, 128, 64], 
-    "large": [512, 128, 64],
-}
-POLICY_TYPE_DICT = {
-    "mlp": "MlpPolicy",
-    "sep_mlp": "SepMlpPolicy",
+LAYERS_DICT = {
+    "tiny": [64],
+    "small": [128, 64], 
+    "medium": [256, 128], 
+    "large": [256, 128, 64],
 }
 
 def run_hr_ppo(
@@ -49,12 +48,12 @@ def run_hr_ppo(
     ent_coef: float=0.,
     vf_coef: float=0.5,
     seed: int=42,
-    policy_arch: str="sep_mlp",
-    policy_size: str="small",
+    arch_road_objects: str="small",
+    arch_road_graph: str="small",
+    arch_shared: str="small",
     activation_fn: str="tanh",
     total_timesteps: int=1_000_000,
     num_files: int=10,
-    single_scene: int=0,
     reg_weight: float=0.0,
 ) -> None:
     """Train RL agent using PPO with CLI arguments."""
@@ -68,14 +67,16 @@ def run_hr_ppo(
     exp_config.ent_coef = ent_coef
     exp_config.vf_coef = vf_coef
     exp_config.learn.total_timesteps = total_timesteps
-    exp_config.train_on_single_scene = single_scene
-    exp_config.policy_arch = policy_arch
-    exp_config.policy_size = policy_size
+    exp_config.arch_road_objects = LAYERS_DICT[arch_road_objects]
+    exp_config.arch_road_graph = LAYERS_DICT[arch_road_graph]
+    exp_config.arch_shared = LAYERS_DICT[arch_shared]
     exp_config.activation_func = activation_fn
     exp_config.reg_weight = reg_weight
-    
+            
+    # ==== Update run params ==== #
+
     # Build policy
-    class PermEqActorCriticPolicy(ActorCriticPolicy):
+    class LateFusionAttnPolicy(ActorCriticPolicy):
         def __init__(
             self,
             observation_space: spaces.Space,
@@ -96,14 +97,13 @@ def run_hr_ppo(
             )
 
         def _build_mlp_extractor(self) -> None:
-            # Build the network architecture
-            self.mlp_extractor = PermEqNetwork(
-                self.features_dim,
-                act_func=activation_fn,
-                arch_obs=POLICY_SIZE_DICT[policy_size],
+            self.mlp_extractor = LateFusionAttn(
+                feature_dim = self.features_dim, 
+                env_config = env_config,
+                arch_road_objects=exp_config.arch_road_objects,
+                arch_road_graph=exp_config.arch_road_graph,
+                arch_shared=exp_config.arch_shared,
             )
-            
-    # ==== Update run params ==== #
 
     # Ensure reproducability
     init_seed(env_config, exp_config, seed)
@@ -175,7 +175,7 @@ def run_hr_ppo(
         reg_weight=exp_config.reg_weight, # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
-        policy=PermEqActorCriticPolicy,
+        policy=LateFusionAttnPolicy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
         seed=exp_config.seed,  # Seed for the pseudo random generators

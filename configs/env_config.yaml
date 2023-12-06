@@ -109,4 +109,4 @@ subscriber:
   n_frames_stacked: 1 # Agent memory
 
 # Path to folder with traffic scene(s) from which to create an environment
-data_path: ./data/train
+data_path: ./data_10/train
