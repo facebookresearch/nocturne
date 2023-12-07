@@ -1,7 +1,7 @@
 '''
 A script for generating SLURM submission scripts which sweep parameters.
 '''
-
+import numpy as np
 import os
 import re
 from typing import Dict
@@ -58,7 +58,7 @@ trial=${{SLURM_ARRAY_TASK_ID}}
 {param_val_assign}
 
 source /scratch/dc4971/nocturne_lab/.venv/bin/activate
-python experiments/rl/ppo_w_cli_args.py {param_cli_list}
+python experiments/hr_rl/run_hr_ppo_w_cli_args.py {param_cli_list}
 '''
 
 # functions for making bash expressions
@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
     # Define SBATCH params
     fields = {
-        'time_h': 15, # Max time per job
+        'time_h': 12, # Max time per job
         'num_gpus': 1, # GPUs per job 
         'max_sim_jobs': 25, # Max jobs at the same time
         'job_name': SWEEP_NAME,
@@ -239,22 +239,23 @@ if __name__ == '__main__':
     # Define sweep conf
     params = {
         'sweep_name': [SWEEP_NAME], # Project name
-        'steer_disc': [5, 9, 15], # Action space; 5 is the default
-        'accel_disc': [5], # Action space; 5 is the default
-        'ent_coef' : [0, 0.025, 0.05],   # Entropy coefficient in the policy loss
-        'vf_coef'  : [0.5], # Value coefficient in the policy loss
-        'seed' : [8, 42, 6], # Random seed
-        'policy_size': ['small', 'medium', 'large'],
-        'policy_arch': ['mlp'],
+        'steer_disc': [5], # Action space; 5 is the default
+        'accel_disc': [3, 5], # Action space; 5 is the default
+        'ent_coef' : [0, 0.001],   # Entropy coefficient in the policy loss
+        'vf_coef'  : [0.5, 0.25], # Value coefficient in the policy loss
+        'seed' : [6, 8, 42], # Random seed
+        'policy_size': ['tiny', 'small', 'medium'],
+        'policy_arch': ['mlp_sep'],
         'num_files': [10], # Number of traffic scenes to train on 
-        'total_timesteps': [100_000_000], # Total training steps
+        'total_timesteps': [40_000_000], # Total training steps
+    #    'reg_weight': list(np.round(np.arange(0., .5, 0.05), 3)),
     }
 
     save_scripts(
         sbatch_filename=f"sbatch_{SWEEP_NAME}.sh",
         bash_filename="bash_exec.sh", #NOTE: don't change this name
         file_path="experiments/slurm/run_scripts/",
-        run_script="experiments/rl/ppo_w_cli_args.py",
+        run_script="experiments/hr_rl/run_hr_ppo_w_cli_args.py",
         fields=fields,
         params=params,
     )

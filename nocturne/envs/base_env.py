@@ -437,16 +437,21 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         ego_state = []
         if self.config.subscriber.use_ego_state:
             ego_state = self.scenario.ego_state(veh_obj)
+            logging.debug(f'\n t = {self.step_num} ---')
+            logging.debug(f'ego_before: {ego_state.min():3f} | {ego_state.max():.3f}')
             if self.config.normalize_state:
-                ego_state = self.normalize_ego_state(ego_state)
+                ego_state = self.normalize_ego_state_by_cat(ego_state)
+                logging.debug(f'ego_after: {ego_state.min():.3f} | {ego_state.max():.3f}')
                 
         visible_state = []
         if self.config.subscriber.use_observations:
             visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
+            logging.debug(f'visible_before: {visible_state.min():.3f} | {visible_state.max():.3f}')
             if self.config.normalize_state:
-                visible_state = self.normalize_obs(visible_state)
+                visible_state = self.normalize_obs_by_cat(visible_state)
+                logging.debug(f'visible_after: {visible_state.min():.3f} | {visible_state.max():.3f}')
 
         # Concatenate
         obs = np.concatenate((ego_state, visible_state, cur_position))
@@ -475,11 +480,21 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             )
         return (obs_space_dim,)
 
-    def normalize_ego_state(self, state):
+    def normalize_ego_state_by_cat(self, state):
         """Divide every feature in the ego state by the maximum value of that feature."""
         return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
+    
+    def normalize_ego_state(self, state):
+        """Normalization to get features between 0 and 1."""
+        min_ego_feat = self.config.ego_state_feat_min
+        max_ego_feat = np.array(list(self.config.ego_state_feat_max.values()),dtype=object).max()
+        return (state - min_ego_feat) / (max_ego_feat - min_ego_feat)
 
     def normalize_obs(self, state):
+        """Normalization to get features between 0 and 1."""
+        return (state - self.config.vis_obs_min) / (self.config.vis_obs_max - self.config.vis_obs_min)
+
+    def normalize_obs_by_cat(self, state):
         """Divide all visible state elements by the maximum value across the visible state."""
         return state / self.config.vis_obs_max
 
@@ -587,6 +602,23 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         )
         self.idx_to_actions = None
 
+    def unflatten_obs(self, obs_flat):
+        "Unsqueeeze the flattened object."""
+
+        # OBS FLAT ORDER: road_objects, road_points, traffic_lights, stop_signs
+        # Find the ends of each section
+        ROAD_OBJECTS_END = 13 * self.config.scenario.max_visible_objects
+        ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
+        TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
+        STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
+        
+        # Unflatten
+        road_objects = obs_flat[:ROAD_OBJECTS_END]
+        road_points = obs_flat[ROAD_OBJECTS_END:ROAD_POINTS_END]
+        traffic_lights = obs_flat[ROAD_POINTS_END:TL_END]
+        stop_signs = obs_flat[TL_END:STOP_SIGN_END]
+        
+        return road_objects, road_points, traffic_lights, stop_signs
 
 def _angle_sub(current_angle: float, target_angle: float) -> float:
     """Subtract two angles to find the minimum angle between them.
@@ -643,7 +675,6 @@ def _apply_action_to_vehicle(
         accel, steer = idx_to_actions[action]
         veh_obj.acceleration = accel
         veh_obj.steering = steer
-
 
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.

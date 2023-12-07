@@ -18,6 +18,7 @@ from utils.sb3.callbacks import CustomMultiAgentCallback
 # Custom PPO class that supports multi-agent control
 from utils.sb3.ma_ppo import MultiAgentPPO
 from utils.string_utils import datetime_to_str
+from util.random_utils import init_seed
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,7 +60,6 @@ def run_ppo(
     # Experiment
     exp_config.ent_coef = ent_coef
     exp_config.vf_coef = vf_coef
-    exp_config.seed = seed
     exp_config.learn.total_timesteps = total_timesteps
     exp_config.train_on_single_scene = single_scene
     exp_config.policy_arch = policy_arch
@@ -74,6 +74,9 @@ def run_ppo(
         net_arch=policy_layers,
     )
     # ==== Update run params ==== #
+
+    # Ensure reproducability
+    init_seed(env_config, exp_config, seed)
 
     # Make environment
     env = MultiAgentAsVecEnv(
