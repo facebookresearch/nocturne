@@ -9,8 +9,8 @@ experiment: intersection
 env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 
 # WANDB things
-wandb: False
-wandb_project: nocturne4
+wandb: True
+wandb_name: nocturne4
 wandb_id: null
 wandb_group: ${experiment}
 
@@ -114,7 +114,7 @@ hydra:
     subdir: ${hydra.job.num}
   launcher:
     timeout_min: 2880
-    cpus_per_task: 10
+    cpus_per_task: 16
     gpus_per_node: 1
     tasks_per_node: 1
     mem_gb: 160
