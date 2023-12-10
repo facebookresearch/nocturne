@@ -58,7 +58,7 @@ Unfortunately if you have a Mac M1 chip you need to ensure that your SFML versio
 
 1. Make sure you have rosetta2 installed. You can do this by running `softwareupdate --install-rosetta` from the command line.
 2. Build an x86_64 version of brew (which you alias to brow) using the instructions here: [stackoverflow](https://stackoverflow.com/questions/64951024/how-can-i-run-two-isolated-installations-of-homebrew).
-3. Now, run `brow install sfml`
+3. Now, run `brew install sfml`
 then everything will compile fine.
 
 ## Installing Nocturne
