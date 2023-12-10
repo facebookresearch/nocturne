@@ -207,7 +207,6 @@ class R_A3C():
                 train_info['ratio'] += imp_weights.mean()
 
         # num_updates = len(buffer) - 1
-        print(buffer)
         num_updates = self.a3c_num_episodes
 
         for k in train_info.keys():

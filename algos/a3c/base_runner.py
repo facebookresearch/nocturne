@@ -68,13 +68,11 @@ class Runner(object):
             if not os.path.exists(self.save_dir):
                 os.makedirs(self.save_dir)
 
-        from algos.ppo.r_mappo.r_a3c import R_A3C as TrainAlgo
+        from algos.a3c.r_mappo.r_a3c import R_A3C as TrainAlgo
         from algos.ppo.r_mappo.algorithm.rA3CPolicy import R_A3CPolicy as Policy
         share_observation_space = self.envs.share_observation_space[
             0] if self.use_centralized_V else self.envs.observation_space[0]
-        print(share_observation_space.shape)
-        print(len(self.envs.observation_space))
-        print(self.envs.observation_space[0].shape)
+
         # policy network
         self.policy = Policy(self.all_args,
                              self.envs.observation_space[0],
