@@ -94,8 +94,20 @@ class CustomMultiAgentCallback(BaseCallback):
         if self.exp_config.track_wandb:
             agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
             hist = np.histogram(num_agents_per_step, bins=agent_bins)
+            
             wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
-        
+
+            # Track performance within scene and how often it is sampled
+            if self.env_config.num_files < 10:
+                for scene_name in self.locals["env"].psr_dict.keys():
+                    scene_psr_dict = self.locals["env"].psr_dict[scene_name]
+                    roll_avg_rew = scene_psr_dict["reward"] / scene_psr_dict["count"]
+                    wandb.log({
+                        f"train/{scene_name}/count": scene_psr_dict["count"],
+                        f"train/{scene_name}/reward": roll_avg_rew,
+                        f"train/{scene_name}/prob": scene_psr_dict["prob"],
+                    })
+                
         # Log all metrics on the level of individual agents
         if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
             indiv_rewards = ((rewards.sum(axis=0)) / self.n_episodes)
@@ -144,6 +156,9 @@ class CustomMultiAgentCallback(BaseCallback):
         if self.exp_config.ma_callback.save_model:
             if self.iteration % self.exp_config.ma_callback.model_save_freq == 0:
                 self._save_model()
+
+        # Update probabilities for sampling scenes
+        self._update_sampling_probs()
 
     def _on_training_end(self) -> None:
         """
@@ -219,3 +234,24 @@ class CustomMultiAgentCallback(BaseCallback):
         wandb.save(self.model_path, base_path=wandb.run.dir)
         self.wandb_run.log_artifact(model_artifact, aliases=[f"lam_{self.exp_config.reg_weight}"])
         logging.info(f"Saving model checkpoint to {self.model_path} | Global_step: {self.num_timesteps}")
+
+
+    def _update_sampling_probs(self):
+        """Update sampling probabilities for each scene based on the performance of the agent in that scene."""
+
+        # Lower sampling probability for scenes with high goal rate
+        for scene in self.locals["env"].psr_dict.keys():
+            scene_rew = self.locals["env"].psr_dict[scene]["reward"]
+            if scene_rew >= 0.9:
+                self.locals["env"].psr_dict[scene]["prob"] = 1e-8 # Assign low probability
+        
+        # Sampling probability is inversely proportional to the average reward
+        roll_avg_rewards = np.array([item['reward'] for item in self.locals["env"].psr_dict.values()])
+        weighted_scenes = np.exp(-roll_avg_rewards)
+        probs = np.exp(weighted_scenes - np.max(weighted_scenes)) / np.sum(np.exp(weighted_scenes - np.max(weighted_scenes)))
+
+        for idx, scene in enumerate(self.locals["env"].psr_dict.keys()):
+            self.locals["env"].psr_dict[scene]["prob"] = probs[idx]
+
+                
+         

@@ -32,8 +32,8 @@ class LateFusionAttn(nn.Module):
         feature_dim: int,
         env_config: Box,
         arch_ego_state: List[int] = [10],
-        arch_road_objects: List[int] = [128],
-        arch_road_graph: List[int] = [256, 126],
+        arch_road_objects: List[int] = [64],
+        arch_road_graph: List[int] = [128, 64],
         arch_shared: List[int] = [64],
         act_func: str = "tanh", 
         last_layer_dim_pi: int = 64,
@@ -54,7 +54,7 @@ class LateFusionAttn(nn.Module):
         self.latent_dim_vf = last_layer_dim_vf
 
         # Get scene modality dimensions
-        self.input_dim_ego, self.input_dim_road_objects, self.input_dim_road_graph = self._get_obs_input_dims()
+        self.input_dim_ego, self.input_dim_road_objects, self.input_dim_stop_signs, self.input_dim_road_graph = self._get_obs_input_dims()
     
         # # # # # POLICY NETWORK # # # # #
         # EGO STATE
@@ -64,7 +64,8 @@ class LateFusionAttn(nn.Module):
         # (1) Embedding (2) Attention (3) Layernorm
         self.policy_net_road_objects = self._build_road_objects_net(arch_road_objects)
         self.policy_net_ro_attn = nn.MultiheadAttention(embed_dim=arch_road_objects[-1], num_heads=1, batch_first=True)
-        self.policy_net_ro_norm1 = nn.LayerNorm(arch_road_objects[-1])
+        # Flatten the road objects
+        self.policy_net_ro_norm1 = nn.LayerNorm(arch_road_graph[-1])
         
         # ROAD GRAPH
         # (1) Embedding (2) Attention (3) Layernorm
@@ -116,7 +117,7 @@ class LateFusionAttn(nn.Module):
         """Forward step for the policy network."""
         
         # Unflatten the obs to get the ego state and the visible state items
-        ego_state, road_objects, road_points = self._unflatten_obs(features)    
+        ego_state, road_objects, stop_signs, road_points = self._unflatten_obs(features)    
         
         # Embeddings
         ego_state = self.policy_net_ego_state(ego_state)
@@ -126,6 +127,9 @@ class LateFusionAttn(nn.Module):
         # Attention 
         road_objects, _ = self.policy_net_ro_attn(road_objects, road_objects, road_objects)
         road_points, _ = self.policy_net_rg_attn(road_points, road_points, road_points)
+
+        # Max pool
+
 
         # Layer norm
         road_objects = self.policy_net_ro_norm1(road_objects)
@@ -226,35 +230,39 @@ class LateFusionAttn(nn.Module):
             road_objects (torch.Tensor): road objects tensor
             road_points (torch.Tensor): road points tensor
         """
+        # Define original object dimensions
+        M_RO, N_RO = 13, self.config.scenario.max_visible_objects
+        M_RP, N_RP = 13, self.config.scenario.max_visible_road_points
+        M_TL, N_TL = 12, self.config.scenario.max_visible_traffic_lights
+        M_SS, N_SS = 3, self.config.scenario.max_visible_stop_signs
 
         # Get ego and visible state
         ego_state, vis_state = obs_flat[:, :self.input_dim_ego], obs_flat[:, self.input_dim_ego:]
 
         # Visible state object order: road_objects, road_points, traffic_lights, stop_signs
         # Find the ends of each section
-        ROAD_OBJECTS_END = 13 * self.config.scenario.max_visible_objects
-        ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
-        TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
-        STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
+        ROAD_OBJECTS_END = M_RO * N_RO
+        ROAD_POINTS_END = ROAD_OBJECTS_END + (M_RP * N_RP)
+        TL_END = ROAD_POINTS_END + (M_TL * N_TL)
+        STOP_SIGN_END = TL_END + (M_SS * N_SS)
         
-        # Unflatten
-        road_objects = vis_state[:, :ROAD_OBJECTS_END]
-        road_points = vis_state[:, ROAD_OBJECTS_END:ROAD_POINTS_END]
-        traffic_lights = vis_state[:, ROAD_POINTS_END:TL_END]
-        stop_signs = vis_state[:, TL_END:STOP_SIGN_END]
-
-        return ego_state, torch.hstack((road_objects, stop_signs, traffic_lights)), road_points
+        # Unflatten and reshape to (batch_size, num_objects, object_dim)
+        road_objects = (vis_state[:, :ROAD_OBJECTS_END]).reshape(-1, M_RO, N_RO)
+        road_points = (vis_state[:, ROAD_OBJECTS_END:ROAD_POINTS_END]).reshape(-1, M_RP, N_RP)
+        stop_signs = (vis_state[:, TL_END:STOP_SIGN_END]).reshape(-1, N_SS, M_SS)    
+        
+        # Ommit traffic lights for now
+        traffic_lights = (vis_state[:, ROAD_POINTS_END:TL_END])
+      
+        return ego_state, road_objects, stop_signs, road_points
     
     def _get_obs_input_dims(self):
         """Get the input dimensions for the ego state, road objects, and road graph."""
         ego_state_dim = 10
-        road_objects_dim = (
-            13 * self.config.scenario.max_visible_objects + 
-            3  * self.config.scenario.max_visible_stop_signs + 
-            12 * self.config.scenario.max_visible_traffic_lights
-        )
-        road_graph_dim = 13 * self.config.scenario.max_visible_road_points
-        return ego_state_dim, road_objects_dim, road_graph_dim
+        road_objects_dim = 16
+        stop_sign_dim = 4
+        road_graph_dim = 500 
+        return ego_state_dim, road_objects_dim, stop_sign_dim, road_graph_dim
 
 
 class LateFusionAttnPolicy(ActorCriticPolicy):

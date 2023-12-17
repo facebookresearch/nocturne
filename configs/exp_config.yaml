@@ -1,4 +1,4 @@
-project: net_arch_2scenes
+project: psr
 env_id: Nocturne
 seed: 42
 track_wandb: true
@@ -7,6 +7,7 @@ where_am_i: headless_machine   # Change to "headless_machine" when you're on a c
 exp_name: Nocturne
 verbose: 1
 train_on_single_scene: false
+psr: true # Prioritized scene replay
 
 wandb:
   sync_tensorboard: true
@@ -17,7 +18,7 @@ ma_callback:
   log_indiv_metrics: false
   log_agent_actions: false
   save_model: true
-  model_save_freq: 1 # In iterations (one iter ~ (num_agents x n_steps))
+  model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: false
   record_n_scenes: 2 # Number of different scenes to make videos of 
   video_save_freq: 100 # Make a video every k iterations (one iter is x steps)
@@ -30,8 +31,8 @@ ppo:
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 15_000_000
-  progress_bar: false
+  total_timesteps: 2_000_000
+  progress_bar: true
 
 # human-regularized RL
 reg_weight: 0.0
