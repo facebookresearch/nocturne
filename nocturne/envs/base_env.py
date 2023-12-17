@@ -276,11 +276,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
         self,
         filename=None,
+        psr_dict=None,
     ) -> Dict[int, ObsType]:
         """Reset the environment.
         Args
         ----
-        filename: If provided, use this scene.
+        filename: If provided, reset env to this traffic scene.
+        psr_dict: If provided, reset env to a scene sampled with given probabilities.
 
         Returns
         -------
@@ -298,7 +300,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 self.file = filename
             elif self.config.sample_file_method == "no_replacement":
                 self.file = self.files.pop()
-            else: # Random with replacement (default)
+            elif psr_dict is not None:
+                # Prioritized scene replay
+                probs = [item['prob'] for item in psr_dict.values()]
+                self.file = np.random.choice(self.files, p=probs)
+            else: # Random uniformly with replacement (default)
                 self.file = np.random.choice(self.files)
         
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
