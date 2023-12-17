@@ -32,11 +32,9 @@ RenderType = TypeVar("RenderType")  # pylint: disable=invalid-name
 
 class CollisionType(Enum):
     """Enum for collision types."""
-
     NONE = 0
     VEHICLE_VEHICLE = 1
     VEHICLE_EDGE = 2
-
 
 class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     """Nocturne base Gym environment."""
@@ -437,9 +435,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         cur_position = []
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
+            speed = np.array([veh_obj.getSpeed()])
+            steer = np.array([veh_obj.steering])
             if self.config.normalize_state:
                 cur_position = cur_position / np.linalg.norm(cur_position)
-                
+            
+            cur_position = np.concatenate([cur_position, speed, steer])
+
         ego_state = []
         if self.config.subscriber.use_ego_state:
             ego_state = self.scenario.ego_state(veh_obj)
