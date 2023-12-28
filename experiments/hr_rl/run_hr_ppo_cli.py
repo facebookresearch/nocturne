@@ -53,6 +53,7 @@ def run_hr_ppo(
     arch_road_graph: str = "small",
     arch_shared_net: str = "small",
     activation_fn: str = "tanh",
+    dropout: float = 0.0, 
     total_timesteps: int = 1_000_000,
     num_files: int = 10,
     reg_weight: float = 0.0,
@@ -69,16 +70,20 @@ def run_hr_ppo(
     exp_config.vf_coef = vf_coef
     exp_config.learn.total_timesteps = total_timesteps
     exp_config.reg_weight = reg_weight
+    # Model architecture 
+    exp_config.model_config.arch_ro = arch_road_objects
+    exp_config.model_config.arch_rg = arch_road_graph
+    exp_config.model_config.arch_shared = arch_shared_net
+    exp_config.model_config.act_func = activation_fn
 
     # Define model architecture
     model_config = Box(
         {
-            "arch_ego_state": [8],
             "arch_road_objects": LAYERS_DICT[arch_road_objects],
             "arch_road_graph": LAYERS_DICT[arch_road_graph],
             "arch_shared_net": LAYERS_DICT[arch_shared_net],
             "act_func": activation_fn,
-            "dropout": 0.0,
+            "dropout": dropout,
         }
     )
     # ==== Overwrite default settings ==== #
@@ -104,7 +109,7 @@ def run_hr_ppo(
         project=exp_config.project,
         name=run_id,
         group=sweep_name,
-        config={**exp_config, **env_config},
+        config={**exp_config, **env_config, **model_config},
         id=run_id,
         **exp_config.wandb,
     ) if exp_config.track_wandb else nullcontext() as run:
