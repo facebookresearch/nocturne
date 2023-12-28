@@ -14,13 +14,15 @@ from utils.sb3.reg_ppo import RegularizedPPO
 
 class LateFusionMLP(nn.Module):
     """
-    Custom network for policy and value function. Networks are not shared but have the same architecture.
-    
+    Custom MLP network for processing multimodal traffic scene observations.
     Args:
-        feature_dim (int): dimension of the input features
-        arch_ego_state (List[int]): list of layer dimensions for the ego state network
-        arch_obs (List[int]): list of layer dimensions for the observation network
-        act_func (str): activation function for the network
+        feature_dim (int): dimension of the input feature vector
+        env_config (Box): environment configuration
+        arch_ego_state (List[int]): architecture of the ego state network
+        arch_road_objects (List[int]): architecture of the road objects network
+        arch_road_graph (List[int]): architecture of the road graph network
+        arch_shared_net (List[int]): architecture of the shared network (after fusion)
+        act_func (str): activation function to use
         last_layer_dim_pi (int): dimension of the output layer for the policy network
         last_layer_dim_vf (int): dimension of the output layer for the value network
     """
@@ -32,7 +34,9 @@ class LateFusionMLP(nn.Module):
         arch_ego_state: List[int] = [8],
         arch_road_objects: List[int] = [64],
         arch_road_graph: List[int] = [126, 64],
+        arch_shared_net: List[int] = [],
         act_func: str = "tanh", 
+        dropout: float = 0.0,
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 64,
     ):
@@ -42,6 +46,7 @@ class LateFusionMLP(nn.Module):
         self.arch_ego_state = arch_ego_state
         self.arch_road_objects = arch_road_objects
         self.arch_road_graph = arch_road_graph
+        self.dropout = dropout
 
         #TODO: write function that gets this information from config
         self.input_dim_ego = 10
@@ -51,25 +56,26 @@ class LateFusionMLP(nn.Module):
         # IMPORTANT:Save output dimensions, used to create the distributions
         self.latent_dim_pi = last_layer_dim_pi
         self.latent_dim_vf = last_layer_dim_vf
+        self.shared_net_input_dim = arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1]
 
         # POLICY NETWORK
         self.policy_net_ego_state = self._build_ego_state_net(arch_ego_state)
         self.policy_net_road_objects = self._build_road_objects_net(arch_road_objects)
         self.policy_net_road_graph = self._build_road_graph_net(arch_road_graph)
-        self.policy_out_layer = nn.Sequential(
-            nn.Linear(arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1], self.latent_dim_vf),
-            nn.LayerNorm(self.latent_dim_pi),
-            self.act_func,
+        self.policy_out_layer = self._build_out_net(
+            input_dim=self.shared_net_input_dim, 
+            output_dim=self.latent_dim_pi,
+            net_arch=arch_shared_net
         )
-
+        
         # VALUE NETWORK
         self.val_net_ego_state = self._build_ego_state_net(arch_ego_state)
         self.val_net_road_objects = self._build_road_objects_net(arch_road_objects)
         self.val_net_road_graph = self._build_road_graph_net(arch_road_graph)
-        self.val_out_layer = nn.Sequential(
-            nn.Linear(arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1], self.latent_dim_vf),
-            nn.LayerNorm(self.latent_dim_vf),
-            self.act_func,
+        self.val_out_layer = self._build_out_net(
+            input_dim=self.shared_net_input_dim,
+            output_dim=self.latent_dim_pi,
+            net_arch=arch_shared_net
         )
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -120,6 +126,7 @@ class LateFusionMLP(nn.Module):
         prev_dim = self.input_dim_ego
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
+            net_layers.append(nn.Dropout(self.dropout))
             net_layers.append(nn.LayerNorm(layer_dim))
             net_layers.append(self.act_func)
             prev_dim = layer_dim
@@ -132,6 +139,7 @@ class LateFusionMLP(nn.Module):
         prev_dim = self.input_dim_road_objects 
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
+            net_layers.append(nn.Dropout(self.dropout))
             net_layers.append(nn.LayerNorm(layer_dim))
             net_layers.append(self.act_func)
             prev_dim = layer_dim
@@ -144,9 +152,30 @@ class LateFusionMLP(nn.Module):
         prev_dim = self.input_dim_road_graph 
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
+            net_layers.append(nn.Dropout(self.dropout))
             net_layers.append(nn.LayerNorm(layer_dim))
             net_layers.append(self.act_func)
             prev_dim = layer_dim
+        net = nn.Sequential(*net_layers)
+        return net
+    
+    def _build_out_net(self, input_dim: int, output_dim: int, net_arch: List[int]):
+        """Create the output network architecture."""
+        net_layers = [] 
+        prev_dim = input_dim
+        for layer_dim in net_arch:
+            net_layers.append(nn.Linear(prev_dim, layer_dim))
+            net_layers.append(nn.Dropout(self.dropout))
+            net_layers.append(nn.LayerNorm(layer_dim))
+            net_layers.append(self.act_func)
+            prev_dim = layer_dim
+        
+        # Add final layer
+        net_layers.append(nn.Linear(prev_dim, output_dim))
+        net_layers.append(nn.LayerNorm(output_dim))
+        net_layers.append(self.act_func)
+        
+        # Create network
         net = nn.Sequential(*net_layers)
         return net
     

@@ -1,10 +1,11 @@
-"""Train HR-PPO agent."""
+"""Train HR-PPO agent with CLI arguments."""
 import logging
 from contextlib import nullcontext
 from datetime import datetime
 
 import numpy as np
 import torch
+import typer
 from box import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
 
@@ -28,9 +29,60 @@ from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
+# Default settings
+env_config = load_config("env_config")
+exp_config = load_config("exp_config")
+video_config = load_config("video_config")
 
-def train(env_config, exp_config, video_config, model_config):  # pylint: disable=redefined-outer-name
-    """Train RL agent using PPO."""
+LAYERS_DICT = {
+    "tiny": [64],
+    "small": [128, 64],
+    "medium": [256, 128],
+    "large": [256, 128, 64],
+}
+
+
+def run_hr_ppo(
+    sweep_name: str = "hr_ppo",
+    steer_disc: int = 5,
+    accel_disc: int = 5,
+    ent_coef: float = 0.0,
+    vf_coef: float = 0.5,
+    seed: int = 42,
+    arch_road_objects: str = "small",
+    arch_road_graph: str = "small",
+    arch_shared_net: str = "small",
+    activation_fn: str = "tanh",
+    total_timesteps: int = 1_000_000,
+    num_files: int = 10,
+    reg_weight: float = 0.0,
+) -> None:
+    """Train RL agent using PPO with CLI arguments."""
+    # ==== Overwrite default settings ==== #
+    # Environment
+    env_config.steer_disc = steer_disc
+    env_config.accel_disc = accel_disc
+    env_config.num_files = num_files
+    # Experiment
+    exp_config.seed = seed
+    exp_config.ent_coef = ent_coef
+    exp_config.vf_coef = vf_coef
+    exp_config.learn.total_timesteps = total_timesteps
+    exp_config.reg_weight = reg_weight
+
+    # Define model architecture
+    model_config = Box(
+        {
+            "arch_ego_state": [8],
+            "arch_road_objects": LAYERS_DICT[arch_road_objects],
+            "arch_road_graph": LAYERS_DICT[arch_road_graph],
+            "arch_shared_net": LAYERS_DICT[arch_shared_net],
+            "act_func": activation_fn,
+            "dropout": 0.0,
+        }
+    )
+    # ==== Overwrite default settings ==== #
+
     # Ensure reproducability
     init_seed(env_config, exp_config, exp_config.seed)
 
@@ -51,6 +103,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
     with wandb.init(
         project=exp_config.project,
         name=run_id,
+        group=sweep_name,
         config={**exp_config, **env_config},
         id=run_id,
         **exp_config.wandb,
@@ -124,34 +177,5 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
 
 
 if __name__ == "__main__":
-    # Load environment and experiment configurations
-    env_config = load_config("env_config")
-    exp_config = load_config("exp_config")
-    video_config = load_config("video_config")
-
-    # Define model architecture
-    model_config = Box(
-        {
-            "arch_ego_state": [8],
-            "arch_road_objects": [64],
-            "arch_road_graph": [126, 64],
-            "arch_shared_net": [],
-            "act_func": "tanh",
-            "dropout": 0.0,
-            "last_layer_dim_pi": 64,
-            "last_layer_dim_vf": 64,
-        }
-    )
-
-    lambdas = [0.01]
-    for lam in lambdas:
-        # Set regularization weight
-        exp_config.reg_weight = lam
-
-    # Train
-    train(
-        env_config=env_config,
-        exp_config=exp_config,
-        video_config=video_config,
-        model_config=model_config,
-    )
+    # Run
+    typer.run(run_hr_ppo)
