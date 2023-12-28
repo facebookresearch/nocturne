@@ -295,11 +295,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
             # Sample new traffic scene
             if filename is not None:
-                self.file = filename
+                # Reset to a specific scene name
+                self.file = filename 
             elif self.config.sample_file_method == "no_replacement":
+                # Random uniformly without replacement
                 self.file = self.files.pop()
             elif psr_dict is not None:
-                # Prioritized scene replay
+                # Prioritized scene replay: sample according to probabilities
                 probs = [item['prob'] for item in psr_dict.values()]
                 self.file = np.random.choice(self.files, p=probs)
             else: # Random uniformly with replacement (default)

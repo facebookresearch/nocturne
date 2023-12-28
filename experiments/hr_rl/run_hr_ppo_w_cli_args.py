@@ -10,8 +10,7 @@ import numpy as np
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 # Import networks
-from networks.mlp import MLP
-from networks.mlp_late_fusion import LateFusionMLP
+from nocturne.networks.mlp_late_fusion import LateFusionMLP
 from networks.attn_late_fusion import LateFusionAttn
 
 # Multi-agent as vectorized environment

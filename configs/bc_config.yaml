@@ -1,6 +1,6 @@
 # Model 
 save_model: true # Save model after training
-model_name: "human_policy_data_2" # Name of saved model
+model_name: "human_policy_data_2_scenes" # Name of saved model
 save_model_path: ./models/il/ # Path to save model
 
 # Train 

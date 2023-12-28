@@ -38,7 +38,10 @@ class LateFusionMLP(nn.Module):
     ):
         super().__init__()
         self.config = env_config
-        self.activ_func = nn.Tanh() if act_func == "tanh" else nn.ReLU()
+        self.act_func = nn.Tanh() if act_func == "tanh" else nn.ReLU()
+        self.arch_ego_state = arch_ego_state
+        self.arch_road_objects = arch_road_objects
+        self.arch_road_graph = arch_road_graph
 
         #TODO: write function that gets this information from config
         self.input_dim_ego = 10
@@ -56,7 +59,7 @@ class LateFusionMLP(nn.Module):
         self.policy_out_layer = nn.Sequential(
             nn.Linear(arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1], self.latent_dim_vf),
             nn.LayerNorm(self.latent_dim_pi),
-            self.activ_func,
+            self.act_func,
         )
 
         # VALUE NETWORK
@@ -66,7 +69,7 @@ class LateFusionMLP(nn.Module):
         self.val_out_layer = nn.Sequential(
             nn.Linear(arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1], self.latent_dim_vf),
             nn.LayerNorm(self.latent_dim_vf),
-            self.activ_func,
+            self.act_func,
         )
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -118,7 +121,7 @@ class LateFusionMLP(nn.Module):
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
             net_layers.append(nn.LayerNorm(layer_dim))
-            net_layers.append(self.activ_func)
+            net_layers.append(self.act_func)
             prev_dim = layer_dim
         net = nn.Sequential(*net_layers)
         return net
@@ -130,7 +133,7 @@ class LateFusionMLP(nn.Module):
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
             net_layers.append(nn.LayerNorm(layer_dim))
-            net_layers.append(self.activ_func)
+            net_layers.append(self.act_func)
             prev_dim = layer_dim
         net = nn.Sequential(*net_layers)
         return net
@@ -142,7 +145,7 @@ class LateFusionMLP(nn.Module):
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
             net_layers.append(nn.LayerNorm(layer_dim))
-            net_layers.append(self.activ_func)
+            net_layers.append(self.act_func)
             prev_dim = layer_dim
         net = nn.Sequential(*net_layers)
         return net
@@ -184,11 +187,17 @@ class LateFusionMLPPolicy(ActorCriticPolicy):
         observation_space: spaces.Space,
         action_space: spaces.Space,
         lr_schedule: Callable[[float], float],
+        env_config: Box,
+        mlp_class: Type[LateFusionMLP] = LateFusionMLP,
+        mlp_config: Optional[Box] = None,
         *args,
         **kwargs,
     ):
         # Disable orthogonal initialization
         kwargs["ortho_init"] = False
+        self.env_config = env_config
+        self.mlp_class = mlp_class
+        self.mlp_config = mlp_config if mlp_config is not None else Box({})
         super().__init__(
             observation_space,
             action_space,
@@ -200,9 +209,10 @@ class LateFusionMLPPolicy(ActorCriticPolicy):
 
     def _build_mlp_extractor(self) -> None:
         # Build the network architecture
-        self.mlp_extractor = LateFusionMLP(
+        self.mlp_extractor = self.mlp_class(
             self.features_dim, 
-            env_config
+            self.env_config,
+            **self.mlp_config,
         )
 
 

@@ -1,13 +1,13 @@
-project: psr
+project: net_arch_2scenes
 env_id: Nocturne
 seed: 42
 track_wandb: true
 wandb_init_videos: []
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
-verbose: 1
+verbose: 0
 train_on_single_scene: false
-psr: true # Prioritized scene replay
+psr: false # Prioritized scene replay
 
 wandb:
   sync_tensorboard: true
@@ -18,10 +18,10 @@ ma_callback:
   log_indiv_metrics: false
   log_agent_actions: false
   save_model: true
-  model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
-  save_video: false
-  record_n_scenes: 2 # Number of different scenes to make videos of 
-  video_save_freq: 100 # Make a video every k iterations (one iter is x steps)
+  model_save_freq: 100 # In iterations (one iter ~ (num_agents x n_steps))
+  save_video: true
+  record_n_scenes: 2 # Number of different scenes to render
+  video_save_freq: 10 # Make a video every k iterations (100 iters ~ 1M steps)
   video_deterministic: true
 
 ppo:
@@ -32,8 +32,8 @@ ppo:
 
 learn:
   total_timesteps: 2_000_000
-  progress_bar: true
+  progress_bar: false
 
 # human-regularized RL
 reg_weight: 0.0
-human_policy_path: models/il/human_policy_2_scenes_2023_11_22.pt
+human_policy_path: models/il/human_policy_data_2_scenes_2023_12_28.pt

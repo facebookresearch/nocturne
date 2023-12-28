@@ -1,11 +1,14 @@
 import logging
+from typing import Optional
+from box import Box
 
 import numpy as np
 import torch
+from torch import nn
 from gymnasium import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.utils import obs_as_tensor
+from stable_baselines3.common.utils import obs_as_tensor, get_schedule_fn
 from stable_baselines3.common.vec_env import VecEnv
 
 # Import masked buffer class
@@ -16,21 +19,11 @@ logging.getLogger(__name__)
 class MultiAgentPPO(PPO):
     """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments."""
 
-    def _setup_model(self) -> None:
-        super()._setup_model()
-
-        # Change buffer to our own masked version
-        buffer_cls = MaskedRolloutBuffer
-
-        self.rollout_buffer = buffer_cls(
-            self.n_steps,
-            self.observation_space,  # type: ignore[arg-type]
-            self.action_space,
-            device=self.device,
-            gamma=self.gamma,
-            gae_lambda=self.gae_lambda,
-            n_envs=self.n_envs,
-        )
+    def __init__(self, env_config: Box, mlp_class: nn.Module, mlp_config: Optional[Box], *args, **kwargs):
+        self.env_config = env_config
+        self.mlp_class = mlp_class
+        self.mlp_config = mlp_config
+        super().__init__(*args, **kwargs)
 
     def collect_rollouts(
         self,
@@ -151,3 +144,40 @@ class MultiAgentPPO(PPO):
         env.agents_in_scene = []
 
         return True
+
+    def _setup_model(self) -> None:
+        self._setup_lr_schedule()
+        self.set_random_seed(self.seed)
+
+        # Change buffer to our own masked version
+        buffer_cls = MaskedRolloutBuffer
+
+        self.rollout_buffer = buffer_cls(
+            self.n_steps,
+            self.observation_space,  # type: ignore[arg-type]
+            self.action_space,
+            device=self.device,
+            gamma=self.gamma,
+            gae_lambda=self.gae_lambda,
+            n_envs=self.n_envs,
+        )
+
+        self.policy = self.policy_class(
+            self.observation_space,
+            self.action_space,
+            self.lr_schedule,
+            use_sde=self.use_sde,
+            env_config=self.env_config,
+            mlp_class=self.mlp_class,
+            mlp_config=self.mlp_config,
+            **self.policy_kwargs
+        )
+        self.policy = self.policy.to(self.device)
+
+        # Initialize schedules for policy/value clipping
+        self.clip_range = get_schedule_fn(self.clip_range)
+        if self.clip_range_vf is not None:
+            if isinstance(self.clip_range_vf, (float, int)):
+                assert self.clip_range_vf > 0, "`clip_range_vf` must be positive, " "pass `None` to deactivate vf clipping"
+
+            self.clip_range_vf = get_schedule_fn(self.clip_range_vf)

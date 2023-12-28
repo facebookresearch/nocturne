@@ -19,7 +19,7 @@ def make_video(
     env_config: Box,
     exp_config: Box,
     video_config: Box,
-    model: Union[str, OnPolicyAlgorithm],
+    model,
     n_steps: Optional[int],
     *,
     filenames = None,

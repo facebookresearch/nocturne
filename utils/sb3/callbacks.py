@@ -98,15 +98,16 @@ class CustomMultiAgentCallback(BaseCallback):
             wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
 
             # Track performance within scene and how often it is sampled
-            if self.env_config.num_files < 10:
-                for scene_name in self.locals["env"].psr_dict.keys():
-                    scene_psr_dict = self.locals["env"].psr_dict[scene_name]
-                    roll_avg_rew = scene_psr_dict["reward"] / scene_psr_dict["count"]
-                    wandb.log({
-                        f"train/{scene_name}/count": scene_psr_dict["count"],
-                        f"train/{scene_name}/reward": roll_avg_rew,
-                        f"train/{scene_name}/prob": scene_psr_dict["prob"],
-                    })
+            if self.env_config.num_files < 5:
+                if self.locals["env"].psr_dict is not None:
+                    for scene_name in self.locals["env"].psr_dict.keys():
+                        scene_psr_dict = self.locals["env"].psr_dict[scene_name]
+                        roll_avg_rew = scene_psr_dict["reward"] / scene_psr_dict["count"]
+                        wandb.log({
+                            f"train/{scene_name}/count": scene_psr_dict["count"],
+                            f"train/{scene_name}/reward": roll_avg_rew,
+                            f"train/{scene_name}/prob": scene_psr_dict["prob"],
+                        })
                 
         # Log all metrics on the level of individual agents
         if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
@@ -158,7 +159,8 @@ class CustomMultiAgentCallback(BaseCallback):
                 self._save_model()
 
         # Update probabilities for sampling scenes
-        self._update_sampling_probs()
+        if self.locals["env"].psr_dict is not None:
+            self._update_sampling_probs()
 
     def _on_training_end(self) -> None:
         """
@@ -215,7 +217,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     "arch_ego_state": self.locals["self"].policy.mlp_extractor.arch_ego_state, 
                     "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
                     "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
-                    "arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared,
+                    #"arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared,
                 },
                 "train": {
                     "global_step": self.num_timesteps,
@@ -234,7 +236,6 @@ class CustomMultiAgentCallback(BaseCallback):
         wandb.save(self.model_path, base_path=wandb.run.dir)
         self.wandb_run.log_artifact(model_artifact, aliases=[f"lam_{self.exp_config.reg_weight}"])
         logging.info(f"Saving model checkpoint to {self.model_path} | Global_step: {self.num_timesteps}")
-
 
     def _update_sampling_probs(self):
         """Update sampling probabilities for each scene based on the performance of the agent in that scene."""
