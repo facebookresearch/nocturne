@@ -26,15 +26,17 @@ class MultiAgentAsVecEnv(VecEnv):
         VecEnv (SB3 VecEnv): SB3 VecEnv base class.
     """
 
-    def __init__(self, config, num_envs, train_on_single_scene=False):
+    def __init__(self, config, num_envs, psr=False, train_on_single_scene=False):
         # Create Nocturne env
-        self.env = BaseEnv(config)
+        self.env = BaseEnv(config)        
 
         # Make action and observation spaces compatible with SB3 (requires gymnasium)
         self.action_space = gym.spaces.Discrete(self.env.action_space.n)
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
-        self.num_envs = num_envs  # The maximum number of agents allowed in the environment
+        self.num_envs = num_envs  # The maximum number of agents allowed in the environmen
+        self.psr = psr # Whether to use PSR or not
 
+        self.psr_dict = self.init_scene_dict() if psr else None # Initialize dict to keep track of the average reward obtained in each scene
         self.n_episodes = 0
         self.episode_lengths = []
         self.rewards = []  # Log reward per step
@@ -46,12 +48,12 @@ class MultiAgentAsVecEnv(VecEnv):
 
     def _reset_seeds(self) -> None:
         """Reset all environments' seeds."""
-        self._seeds = None
+        self._seeds = None  
 
     def reset(self, seed=None):
         """Reset environment and return initial observations."""
         # Reset Nocturne env
-        obs_dict = self.env.reset(self.filename)
+        obs_dict = self.env.reset(self.filename, self.psr_dict)
 
         # Reset storage
         self.agent_ids = []
@@ -133,6 +135,12 @@ class MultiAgentAsVecEnv(VecEnv):
             self.n_episodes += 1
             self.episode_lengths.append(ep_len)
 
+            # Store reward at scene level
+            if self.psr:
+                self.psr_dict[self.env.file]["count"] += 1
+                self.psr_dict[self.env.file]["reward"] += (sum(rew_dict.values())) / len(self.agent_ids)
+                self.psr_dict[self.env.file]["goal_rate"] += self.ep_goal_achived / len(self.agent_ids)
+
             # Reset
             obs = self.reset()
 
@@ -146,6 +154,19 @@ class MultiAgentAsVecEnv(VecEnv):
     def close(self) -> None:
         """Close the environment."""
         self.env.close()
+
+    def init_scene_dict(self):
+        """Create a dictionary of scenes and the average normalized reward obtained in each scene."""
+        psr_dict = {}
+        for scene_name in self.env.files:
+            psr_dict[scene_name] = {"count": 0, "prob": 1/len(self.env.files), "reward": 0, "goal_rate": 0}
+        return psr_dict
+    
+    def reset_scene_dict(self):
+        for scene_name in self.psr_dict.keys():
+            self.psr_dict[scene_name]["count"] = 0
+            self.psr_dict[scene_name]["reward"] = 0
+            self.psr_dict[scene_name]["goal_rate"] = 0
 
     @property
     def step_num(self) -> List[int]:

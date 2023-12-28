@@ -6,6 +6,7 @@ import typer
 import pickle
 from nocturne.envs.base_env import BaseEnv
 from utils.render import discretize_action
+from networks.mlp_late_fusion import LateFusionMLPPolicy
 
 def render(
     directory: str,

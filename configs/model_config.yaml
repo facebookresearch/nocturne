@@ -1,0 +1,32 @@
+models_dir: models
+
+models:
+# Imitation learning model trained on a single scene
+- name: "human_policy_single_scene"
+  run: "_2023_11_22"
+  version: None
+
+# # PPO model trained for 5M steps
+# - name: "sb3_nocturne_ppo_multi_mac"
+#   run: "2023_08_18__23_48_07_ego_reg_coef_None"
+#   version: "model_steps_1253376"
+
+# HR-PPO model trained for 5M steps with lambda = 0.001
+- name: "sb3_nocturne_ppo_multi_mac"
+  run: "2023_08_19__07_03_39_ego_reg_coef_0.001"
+  version: "model_steps_1253376"
+
+# # HR-PPO model trained for 5M steps with lambda = 0.05
+# - name: "sb3_nocturne_ppo_multi_mac"
+#   run: "2023_08_19__22_16_42_ego_reg_coef_0.05"
+#   version: "model_steps_626688"
+
+# # HR-PPO model trained for 5M steps with lambda = 0.1
+# - name: "sb3_nocturne_ppo_multi_mac"
+#   run: "2023_08_19__16_10_24_ego_reg_coef_0.1"
+#   version: "model_steps_626688"
+
+# # HR-PPO model trained for 5M steps with lambda = 0.5
+# - name: "sb3_nocturne_ppo_multi_mac"
+#   run: "2023_08_19__17_59_38_ego_reg_coef_0.5"
+#   version: "model_steps_626688"

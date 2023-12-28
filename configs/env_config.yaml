@@ -8,7 +8,7 @@ env: my_custom_multi_env_v1 # name of the env, hardcoded for now
 episode_length: 80
 warmup_period: 10 # In the RL setting we use a warmup of 10 steps
 # How many files of the total dataset to use. -1 indicates to use all of them
-num_files: 10
+num_files: 2
 fix_file_order: true # If true, always select the SAME files (when creating the environent), if false, pick files at random
 sample_file_method: "random" # ALTERNATIVES: "no_replacement" (SUPPORTED) / "score-based" (TODO: @Daphne)
 dt: 0.1
@@ -81,6 +81,7 @@ rew_cfg:
 # # # # State normalization settings # # # # 
 normalize_state: true 
 # Ego feature names + max values in each category
+ego_state_feat_min: -30
 ego_state_feat_max:
   veh_len: 16
   veh_width: 4
@@ -91,9 +92,10 @@ ego_state_feat_max:
   rel_target_speed_dist: 40
   curr_accel: 5 # Vehicle acceleration
   curr_steering: 3
-  curr_head_angle: 10e05 # Not used at the moment
+  curr_head_angle: 0.00001 # Not used at the moment
 
-vis_obs_max: 85 # The maximum value across visible state elements
+vis_obs_max: 100 # The maximum value across visible state elements
+vis_obs_min: -10 # The minimum value across visible state elements
 
 # # # # Agent settings # # # # 
 subscriber:

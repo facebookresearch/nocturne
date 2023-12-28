@@ -1,11 +1,14 @@
 import logging
 import torch
+import torch.nn as nn
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 import os
 
 import wandb
+from utils.eval import EvaluatePolicy
 from utils.render import make_video
+from stable_baselines3.common.policies import ActorCriticPolicy
 
 
 class CustomMultiAgentCallback(BaseCallback):
@@ -71,7 +74,7 @@ class CustomMultiAgentCallback(BaseCallback):
 
         # Average normalized by the number of agents in the scene
         num_agents_per_step = np.array(self.locals["env"].agents_in_scene)
-        ep_rewards_avg_norm = sum(rewards.sum(axis=1) / num_agents_per_step) / self.n_episodes
+        self.ep_rewards_avg_norm = sum(rewards.sum(axis=1) / num_agents_per_step) / self.n_episodes
 
         # Obtain the sum of reward per episode (accross all agents)
         sum_rewards = rewards.sum() / self.n_episodes
@@ -91,8 +94,21 @@ class CustomMultiAgentCallback(BaseCallback):
         if self.exp_config.track_wandb:
             agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
             hist = np.histogram(num_agents_per_step, bins=agent_bins)
+            
             wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
-        
+
+            # Track performance within scene and how often it is sampled
+            if self.env_config.num_files < 5:
+                if self.locals["env"].psr_dict is not None:
+                    for scene_name in self.locals["env"].psr_dict.keys():
+                        scene_psr_dict = self.locals["env"].psr_dict[scene_name]
+                        roll_avg_rew = scene_psr_dict["reward"] / scene_psr_dict["count"]
+                        wandb.log({
+                            f"train/{scene_name}/count": scene_psr_dict["count"],
+                            f"train/{scene_name}/reward": roll_avg_rew,
+                            f"train/{scene_name}/prob": scene_psr_dict["prob"],
+                        })
+                
         # Log all metrics on the level of individual agents
         if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
             indiv_rewards = ((rewards.sum(axis=0)) / self.n_episodes)
@@ -103,7 +119,7 @@ class CustomMultiAgentCallback(BaseCallback):
     
         # Log aggregate performance measures 
         self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
-        self.logger.record("rollout/ep_rew_mean_norm", ep_rewards_avg_norm)
+        self.logger.record("rollout/ep_rew_mean_norm", self.ep_rewards_avg_norm)
         self.logger.record("rollout/ep_rew_sum", sum_rewards)
         self.logger.record("rollout/ep_len_mean", avg_ep_len)
         self.logger.record("rollout/perc_goal_achieved", self.avg_frac_goal_achieved)
@@ -112,10 +128,20 @@ class CustomMultiAgentCallback(BaseCallback):
         self.logger.record("global_step", self.num_timesteps)
         self.logger.record("iteration", self.iteration)
         self.logger.record("num_frames_in_rollout", batch_size)
-
+        
+        # Sanity check: log observation min and max
+        observations = self.locals["rollout_buffer"].observations
+        valid_obs_mask = (~np.isnan(self.locals["rollout_buffer"].observations))
+        
+        self.logger.record("rollout/obs_min", np.min(observations[valid_obs_mask]))
+        self.logger.record("rollout/obs_max", np.max(observations[valid_obs_mask]))
+        if self.exp_config.track_wandb:
+            wandb.log({"rollout/obs_dist": wandb.Histogram(np_histogram=np.histogram(observations[valid_obs_mask]))})
+        
+        
         # Make a video with a random scene
         if self.exp_config.ma_callback.save_video:
-            if (self.iteration - 1) % self.exp_config.ma_callback.video_save_freq == 0:
+            if self.iteration % self.exp_config.ma_callback.video_save_freq == 0:
                 logging.info(f"Making video at iter = {self.iteration} | global_step = {self.num_timesteps}")
                 make_video(
                     env_config=self.env_config,
@@ -130,22 +156,46 @@ class CustomMultiAgentCallback(BaseCallback):
         # Save model
         if self.exp_config.ma_callback.save_model:
             if self.iteration % self.exp_config.ma_callback.model_save_freq == 0:
-                self.save_model()
+                self._save_model()
+
+        # Update probabilities for sampling scenes
+        if self.locals["env"].psr_dict is not None:
+            self._update_sampling_probs()
 
     def _on_training_end(self) -> None:
         """
         This event is triggered before exiting the `learn()` method.
         """
-        if self.model_path is not None:
-            self.save_model()
+        # Save model to wandb
+        self._save_model()
 
-        # TODO: make final video
+        if self.exp_config.ma_callback.save_video:
+            logging.info(f"Making video at last iter = {self.iteration} in deterministic mode | global_step = {self.num_timesteps}")
+            # Set deterministic to True
+            self.exp_config.ma_callback.video_deterministic = True
+            make_video(
+                env_config=self.env_config,
+                exp_config=self.exp_config,
+                video_config=self.video_config,
+                filenames=[self.locals["env"].filename],
+                model=self.model,
+                n_steps=self.num_timesteps,
+                deterministic=self.exp_config.ma_callback.video_deterministic,
+            )
+        
+        if self.exp_config.ma_callback.log_human_metrics:
+            evaluator = EvaluatePolicy(
+                env_config=self.env_config, 
+                exp_config=self.exp_config,
+                run=self.wandb_run,
+                policy=self.model,
+            )
+            table = evaluator._get_scores()
 
-        logging.info(f"-- Saved model artifact at iter {self.iteration} --")
-
-    def save_model(self) -> None:
+    def _save_model(self) -> None:
         """Save model to wandb."""
-        self.model_name = f"ppo_policy_net_{self.num_timesteps}"
+
+        self.model_name = f"nocturne-hr-ppo-{wandb.run.id}"
         self.model_path = os.path.join(wandb.run.dir, f"{self.model_name}.pt")
     
         # Create model artifact
@@ -158,13 +208,25 @@ class CustomMultiAgentCallback(BaseCallback):
         # Save torch model
         torch.save(
             obj={
-                "iter": self.iteration,
-                "model_state_dict": self.locals["self"].policy.state_dict(),
-                "obs_space_dim": self.locals["env"].observation_space.shape[0],
-                "act_space_dim": self.locals["env"].action_space.n,
-                "norm_reward": self.ep_advantage_avg_norm,
-                "collision_rate": self.avg_frac_collided,
-                "goal_rate": self.avg_frac_collided,
+                "state_dict": self.locals["self"].policy.state_dict(),
+                "data": self.locals["self"].policy._get_constructor_parameters(),
+                "model": {
+                    "model_cls": self.locals["self"].policy.__class__,
+                    "feat_dim": self.locals["env"].observation_space.shape[0], # Input dimension
+                    "act_func": self.locals["self"].policy.mlp_extractor.act_func, # Activation function used
+                    "arch_ego_state": self.locals["self"].policy.mlp_extractor.arch_ego_state, 
+                    "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
+                    "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
+                    #"arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared,
+                },
+                "train": {
+                    "global_step": self.num_timesteps,
+                    "trained_in_k_scenes": len(self.locals["env"].env.files),
+                    "act_space_dim": self.locals["env"].action_space.n,
+                    "norm_reward": self.ep_rewards_avg_norm,
+                    "coll_rate": self.avg_frac_collided,
+                    "goal_rate": self.avg_frac_goal_achieved,
+                },
             },
             f=self.model_path,
         )
@@ -172,5 +234,25 @@ class CustomMultiAgentCallback(BaseCallback):
         # Save model artifact
         model_artifact.add_file(local_path=self.model_path)
         wandb.save(self.model_path, base_path=wandb.run.dir)
-        self.wandb_run.log_artifact(model_artifact)
+        self.wandb_run.log_artifact(model_artifact, aliases=[f"lam_{self.exp_config.reg_weight}"])
         logging.info(f"Saving model checkpoint to {self.model_path} | Global_step: {self.num_timesteps}")
+
+    def _update_sampling_probs(self):
+        """Update sampling probabilities for each scene based on the performance of the agent in that scene."""
+
+        # Lower sampling probability for scenes with high goal rate
+        for scene in self.locals["env"].psr_dict.keys():
+            scene_rew = self.locals["env"].psr_dict[scene]["reward"]
+            if scene_rew >= 0.9:
+                self.locals["env"].psr_dict[scene]["prob"] = 1e-8 # Assign low probability
+        
+        # Sampling probability is inversely proportional to the average reward
+        roll_avg_rewards = np.array([item['reward'] for item in self.locals["env"].psr_dict.values()])
+        weighted_scenes = np.exp(-roll_avg_rewards)
+        probs = np.exp(weighted_scenes - np.max(weighted_scenes)) / np.sum(np.exp(weighted_scenes - np.max(weighted_scenes)))
+
+        for idx, scene in enumerate(self.locals["env"].psr_dict.keys()):
+            self.locals["env"].psr_dict[scene]["prob"] = probs[idx]
+
+                
+         

@@ -14,7 +14,6 @@ from typing import Any, Dict, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
-import yaml
 from box import Box as ConfigBox
 from gym import Env
 from gym.spaces import Box, Discrete
@@ -33,11 +32,9 @@ RenderType = TypeVar("RenderType")  # pylint: disable=invalid-name
 
 class CollisionType(Enum):
     """Enum for collision types."""
-
     NONE = 0
     VEHICLE_VEHICLE = 1
     VEHICLE_EDGE = 2
-
 
 class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     """Nocturne base Gym environment."""
@@ -277,11 +274,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
         self,
         filename=None,
+        psr_dict=None,
     ) -> Dict[int, ObsType]:
         """Reset the environment.
         Args
         ----
-        filename: If provided, use this scene.
+        filename: If provided, reset env to this traffic scene.
+        psr_dict: If provided, reset env to a scene sampled with given probabilities.
 
         Returns
         -------
@@ -296,10 +295,16 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
             # Sample new traffic scene
             if filename is not None:
-                self.file = filename
+                # Reset to a specific scene name
+                self.file = filename 
             elif self.config.sample_file_method == "no_replacement":
+                # Random uniformly without replacement
                 self.file = self.files.pop()
-            else: # Random with replacement (default)
+            elif psr_dict is not None:
+                # Prioritized scene replay: sample according to probabilities
+                probs = [item['prob'] for item in psr_dict.values()]
+                self.file = np.random.choice(self.files, p=probs)
+            else: # Random uniformly with replacement (default)
                 self.file = np.random.choice(self.files)
         
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
@@ -432,22 +437,31 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         cur_position = []
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
+            speed = np.array([veh_obj.getSpeed()])
+            steer = np.array([veh_obj.steering])
             if self.config.normalize_state:
                 cur_position = cur_position / np.linalg.norm(cur_position)
-                
+            
+            cur_position = np.concatenate([cur_position, speed, steer])
+
         ego_state = []
         if self.config.subscriber.use_ego_state:
             ego_state = self.scenario.ego_state(veh_obj)
+            logging.debug(f'\n t = {self.step_num} ---')
+            logging.debug(f'ego_before: {ego_state.min():3f} | {ego_state.max():.3f}')
             if self.config.normalize_state:
-                ego_state = self.normalize_ego_state(ego_state)
+                ego_state = self.normalize_ego_state_by_cat(ego_state)
+                logging.debug(f'ego_after: {ego_state.min():.3f} | {ego_state.max():.3f}')
                 
         visible_state = []
         if self.config.subscriber.use_observations:
             visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
+            logging.debug(f'visible_before: {visible_state.min():.3f} | {visible_state.max():.3f}')
             if self.config.normalize_state:
-                visible_state = self.normalize_obs(visible_state)
+                visible_state = self.normalize_obs_by_cat(visible_state)
+                logging.debug(f'visible_after: {visible_state.min():.3f} | {visible_state.max():.3f}')
 
         # Concatenate
         obs = np.concatenate((ego_state, visible_state, cur_position))
@@ -476,11 +490,21 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             )
         return (obs_space_dim,)
 
-    def normalize_ego_state(self, state):
+    def normalize_ego_state_by_cat(self, state):
         """Divide every feature in the ego state by the maximum value of that feature."""
         return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
+    
+    def normalize_ego_state(self, state):
+        """Normalization to get features between 0 and 1."""
+        min_ego_feat = self.config.ego_state_feat_min
+        max_ego_feat = np.array(list(self.config.ego_state_feat_max.values()),dtype=object).max()
+        return (state - min_ego_feat) / (max_ego_feat - min_ego_feat)
 
     def normalize_obs(self, state):
+        """Normalization to get features between 0 and 1."""
+        return (state - self.config.vis_obs_min) / (self.config.vis_obs_max - self.config.vis_obs_min)
+
+    def normalize_obs_by_cat(self, state):
         """Divide all visible state elements by the maximum value across the visible state."""
         return state / self.config.vis_obs_max
 
@@ -564,10 +588,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             self.config.steering_upper_bound,
             self.config.steering_discretization,
         )
-
         self.idx_to_actions = {}
+        self.actions_to_idx = {}
         for i, (accel, steer) in enumerate(product(self.accel_grid, self.steering_grid)):
             self.idx_to_actions[i] = [accel, steer]
+            self.actions_to_idx[accel, steer] = [i]
 
     def _set_continuous_action_space(self) -> None:
         """Set the continuous action space."""
@@ -587,6 +612,23 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         )
         self.idx_to_actions = None
 
+    def unflatten_obs(self, obs_flat):
+        "Unsqueeeze the flattened object."""
+
+        # OBS FLAT ORDER: road_objects, road_points, traffic_lights, stop_signs
+        # Find the ends of each section
+        ROAD_OBJECTS_END = 13 * self.config.scenario.max_visible_objects
+        ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
+        TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
+        STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
+        
+        # Unflatten
+        road_objects = obs_flat[:ROAD_OBJECTS_END]
+        road_points = obs_flat[ROAD_OBJECTS_END:ROAD_POINTS_END]
+        traffic_lights = obs_flat[ROAD_POINTS_END:TL_END]
+        stop_signs = obs_flat[TL_END:STOP_SIGN_END]
+        
+        return road_objects, road_points, traffic_lights, stop_signs
 
 def _angle_sub(current_angle: float, target_angle: float) -> float:
     """Subtract two angles to find the minimum angle between them.
@@ -643,7 +685,6 @@ def _apply_action_to_vehicle(
         accel, steer = idx_to_actions[action]
         veh_obj.acceleration = accel
         veh_obj.steering = steer
-
 
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.

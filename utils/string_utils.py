@@ -11,7 +11,7 @@ def datetime_to_str(dt: datetime) -> str:
     Returns:
         str: String representation of the datetime object.
     """
-    return dt.strftime("%Y_%m_%d__%H_%M_%S")
+    return dt.strftime("%m_%d_%H_%S")
 
 
 def date_to_str(date_: date) -> str:
