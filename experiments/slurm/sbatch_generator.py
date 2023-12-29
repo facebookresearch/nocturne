@@ -58,7 +58,7 @@ trial=${{SLURM_ARRAY_TASK_ID}}
 {param_val_assign}
 
 source /scratch/dc4971/nocturne_lab/.venv/bin/activate
-python experiments/hr_rl/run_hr_ppo_w_cli_args.py {param_cli_list}
+python experiments/hr_rl/run_hr_ppo_cli.py {param_cli_list}
 '''
 
 # functions for making bash expressions
@@ -226,7 +226,7 @@ def save_scripts(sbatch_filename, bash_filename, file_path, run_script, fields, 
 
 if __name__ == '__main__':
 
-    SWEEP_NAME = 'sweep_n10_mlp'
+    SWEEP_NAME = 'first_test_1228'
 
     # Define SBATCH params
     fields = {
@@ -239,15 +239,16 @@ if __name__ == '__main__':
     # Define sweep conf
     params = {
         'sweep_name': [SWEEP_NAME], # Project name
-        'steer_disc': [5], # Action space; 5 is the default
-        'accel_disc': [3, 5], # Action space; 5 is the default
         'ent_coef' : [0, 0.001],   # Entropy coefficient in the policy loss
-        'vf_coef'  : [0.5, 0.25], # Value coefficient in the policy loss
-        'seed' : [6, 8, 42], # Random seed
-        'policy_size': ['tiny', 'small', 'medium'],
-        'policy_arch': ['mlp_sep'],
+        'vf_coef'  : [0.5], # Value coefficient in the policy loss
+        'seed' : [42], # Random seed
+        'dropout': [0.0, 0.05],
+        'arch_road_objects': ['tiny', 'small'],
+        'arch_road_graph': ['tiny', 'small'],
+        'arch_shared_net': ['tiny', 'small', 'medium'],
+        'activation_fn': ['tanh', 'relu'],
         'num_files': [10], # Number of traffic scenes to train on 
-        'total_timesteps': [40_000_000], # Total training steps
+        'total_timesteps': [30_000_000], # Total training steps
     #    'reg_weight': list(np.round(np.arange(0., .5, 0.05), 3)),
     }
 
@@ -255,7 +256,7 @@ if __name__ == '__main__':
         sbatch_filename=f"sbatch_{SWEEP_NAME}.sh",
         bash_filename="bash_exec.sh", #NOTE: don't change this name
         file_path="experiments/slurm/run_scripts/",
-        run_script="experiments/hr_rl/run_hr_ppo_w_cli_args.py",
+        run_script="experiments/hr_rl/run_hr_ppo_cli.py",
         fields=fields,
         params=params,
     )
