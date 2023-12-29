@@ -217,7 +217,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     "arch_ego_state": self.locals["self"].policy.mlp_extractor.arch_ego_state, 
                     "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
                     "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
-                    #"arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared,
+                    "arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared_net,
                 },
                 "train": {
                     "global_step": self.num_timesteps,
