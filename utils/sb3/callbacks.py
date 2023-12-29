@@ -210,14 +210,14 @@ class CustomMultiAgentCallback(BaseCallback):
             obj={
                 "state_dict": self.locals["self"].policy.state_dict(),
                 "data": self.locals["self"].policy._get_constructor_parameters(),
-                "model": {
-                    "model_cls": self.locals["self"].policy.__class__,
-                    "feat_dim": self.locals["env"].observation_space.shape[0], # Input dimension
-                    "act_func": self.locals["self"].policy.mlp_extractor.act_func, # Activation function used
+                "model_cls": self.locals["self"].policy.__class__,
+                "model_config": {
                     "arch_ego_state": self.locals["self"].policy.mlp_extractor.arch_ego_state, 
                     "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
                     "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
-                    "arch_shared": self.locals["self"].policy.mlp_extractor.arch_shared_net,
+                    "arch_shared_net": self.locals["self"].policy.mlp_extractor.arch_shared_net,
+                    "act_func": self.locals["self"].policy.mlp_extractor.act_func, # Activation function used
+                    "dropout": self.locals["self"].policy.mlp_extractor.dropout, # Dropout probability
                 },
                 "train": {
                     "global_step": self.num_timesteps,
@@ -226,6 +226,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     "norm_reward": self.ep_rewards_avg_norm,
                     "coll_rate": self.avg_frac_collided,
                     "goal_rate": self.avg_frac_goal_achieved,
+                    "reg_weight": self.exp_config.reg_weight,
                 },
             },
             f=self.model_path,

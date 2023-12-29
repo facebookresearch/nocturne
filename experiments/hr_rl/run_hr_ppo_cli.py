@@ -54,7 +54,7 @@ def run_hr_ppo(
     arch_shared_net: str = "small",
     activation_fn: str = "tanh",
     dropout: float = 0.0, 
-    total_timesteps: int = 1_000_000,
+    total_timesteps: int = 50_000,
     num_files: int = 10,
     reg_weight: float = 0.0,
 ) -> None:

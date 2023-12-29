@@ -46,6 +46,7 @@ class LateFusionMLP(nn.Module):
         self.arch_ego_state = arch_ego_state
         self.arch_road_objects = arch_road_objects
         self.arch_road_graph = arch_road_graph
+        self.arch_shared_net = arch_shared_net
         self.dropout = dropout
 
         #TODO: write function that gets this information from config

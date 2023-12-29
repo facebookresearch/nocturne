@@ -28,7 +28,6 @@ from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
-
 def train(env_config, exp_config, video_config, model_config):  # pylint: disable=redefined-outer-name
     """Train RL agent using PPO."""
     # Ensure reproducability
@@ -52,6 +51,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         project=exp_config.project,
         name=run_id,
         config={**exp_config, **env_config},
+        group='hr_ppo',
         id=run_id,
         **exp_config.wandb,
     ) if exp_config.track_wandb else nullcontext() as run:
@@ -114,7 +114,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         logging.info(f"Policy | trainable params: {params:,} \n")
 
         # Architecture
-        logging.info(f"Policy | arch: \n {model.policy}")
+        #logging.info(f"Policy | arch: \n {model.policy}")
 
         # Learn
         model.learn(
@@ -143,15 +143,15 @@ if __name__ == "__main__":
         }
     )
 
-    lambdas = [0.01]
+    lambdas = [0.0]
     for lam in lambdas:
         # Set regularization weight
         exp_config.reg_weight = lam
 
-    # Train
-    train(
-        env_config=env_config,
-        exp_config=exp_config,
-        video_config=video_config,
-        model_config=model_config,
-    )
+        # Train
+        train(
+            env_config=env_config,
+            exp_config=exp_config,
+            video_config=video_config,
+            model_config=model_config,
+        )

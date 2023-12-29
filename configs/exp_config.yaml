@@ -18,10 +18,10 @@ ma_callback:
   log_indiv_metrics: false
   log_agent_actions: false
   save_model: true
-  model_save_freq: 1000 # In iterations (one iter ~ (num_agents x n_steps))
+  model_save_freq: 100 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
-  record_n_scenes: 2 # Number of different scenes to render
-  video_save_freq: 200 # Make a video every k iterations (100 iters ~ 1M steps)
+  record_n_scenes: 10 # Number of different scenes to render
+  video_save_freq: 50 # Make a video every k iterations (100 iters ~ 1M steps)
   video_deterministic: true
 
 ppo:
@@ -31,13 +31,12 @@ ppo:
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 2_000_000
+  total_timesteps: 10_000_000
   progress_bar: false
 
 # human-regularized RL
 reg_weight: 0.0
-human_policy_path: models/il/human_policy_2023_11_20.pt
-
+human_policy_path: models/il/human_policy_10_scenes_2023_12_29.pt
 
 # Model arch
 model_config:

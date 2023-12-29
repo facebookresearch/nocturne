@@ -28,7 +28,7 @@ class EvaluatePolicy:
         deterministic=True, 
         with_replacement=True, 
         return_trajectories=False,
-        file_limit=10
+        file_limit=1000
         ):
         self.env_config = env_config
         self.exp_config = exp_config
@@ -83,7 +83,7 @@ class EvaluatePolicy:
             
         for file in self.eval_files:
 
-            logging.info(f"Evaluating policy on {file}...")
+            logging.debug(f"Evaluating policy on {file}...")
             
             # Step through scene in expert control mode to obtain ground truth
             expert_actions, expert_pos, expert_speed, expert_gr, expert_edge_cr, expert_veh_cr = self._step_through_scene(
@@ -218,7 +218,7 @@ class EvaluatePolicy:
                             agent_speed[veh_idx, timestep] = veh_obj.speed
                             action_indices[veh_idx, timestep] = action_idx
                         else:
-                            logging.debug(f'veh {veh_obj.id} at t = {timestep} returns None action!')
+                            logging.info(f'veh {veh_obj.id} at t = {timestep} returns None action!')
 
                 action_dict = {} 
 
