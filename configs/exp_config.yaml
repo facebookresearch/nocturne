@@ -1,4 +1,5 @@
 project: scaling_ppo
+group: playground
 env_id: Nocturne
 seed: 42
 track_wandb: true

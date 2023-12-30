@@ -50,8 +50,8 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
     with wandb.init(
         project=exp_config.project,
         name=run_id,
+        group=exp_config.group,
         config={**exp_config, **env_config},
-        group='hr_ppo',
         id=run_id,
         **exp_config.wandb,
     ) if exp_config.track_wandb else nullcontext() as run:
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         {
             "arch_ego_state": [8],
             "arch_road_objects": [64],
-            "arch_road_graph": [126, 64],
+            "arch_road_graph": [128, 64],
             "arch_shared_net": [],
             "act_func": "tanh",
             "dropout": 0.0,

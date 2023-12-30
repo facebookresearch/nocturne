@@ -33,7 +33,7 @@ class LateFusionMLP(nn.Module):
         env_config: Box,
         arch_ego_state: List[int] = [8],
         arch_road_objects: List[int] = [64],
-        arch_road_graph: List[int] = [126, 64],
+        arch_road_graph: List[int] = [128, 64],
         arch_shared_net: List[int] = [],
         act_func: str = "tanh", 
         dropout: float = 0.0,
