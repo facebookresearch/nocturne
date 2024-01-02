@@ -708,18 +708,27 @@ if __name__ == "__main__":
     env = BaseEnv(config=env_config)
 
     # Reset
-    obs_dict = env.reset()
+    obs_dict = env.reset(filename='tfrecord-00421-of-01000_364.json')
 
     # Get info
     agent_ids = [agent_id for agent_id in obs_dict.keys()]
+    veh_objects = {agent.id: agent for agent in env.controlled_vehicles}
     dead_agent_ids = []
 
-    for step in range(100):
+    for step in range(80):
         # Sample actions
         action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
 
-        # Step in env
+        # Set in expert controlled mode
+        for obj in env.controlled_vehicles:
+            obj.expert_control = True
+
         obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
+
+        print(f'step: {step}, done: {done_dict[37]}, info:\n {info_dict[37]}')
+
+        expert_action = env.scenario.expert_action(veh_objects[37], step)
+        print(f'act = {expert_action} \n')
         
         # Update dead agents
         for agent_id, is_done in done_dict.items():

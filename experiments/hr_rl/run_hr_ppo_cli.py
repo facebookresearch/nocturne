@@ -43,7 +43,7 @@ LAYERS_DICT = {
 
 
 def run_hr_ppo(
-    sweep_name: str = "hr_ppo",
+    sweep_name: str = exp_config.group,
     steer_disc: int = 5,
     accel_disc: int = 5,
     ent_coef: float = 0.0,
@@ -159,6 +159,7 @@ def run_hr_ppo(
             seed=exp_config.seed,  # Seed for the pseudo random generators
             verbose=exp_config.verbose,
             tensorboard_log=f"runs/{run_id}" if run_id is not None else None,
+      
             device=exp_config.ppo.device,
             env_config=env_config,
             mlp_class=LateFusionMLP,

@@ -19,7 +19,7 @@ logging.basicConfig(level="INFO")
 class TrajectoryIterator(IterableDataset):
     """Generates trajectories in Waymo scenes: sequences of observations and actions."""
 
-    def __init__(self, data_path, env_config, with_replacement=True, file_limit=None):
+    def __init__(self, data_path, env_config, with_replacement=True, file_limit=-1):
         self.data_path = data_path
         self.config = env_config
         self.env = BaseEnv(env_config)
@@ -32,7 +32,7 @@ class TrajectoryIterator(IterableDataset):
 
         super(TrajectoryIterator).__init__()
 
-        logging.info(f"Using {len(self.file_names)} file(s): {self.file_names}")
+        logging.info(f"Using {len(self.file_names)} file(s)")
         
     def __iter__(self):
         """Return an (expert_state, expert_action) iterable."""
@@ -93,7 +93,7 @@ class TrajectoryIterator(IterableDataset):
                 # Get (continuous) expert action
                 expert_action = scenario.expert_action(veh_obj, timestep)
 
-                # Check for invalid action (because no value available for taking
+                # Check for invalid actions (None) (because no value available for taking
                 # derivative) or because the vehicle is at an invalid state
                 if expert_action is None:
                     continue
@@ -105,6 +105,9 @@ class TrajectoryIterator(IterableDataset):
                 steering_grid_val, steering_grid_idx = self._find_closest_index(self.steering_grid, expert_steering)
 
                 expert_action_idx = self.actions_to_joint_idx[accel_grid_val, steering_grid_val][0]
+                
+                if expert_action_idx is None:
+                    logging.debug("Expert action is None!")
                 
                 # Store
                 if timestep >= self.config.warmup_period:
@@ -229,6 +232,7 @@ class TrajectoryIterator(IterableDataset):
 if __name__ == "__main__":
 
     env_config = load_config("env_config")
+    env_config.num_files = 1000
 
     # Create iterator
     waymo_iterator = TrajectoryIterator(
@@ -241,7 +245,11 @@ if __name__ == "__main__":
     rollouts = next(iter(
         DataLoader(
             waymo_iterator,
-            batch_size=400,
+            batch_size=10_000, # Number of samples to generate
             pin_memory=True,
     )))
+
+    obs, acts, next_obs, dones = rollouts
+
+    print('hi')
     

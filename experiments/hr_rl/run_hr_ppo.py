@@ -143,10 +143,11 @@ if __name__ == "__main__":
         }
     )
 
-    lambdas = [0.0]
-    for lam in lambdas:
+    num_files_list = [10, 100, 1000]
+    
+    for scenes in num_files_list:
         # Set regularization weight
-        exp_config.reg_weight = lam
+        env_config.num_files = scenes
 
         # Train
         train(

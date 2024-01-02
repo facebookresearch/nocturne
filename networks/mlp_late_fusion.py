@@ -245,7 +245,6 @@ class LateFusionMLPPolicy(ActorCriticPolicy):
             **self.mlp_config,
         )
 
-
 if __name__ == "__main__":
 
     # Load config
@@ -263,6 +262,21 @@ if __name__ == "__main__":
     obs = env.reset()
     obs = torch.Tensor(obs)[:2]
 
+
+    # Define model architecture
+    model_config = Box(
+        {
+            "arch_ego_state": [8],
+            "arch_road_objects": [64],
+            "arch_road_graph": [128, 64],
+            "arch_shared_net": [],
+            "act_func": "tanh",
+            "dropout": 0.0,
+            "last_layer_dim_pi": 64,
+            "last_layer_dim_vf": 64,
+        }
+    )
+
     # Test
     model = RegularizedPPO(
         reg_policy=None,
@@ -275,6 +289,9 @@ if __name__ == "__main__":
         seed=exp_config.seed,  # Seed for the pseudo random generators
         verbose=1,
         device='cuda',
+        env_config=env_config,
+        mlp_class=LateFusionMLP,
+        mlp_config=model_config,
     )
     # print(model.policy)
     model.learn(5000)
