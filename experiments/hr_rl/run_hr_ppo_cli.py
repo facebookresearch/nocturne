@@ -52,6 +52,9 @@ def run_hr_ppo(
     arch_road_graph: str = "small",
     arch_shared_net: str = "small",
     activation_fn: str = "tanh",
+    speed_target: bool = True,
+    position_target_tolerance: float = 1.0, 
+    speed_target_tolerance: float = 1.0,
     dropout: float = 0.0, 
     total_timesteps: int = 1_000_000,
     num_files: int = 10,
@@ -63,6 +66,10 @@ def run_hr_ppo(
     env_config.steer_disc = steer_disc
     env_config.accel_disc = accel_disc
     env_config.num_files = num_files
+    env_config.rew_cfg.speed_target = speed_target
+    env_config.rew_cfg.position_target_tolerance = position_target_tolerance
+    env_config.rew_cfg.speed_target_tolerance = speed_target_tolerance
+
     # Experiment
     exp_config.seed = seed
     exp_config.ent_coef = ent_coef
@@ -94,7 +101,6 @@ def run_hr_ppo(
     env = MultiAgentAsVecEnv(
         config=env_config,
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     # Set up run
@@ -117,8 +123,10 @@ def run_hr_ppo(
 
         logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
         logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files} | using {exp_config.ppo.device}")
+
         logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
         logging.info(f"Action_space\n: {env.env.idx_to_actions}")
+        logging.info(f"Pos target tol: {env_config.rew_cfg.position_target_tolerance} | Speed target: {env_config.rew_cfg.speed_target} - tol: {env_config.rew_cfg.speed_target_tolerance}")
 
         # Initialize custom callback
         custom_callback = CustomMultiAgentCallback(
@@ -170,9 +178,6 @@ def run_hr_ppo(
         params = sum(np.prod(p.size()) for p in policy_params)
         exp_config.n_policy_params = params
         logging.info(f"Policy | trainable params: {params:,} \n")
-
-        # Architecture
-        logging.info(f"Policy | arch: \n {model.policy}")
 
         # Learn
         model.learn(

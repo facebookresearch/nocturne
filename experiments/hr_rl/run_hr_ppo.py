@@ -145,20 +145,16 @@ if __name__ == "__main__":
         }
     )
 
-    num_files_list = [10]
-    #MEMORY = [4, 2]
-    MEMORY = [1]
+    num_files_list = [100]
+    speed_targets = [False, True]
     
-    for mem in MEMORY:
+    for speed_target in speed_targets:
+        env_config.rew_cfg.speed_target = speed_target
         for num_scenes in num_files_list:
 
-            # Set memory
-            env_config.subscriber.n_frames_stacked = mem
-
-            # Set regularization weight
-            #exp_config.reg_weight = lam
+            # Turn of speed target
+            env_config.rew_cfg.speed_target = False
             
-            exp_config.human_policy_path = f"models/il/human_policy_S{num_scenes}_2024_01_02.pt"
             env_config.num_files = num_scenes
 
             # Train

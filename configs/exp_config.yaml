@@ -1,5 +1,5 @@
 project: scaling_ppo
-group: effect_of_human_reg
+group: speed_target
 env_id: Nocturne
 seed: 42
 track_wandb: true
@@ -32,7 +32,7 @@ ppo:
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 10_000_000
+  total_timesteps: 5_000_000
   progress_bar: false
 
 # human-regularized RL
