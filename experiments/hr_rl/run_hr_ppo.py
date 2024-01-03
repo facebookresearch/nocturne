@@ -37,7 +37,6 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
     env = MultiAgentAsVecEnv(
         config=env_config,
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     # Set up run
@@ -62,6 +61,9 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files} | using {exp_config.ppo.device}")
         logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
         logging.info(f"Action_space\n: {env.env.idx_to_actions}")
+        
+        if exp_config.reg_weight > 0.0:
+            logging.info(f"Regularization weight: {exp_config.reg_weight} with policy: {exp_config.human_policy_path}")
 
         # Initialize custom callback
         custom_callback = CustomMultiAgentCallback(
@@ -135,7 +137,7 @@ if __name__ == "__main__":
             "arch_ego_state": [8],
             "arch_road_objects": [64],
             "arch_road_graph": [128, 64],
-            "arch_shared_net": [],
+            "arch_shared_net": [128],
             "act_func": "tanh",
             "dropout": 0.0,
             "last_layer_dim_pi": 64,
@@ -143,16 +145,26 @@ if __name__ == "__main__":
         }
     )
 
-    num_files_list = [10, 100, 1000]
+    num_files_list = [10]
+    #MEMORY = [4, 2]
+    MEMORY = [1]
     
-    for scenes in num_files_list:
-        # Set regularization weight
-        env_config.num_files = scenes
+    for mem in MEMORY:
+        for num_scenes in num_files_list:
 
-        # Train
-        train(
-            env_config=env_config,
-            exp_config=exp_config,
-            video_config=video_config,
-            model_config=model_config,
-        )
+            # Set memory
+            env_config.subscriber.n_frames_stacked = mem
+
+            # Set regularization weight
+            #exp_config.reg_weight = lam
+            
+            exp_config.human_policy_path = f"models/il/human_policy_S{num_scenes}_2024_01_02.pt"
+            env_config.num_files = num_scenes
+
+            # Train
+            train(
+                env_config=env_config,
+                exp_config=exp_config,
+                video_config=video_config,
+                model_config=model_config,
+            )

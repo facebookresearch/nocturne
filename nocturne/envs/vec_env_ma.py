@@ -26,7 +26,7 @@ class MultiAgentAsVecEnv(VecEnv):
         VecEnv (SB3 VecEnv): SB3 VecEnv base class.
     """
 
-    def __init__(self, config, num_envs, psr=False, train_on_single_scene=False):
+    def __init__(self, config, num_envs, psr=False):
         # Create Nocturne env
         self.env = BaseEnv(config)        
 
@@ -44,7 +44,7 @@ class MultiAgentAsVecEnv(VecEnv):
         self.frac_collided = []  # Log fraction of agents that collided
         self.frac_goal_achieved = []  # Log fraction of agents that achieved their goal
         self.agents_in_scene = []
-        self.filename = self.env.files[0] if train_on_single_scene else None # If provided, always use the same file 
+        self.filename = None # If provided, always use the same file 
 
     def _reset_seeds(self) -> None:
         """Reset all environments' seeds."""
@@ -172,6 +172,11 @@ class MultiAgentAsVecEnv(VecEnv):
     def step_num(self) -> List[int]:
         """The episodic timestep."""
         return self.env.step_num
+    @property
+    def render(self) -> List[int]:
+        """The episodic timestep."""
+        img = self.env.render()
+        return img
 
     def seed(self, seed=None):
         """Set the random seeds for all environments."""

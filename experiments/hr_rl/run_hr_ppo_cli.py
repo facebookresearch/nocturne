@@ -41,7 +41,6 @@ LAYERS_DICT = {
     "large": [256, 128, 64],
 }
 
-
 def run_hr_ppo(
     sweep_name: str = exp_config.group,
     steer_disc: int = 5,

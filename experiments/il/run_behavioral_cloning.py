@@ -19,7 +19,7 @@ from utils.string_utils import date_to_str
 if __name__ == "__main__":
     
     MAX_EVAL_FILES = 12
-    NUM_TRAIN_FILES = 1000
+    NUM_TRAIN_FILES = 50
 
     # Create run
     run = wandb.init(

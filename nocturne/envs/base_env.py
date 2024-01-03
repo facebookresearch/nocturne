@@ -43,10 +43,10 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         self,
         config: Dict[str, Any],
         *,
-        img_width=1600,
-        img_height=1600,
+        img_width=1200,
+        img_height=1200,
         draw_target_positions=True,
-        padding=50.0,
+        padding=10.0,
     ) -> None:
         """Initialize a Nocturne environment.
 
@@ -488,6 +488,10 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 (3  * self.config.scenario.max_visible_stop_signs) + 
                 (12 * self.config.scenario.max_visible_traffic_lights)
             )
+
+        # Multiply by memory to get the final dimension
+        obs_space_dim = obs_space_dim * self.config.subscriber.n_frames_stacked
+        
         return (obs_space_dim,)
 
     def normalize_ego_state_by_cat(self, state):
@@ -520,6 +524,8 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             Optional[RenderType]: Rendered image.
         """
         return self.scenario.getImage(**self._render_settings)
+    
+        env.scenario.getImage(**video_config.render)
 
     def render_ego(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the ego vehicles.

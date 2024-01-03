@@ -25,8 +25,8 @@ def make_video(
     filenames = None,
     deterministic: bool = True,
     max_steps: int = 80,
-    snap_interval: int = 4,
-    frames_per_second: int = 4,
+    snap_interval: int = 3,
+    frames_per_second: int = 3,
 ) -> Tuple[np.ndarray, pd.DataFrame]:
     """Make a video of policy in traffic scene. 
 

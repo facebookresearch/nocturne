@@ -49,10 +49,10 @@ class LateFusionMLP(nn.Module):
         self.arch_shared_net = arch_shared_net
         self.dropout = dropout
 
-        #TODO: write function that gets this information from config
-        self.input_dim_ego = 10
-        self.input_dim_road_graph = 6500
-        self.input_dim_road_objects = 220
+        #TODO @Daphne: write function that gets this information from config
+        self.input_dim_ego = 10 * self.config.subscriber.n_frames_stacked
+        self.input_dim_road_graph = 6500 * self.config.subscriber.n_frames_stacked
+        self.input_dim_road_objects = 220 * self.config.subscriber.n_frames_stacked
 
         # IMPORTANT:Save output dimensions, used to create the distributions
         self.latent_dim_pi = last_layer_dim_pi
@@ -198,10 +198,10 @@ class LateFusionMLP(nn.Module):
 
         # Visible state object order: road_objects, road_points, traffic_lights, stop_signs
         # Find the ends of each section
-        ROAD_OBJECTS_END = 13 * self.config.scenario.max_visible_objects
-        ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
-        TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
-        STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
+        ROAD_OBJECTS_END = (13 * self.config.scenario.max_visible_objects) * self.config.subscriber.n_frames_stacked
+        ROAD_POINTS_END = (ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)) * self.config.subscriber.n_frames_stacked
+        TL_END = (ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)) * self.config.subscriber.n_frames_stacked
+        STOP_SIGN_END = (TL_END + (3 * self.config.scenario.max_visible_stop_signs)) * self.config.subscriber.n_frames_stacked
         
         # Unflatten
         road_objects = vis_state[:, :ROAD_OBJECTS_END]
@@ -251,12 +251,14 @@ if __name__ == "__main__":
     # Load environment and experiment configurations
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
+
+    env_config.subscriber.n_frames_stacked = 2
     
     # Make environment
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
+
     )
 
     obs = env.reset()

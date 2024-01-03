@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     entity = "daphnecor"
     project = "scaling_ppo"
-    collection_name = "nocturne-hr-ppo-12_30_21_43"
+    collection_name = "nocturne-hr-ppo-01_02_11_16"
     
     # Always initialize a W&B run to start tracking
     wandb.init()
