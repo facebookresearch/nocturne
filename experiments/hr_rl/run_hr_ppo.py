@@ -145,26 +145,11 @@ if __name__ == "__main__":
         }
     )
 
-    num_files_list = [10]
-    #MEMORY = [4, 2]
-    MEMORY = [1]
-    
-    for mem in MEMORY:
-        for num_scenes in num_files_list:
-
-            # Set memory
-            env_config.subscriber.n_frames_stacked = mem
-
-            # Set regularization weight
-            #exp_config.reg_weight = lam
-            
-            exp_config.human_policy_path = f"models/il/human_policy_S{num_scenes}_2024_01_02.pt"
-            env_config.num_files = num_scenes
-
-            # Train
-            train(
-                env_config=env_config,
-                exp_config=exp_config,
-                video_config=video_config,
-                model_config=model_config,
-            )
+   
+    # Train
+    train(
+        env_config=env_config,
+        exp_config=exp_config,
+        video_config=video_config,
+        model_config=model_config,
+    )
