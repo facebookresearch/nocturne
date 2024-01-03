@@ -84,7 +84,7 @@ convention = "google"
 
 [tool.pylint]
 max-line-length = 120
-disable = "W1514"
+disable = "W1514, W1203"
 
 [tool.isort]
 profile = "black"

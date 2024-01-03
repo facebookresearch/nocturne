@@ -191,10 +191,10 @@ class RegularizedPPO(MultiAgentPPO):
 
         # Logs
         if self.reg_weight is not None:
-            self.logger.record("regularize/loss_ppo", loss_ppo.item())
+            self.logger.record("regularize/loss_ppo", np.abs(loss_ppo.item()))
             self.logger.record("regularize/loss_kl", loss_reg.item())
             self.logger.record("regularize/loss_kl_weighted", self.reg_weight * loss_reg.item())
-            self.logger.record("regularize/loss_ppo_weighted", (1 - self.reg_weight) * loss_ppo.item())
+            self.logger.record("regularize/loss_ppo_weighted", (1 - self.reg_weight) * np.abs(loss_ppo.item()))
 
         self.logger.record("train/entropy_loss", np.mean(entropy_losses))
         self.logger.record("train/policy_gradient_loss", np.mean(pg_losses))

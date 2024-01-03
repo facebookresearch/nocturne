@@ -3,6 +3,7 @@ import math
 import numpy as np
 import pandas as pd
 import logging
+from tqdm import tqdm
 import torch
 import wandb
 import glob
@@ -28,7 +29,7 @@ class EvaluatePolicy:
         deterministic=True, 
         with_replacement=True, 
         return_trajectories=False,
-        file_limit=10
+        file_limit=1000
         ):
         self.env_config = env_config
         self.exp_config = exp_config
@@ -48,20 +49,23 @@ class EvaluatePolicy:
     def _get_scores(self):
         """Evaluate policy across a set of traffic scenes."""
 
-        # Make tables
-        df_eval = pd.DataFrame(
+        logging.info(f'\n Evaluating policy on {len(self.eval_files)} files...')
+
+        # Create tables
+        df_eval = pd.DataFrame(  
             columns=[
                 "run_id",
-                "traffic_scene",
-                "agents_controlled",
                 "reg_coef",
+                "traffic_scene",
+                "agent_id",
                 "act_acc",
+                "accel_val_mae",
+                "steer_val_mae",
                 "pos_rmse",
                 "speed_mae",
                 "goal_rate",
                 "veh_edge_cr",
                 "veh_veh_cr",
-                "num_violations",
             ]
         )
 
@@ -81,9 +85,9 @@ class EvaluatePolicy:
             ]
         )
             
-        for file in self.eval_files:
+        for file in tqdm(self.eval_files):
 
-            logging.info(f"Evaluating policy on {file}...")
+            logging.debug(f"Evaluating policy on {file}...")
             
             # Step through scene in expert control mode to obtain ground truth
             expert_actions, expert_pos, expert_speed, expert_gr, expert_edge_cr, expert_veh_cr = self._step_through_scene(
@@ -96,43 +100,44 @@ class EvaluatePolicy:
             )
 
             # Filter out invalid steps 
-            nonnan_ids = np.logical_not(
-                np.logical_or(
-                    np.isnan(policy_actions),
-                    np.isnan(expert_actions),
-                )
-            )
+            nonnan_ids = ~np.isnan(expert_actions)
+
             # Compute metrics
-            action_accuracy = self.get_action_accuracy(
+            action_accuracies = self.get_action_accuracy(
                 policy_actions, expert_actions, nonnan_ids
             )
 
             position_rmse = self.get_pos_rmse(
-                policy_pos, expert_pos, nonnan_ids
+                policy_pos, expert_pos, 
             )
 
             speed_agent_mae = self.get_speed_mae(
-                policy_speed, expert_speed, nonnan_ids
+                policy_speed, expert_speed,
+            )
+
+            abs_diff_accel, abs_diff_steer = self.get_action_val_diff(
+                policy_actions, expert_actions,
             )
         
             # Violations of the 3-second rule
-            violations_matrix, num_violations = self.get_veh_to_veh_distances(policy_pos, policy_speed)  
+            #violations_matrix, num_violations = self.get_veh_to_veh_distances(policy_pos, policy_speed)  
 
             # Store metrics
-            scene_perf = {
+            scene_perf = pd.DataFrame({
                 "run_id": self.run.id if self.log_to_wandb else None,
+                "reg_coef": np.repeat(self.reg_coef, len(self.agent_names)),
                 "traffic_scene": file,
-                "agents_controlled": expert_actions.shape[0],
-                "reg_coef": self.exp_config.reg_weight if self.reg_coef is None else self.reg_coef,
-                "act_acc": action_accuracy,
+                "agent_id": self.agent_names,
+                "act_acc": action_accuracies,
+                "accel_val_mae": abs_diff_accel,
+                "steer_val_mae": abs_diff_steer,
                 "pos_rmse": position_rmse,
                 "speed_mae": speed_agent_mae,
                 "goal_rate": policy_gr,
                 "veh_edge_cr": policy_edge_cr,
                 "veh_veh_cr": policy_veh_cr,
-                "num_violations": num_violations,
-            }
-            df_eval.loc[len(df_eval)] = scene_perf 
+            })
+            df_eval = pd.concat([df_eval, scene_perf], ignore_index=True)
             
             if self.return_trajectories:
                 scene_trajs = pd.DataFrame({
@@ -175,6 +180,7 @@ class EvaluatePolicy:
 
         # Make sure the agent ids are in the same order
         agent_ids = np.sort([veh.id for veh in self.env.controlled_vehicles])
+        self.agent_names = agent_ids
         agent_id_to_idx_dict = {agent_id: idx for idx, agent_id in enumerate(agent_ids)} 
         last_info_dicts = {agent_id: {} for agent_id in agent_ids}
         dead_agent_ids = []
@@ -183,7 +189,7 @@ class EvaluatePolicy:
         action_indices = np.full(fill_value=np.nan, shape=(self.num_agents, num_steps))
         agent_positions = np.full(fill_value=np.nan, shape=(self.num_agents, num_steps, 2))
         agent_speed = np.full(fill_value=np.nan, shape=(self.num_agents, num_steps))
-        goal_achieved, veh_edge_collision, veh_veh_collision = 0, 0, 0
+        goal_achieved, veh_edge_collision, veh_veh_collision = np.zeros(self.num_agents), np.zeros(self.num_agents), np.zeros(self.num_agents)
 
         # Set control mode
         if mode == "expert":
@@ -218,7 +224,9 @@ class EvaluatePolicy:
                             agent_speed[veh_idx, timestep] = veh_obj.speed
                             action_indices[veh_idx, timestep] = action_idx
                         else:
+                            # Skip None actions (these are invalid)
                             logging.debug(f'veh {veh_obj.id} at t = {timestep} returns None action!')
+                            continue                        
 
                 action_dict = {} 
 
@@ -256,19 +264,60 @@ class EvaluatePolicy:
 
             if done_dict["__all__"]:
                 for agent_id in agent_ids:
-                    goal_achieved += last_info_dicts[agent_id]["goal_achieved"]
-                    veh_edge_collision += last_info_dicts[agent_id]["veh_edge_collision"]
-                    veh_veh_collision += last_info_dicts[agent_id]["veh_veh_collision"]
+                    agent_idx = agent_id_to_idx_dict[agent_id]
+                    goal_achieved[agent_idx] += last_info_dicts[agent_id]["goal_achieved"]
+                    veh_edge_collision[agent_idx] += last_info_dicts[agent_id]["veh_edge_collision"]
+                    veh_veh_collision[agent_idx] += last_info_dicts[agent_id]["veh_veh_collision"]
                 break
 
         return (
             action_indices, 
             agent_positions, 
             agent_speed, 
-            goal_achieved/self.num_agents, 
-            veh_edge_collision/self.num_agents, 
-            veh_veh_collision/self.num_agents,
+            goal_achieved,
+            veh_edge_collision,
+            veh_veh_collision,
         )
+
+    def get_action_val_diff(self, pred_actions, expert_actions):
+        """Get difference between human action values and predicted action values.
+        Args:
+            pred_actions: (num_agents, num_steps_per_episode) the predicted actions of the agents.
+            expert_actions: (num_agents, num_steps_per_episode) the expert actions of the agents.
+            nonnan_ids: (num_agents, num_steps_per_episode) the indices of non-nan actions.
+        """
+        # Filter out invalid actions 
+        nonnan_ids = np.logical_not(
+            np.logical_or(
+                np.isnan(pred_actions),
+                np.isnan(expert_actions),
+            )
+        )
+        num_agents = expert_actions.shape[0]
+        arr = np.zeros((num_agents, 2))
+        for agent_idx in range(num_agents):
+            not_nan = nonnan_ids[agent_idx, :]
+
+            valid_expert_acts = expert_actions[agent_idx, :][not_nan]
+            valid_pred_acts = pred_actions[agent_idx, :][not_nan]
+
+            exp_acc_vals, exp_steer_vals = np.zeros_like(valid_pred_acts), np.zeros_like(valid_pred_acts)
+            pred_acc_vals, pred_steer_vals = np.zeros_like(valid_pred_acts), np.zeros_like(valid_pred_acts)
+
+            for idx in range(valid_expert_acts.shape[0]):
+                # Get expert and predicted values
+                exp_acc_vals[idx], exp_steer_vals[idx] = self.env.idx_to_actions[valid_expert_acts[idx]]
+                pred_acc_vals[idx], pred_steer_vals[idx] = self.env.idx_to_actions[valid_pred_acts[idx]]
+
+            # Get mean absolute difference
+            abs_accel_diff = np.abs(exp_acc_vals - pred_acc_vals).mean()
+            abs_steer_diff = np.abs(exp_steer_vals - pred_steer_vals).mean()
+
+            # Store
+            arr[agent_idx, 0] = abs_accel_diff
+            arr[agent_idx, 1] = abs_steer_diff
+
+        return arr[:, 0], arr[:, 1] # abs_diff_accel, abs_diff_steer
     
     def get_action_accuracy(self, pred_actions, expert_actions, nonnan_ids):
         """Get accuracy of agent actions.
@@ -277,34 +326,43 @@ class EvaluatePolicy:
             expert_actions: (num_agents, num_steps_per_episode) the expert actions of the agents.
             nonnan_ids: (num_agents, num_steps_per_episode) the indices of non-nan actions.
         """
-        return (expert_actions[nonnan_ids] == pred_actions[nonnan_ids]).sum() / nonnan_ids.flatten().shape[0]
+        num_agents = expert_actions.shape[0]
+        arr = np.zeros(num_agents)
+        for agent_idx in range(num_agents):
+            not_nan = nonnan_ids[agent_idx, :]
+            arr[agent_idx] = (expert_actions[agent_idx, :][not_nan] == pred_actions[agent_idx, :][not_nan]).sum() / not_nan.shape[0]
+        return arr
 
-    def get_pos_rmse(self, pred_actions, expert_actions, nonnan_ids):
-        return np.sqrt(np.linalg.norm(pred_actions[nonnan_ids] - expert_actions[nonnan_ids])).mean()
+    def get_pos_rmse(self, pred_actions, expert_actions):
+        
+        # Filter out invalid actions 
+        nonnan_ids = np.logical_not(
+            np.logical_or(
+                np.isnan(pred_actions),
+                np.isnan(expert_actions),
+            )
+        )
+        num_agents = expert_actions.shape[0]
+        arr = np.zeros(num_agents)
+        for agent_idx in range(num_agents):
+            not_nan = nonnan_ids[agent_idx, :]
+            arr[agent_idx] = (np.sqrt(np.linalg.norm(pred_actions[agent_idx, :][not_nan] - expert_actions[agent_idx, :][not_nan]))).mean()
+        return arr
     
-    def get_speed_mae(self, pred_actions, expert_actions, nonnan_ids):
-        return np.abs(pred_actions[nonnan_ids] - expert_actions[nonnan_ids]).mean()
-    
-    def get_steer_mae(self, pred_actions, expert_actions, nonnan_ids):
-        return np.abs(pred_actions[nonnan_ids] - expert_actions[nonnan_ids]).mean()
-    
-    def get_action_abs_distance(self, pred_actions, expert_actions, nonnan_ids, action_space_dim):
-        """Get accuracy of agent actions.
-        Args:
-            pred_actions: (num_agents, num_steps_per_episode) the predicted actions of the agents.
-            expert_actions: (num_agents, num_steps_per_episode) the expert actions of the agents.
-            nonnan_ids: (num_agents, num_steps_per_episode) the indices of non-nan actions.
-        """
-
-        num_agents = pred_actions.shape[0]
-        agg_abs_dist = 0
-
-        for idx in range(pred_actions.shape[0]):
-            n_samples = pred_actions[0][nonnan_ids[0]].shape[0]
-            agent_abs_dist = np.abs(pred_actions[idx][nonnan_ids[idx]] - expert_actions[idx][nonnan_ids[idx]]).sum() / n_samples
-            agg_abs_dist += agent_abs_dist
-
-        return agg_abs_dist / num_agents
+    def get_speed_mae(self, pred_actions, expert_actions):
+        # Filter out invalid actions 
+        nonnan_ids = np.logical_not(
+            np.logical_or(
+                np.isnan(pred_actions),
+                np.isnan(expert_actions),
+            )
+        )
+        num_agents = expert_actions.shape[0]
+        arr = np.zeros(num_agents)
+        for agent_idx in range(num_agents):
+            not_nan = nonnan_ids[agent_idx, :]
+            arr[agent_idx] = (np.abs(pred_actions[agent_idx, :][not_nan] - expert_actions[agent_idx, :][not_nan])).mean()
+        return arr
 
     def get_veh_to_veh_distances(self, positions, velocities, time_gap_in_sec=3):
         """Calculate distances between vehicles at each time step and track 
@@ -367,29 +425,11 @@ if __name__ == "__main__":
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
 
-    # env_config.data_path = "./data_10/train"
+    MAX_FILES = 50
 
-    # # Load trained human reference policy
-    # human_policy = load_policy(
-    #     data_path="./models/il",
-    #     file_name="human_policy_10_scenes_2023_11_21",   
-    # )
-
-    # # Evaluate policy
-    # evaluator = EvaluatePolicy(
-    #     env_config=env_config, 
-    #     exp_config=exp_config,
-    #     policy=human_policy,
-    #     log_to_wandb=False,
-    #     deterministic=True,
-    #     reg_coef=0.0,
-    #     return_trajectories=True,
-    # )
-
-    # il_results_check = evaluator._get_scores()
-
-    # Set data path
-    env_config.data_path = "./data/train/"
+    # Train
+    train_file_paths = glob.glob(f"{env_config.data_path}" + "/tfrecord*")
+    train_eval_files = [os.path.basename(file) for file in train_file_paths][:MAX_FILES]
 
     # Load human reference policy
     human_policy = load_policy(
@@ -402,7 +442,7 @@ if __name__ == "__main__":
         env_config=env_config, 
         exp_config=exp_config,
         policy=human_policy,
-        eval_files=["tfrecord-00012-of-01000_389.json"],
+        eval_files=train_eval_files,
         log_to_wandb=False,
         deterministic=True,
         reg_coef=0.0,

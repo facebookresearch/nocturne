@@ -19,14 +19,14 @@ def make_video(
     env_config: Box,
     exp_config: Box,
     video_config: Box,
-    model: Union[str, OnPolicyAlgorithm],
+    model,
     n_steps: Optional[int],
     *,
     filenames = None,
     deterministic: bool = True,
     max_steps: int = 80,
-    snap_interval: int = 4,
-    frames_per_second: int = 4,
+    snap_interval: int = 3,
+    frames_per_second: int = 3,
 ) -> Tuple[np.ndarray, pd.DataFrame]:
     """Make a video of policy in traffic scene. 
 

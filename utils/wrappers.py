@@ -17,6 +17,7 @@ class LightNocturneEnvWrapper:
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
     
     def step(self, actions=None):
+        """If actions is None, vehicles are stepped in expert control mode."""
 
         obs = np.zeros((self.num_agents, self.observation_space.shape[0]))
         rews, dones, infos = np.zeros((self.num_agents)), np.zeros((self.num_agents)), []
@@ -26,7 +27,9 @@ class LightNocturneEnvWrapper:
                 agent_id: actions[idx] for idx, agent_id in enumerate(self.agent_ids) 
                 if agent_id not in self.dead_agent_ids
             }
-        else:
+        else: # Set in expert control mode
+            for veh_obj in self.env.controlled_vehicles:
+                veh_obj.expert_control = True
             agent_actions = {}
 
         # Take a step to obtain dicts

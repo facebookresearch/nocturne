@@ -43,10 +43,10 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         self,
         config: Dict[str, Any],
         *,
-        img_width=1600,
-        img_height=1600,
+        img_width=1200,
+        img_height=1200,
         draw_target_positions=True,
-        padding=50.0,
+        padding=10.0,
     ) -> None:
         """Initialize a Nocturne environment.
 
@@ -274,11 +274,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
         self,
         filename=None,
+        psr_dict=None,
     ) -> Dict[int, ObsType]:
         """Reset the environment.
         Args
         ----
-        filename: If provided, use this scene.
+        filename: If provided, reset env to this traffic scene.
+        psr_dict: If provided, reset env to a scene sampled with given probabilities.
 
         Returns
         -------
@@ -293,10 +295,16 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
             # Sample new traffic scene
             if filename is not None:
-                self.file = filename
+                # Reset to a specific scene name
+                self.file = filename 
             elif self.config.sample_file_method == "no_replacement":
+                # Random uniformly without replacement
                 self.file = self.files.pop()
-            else: # Random with replacement (default)
+            elif psr_dict is not None:
+                # Prioritized scene replay: sample according to probabilities
+                probs = [item['prob'] for item in psr_dict.values()]
+                self.file = np.random.choice(self.files, p=probs)
+            else: # Random uniformly with replacement (default)
                 self.file = np.random.choice(self.files)
         
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
@@ -480,6 +488,10 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 (3  * self.config.scenario.max_visible_stop_signs) + 
                 (12 * self.config.scenario.max_visible_traffic_lights)
             )
+
+        # Multiply by memory to get the final dimension
+        obs_space_dim = obs_space_dim * self.config.subscriber.n_frames_stacked
+        
         return (obs_space_dim,)
 
     def normalize_ego_state_by_cat(self, state):
@@ -512,6 +524,8 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             Optional[RenderType]: Rendered image.
         """
         return self.scenario.getImage(**self._render_settings)
+    
+        env.scenario.getImage(**video_config.render)
 
     def render_ego(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the ego vehicles.
@@ -700,18 +714,27 @@ if __name__ == "__main__":
     env = BaseEnv(config=env_config)
 
     # Reset
-    obs_dict = env.reset()
+    obs_dict = env.reset(filename='tfrecord-00421-of-01000_364.json')
 
     # Get info
     agent_ids = [agent_id for agent_id in obs_dict.keys()]
+    veh_objects = {agent.id: agent for agent in env.controlled_vehicles}
     dead_agent_ids = []
 
-    for step in range(100):
+    for step in range(80):
         # Sample actions
         action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
 
-        # Step in env
+        # Set in expert controlled mode
+        for obj in env.controlled_vehicles:
+            obj.expert_control = True
+
         obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
+
+        print(f'step: {step}, done: {done_dict[37]}, info:\n {info_dict[37]}')
+
+        expert_action = env.scenario.expert_action(veh_objects[37], step)
+        print(f'act = {expert_action} \n')
         
         # Update dead agents
         for agent_id, is_done in done_dict.items():

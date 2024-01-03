@@ -1,10 +1,11 @@
-"""Train HR-PPO agent."""
+"""Train HR-PPO agent with CLI arguments."""
 import logging
 from contextlib import nullcontext
 from datetime import datetime
 
 import numpy as np
 import torch
+import typer
 from box import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
 
@@ -28,8 +29,64 @@ from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
-def train(env_config, exp_config, video_config, model_config):  # pylint: disable=redefined-outer-name
-    """Train RL agent using PPO."""
+# Default settings
+env_config = load_config("env_config")
+exp_config = load_config("exp_config")
+video_config = load_config("video_config")
+
+LAYERS_DICT = {
+    "tiny": [64],
+    "small": [128, 64],
+    "medium": [256, 128],
+    "large": [256, 128, 64],
+}
+
+def run_hr_ppo(
+    sweep_name: str = exp_config.group,
+    steer_disc: int = 5,
+    accel_disc: int = 5,
+    ent_coef: float = 0.0,
+    vf_coef: float = 0.5,
+    seed: int = 42,
+    arch_road_objects: str = "tiny",
+    arch_road_graph: str = "small",
+    arch_shared_net: str = "small",
+    activation_fn: str = "tanh",
+    dropout: float = 0.0, 
+    total_timesteps: int = 1_000_000,
+    num_files: int = 10,
+    reg_weight: float = 0.0,
+) -> None:
+    """Train RL agent using PPO with CLI arguments."""
+    # ==== Overwrite default settings ==== #
+    # Environment
+    env_config.steer_disc = steer_disc
+    env_config.accel_disc = accel_disc
+    env_config.num_files = num_files
+    # Experiment
+    exp_config.seed = seed
+    exp_config.ent_coef = ent_coef
+    exp_config.vf_coef = vf_coef
+    exp_config.learn.total_timesteps = total_timesteps
+    exp_config.reg_weight = reg_weight
+    # Model architecture 
+    exp_config.model_config.arch_ro = arch_road_objects
+    exp_config.model_config.arch_rg = arch_road_graph
+    exp_config.model_config.arch_shared = arch_shared_net
+    exp_config.model_config.act_func = activation_fn
+
+    # Define model architecture
+    model_config = Box(
+        {
+            "arch_road_objects": LAYERS_DICT[arch_road_objects],
+            "arch_road_graph": LAYERS_DICT[arch_road_graph],
+            "arch_shared_net": LAYERS_DICT[arch_shared_net],
+            "act_func": activation_fn,
+            "dropout": dropout,
+        }
+    )
+    # ==== Overwrite default settings ==== #
+
     # Ensure reproducability
     init_seed(env_config, exp_config, exp_config.seed)
 
@@ -37,6 +94,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
     env = MultiAgentAsVecEnv(
         config=env_config,
         num_envs=env_config.max_num_vehicles,
+        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     # Set up run
@@ -49,8 +107,8 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
     with wandb.init(
         project=exp_config.project,
         name=run_id,
-        group=exp_config.group,
-        config={**exp_config, **env_config},
+        group=sweep_name,
+        config={**exp_config, **env_config, **model_config},
         id=run_id,
         **exp_config.wandb,
     ) if exp_config.track_wandb else nullcontext() as run:
@@ -61,9 +119,6 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files} | using {exp_config.ppo.device}")
         logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
         logging.info(f"Action_space\n: {env.env.idx_to_actions}")
-        
-        if exp_config.reg_weight > 0.0:
-            logging.info(f"Regularization weight: {exp_config.reg_weight} with policy: {exp_config.human_policy_path}")
 
         # Initialize custom callback
         custom_callback = CustomMultiAgentCallback(
@@ -103,6 +158,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
             seed=exp_config.seed,  # Seed for the pseudo random generators
             verbose=exp_config.verbose,
             tensorboard_log=f"runs/{run_id}" if run_id is not None else None,
+      
             device=exp_config.ppo.device,
             env_config=env_config,
             mlp_class=LateFusionMLP,
@@ -116,7 +172,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         logging.info(f"Policy | trainable params: {params:,} \n")
 
         # Architecture
-        #logging.info(f"Policy | arch: \n {model.policy}")
+        logging.info(f"Policy | arch: \n {model.policy}")
 
         # Learn
         model.learn(
@@ -126,45 +182,5 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
 
 
 if __name__ == "__main__":
-    # Load environment and experiment configurations
-    env_config = load_config("env_config")
-    exp_config = load_config("exp_config")
-    video_config = load_config("video_config")
-
-    # Define model architecture
-    model_config = Box(
-        {
-            "arch_ego_state": [8],
-            "arch_road_objects": [64],
-            "arch_road_graph": [128, 64],
-            "arch_shared_net": [128],
-            "act_func": "tanh",
-            "dropout": 0.0,
-            "last_layer_dim_pi": 64,
-            "last_layer_dim_vf": 64,
-        }
-    )
-
-    num_files_list = [10]
-    #MEMORY = [4, 2]
-    MEMORY = [1]
-    
-    for mem in MEMORY:
-        for num_scenes in num_files_list:
-
-            # Set memory
-            env_config.subscriber.n_frames_stacked = mem
-
-            # Set regularization weight
-            #exp_config.reg_weight = lam
-            
-            exp_config.human_policy_path = f"models/il/human_policy_S{num_scenes}_2024_01_02.pt"
-            env_config.num_files = num_scenes
-
-            # Train
-            train(
-                env_config=env_config,
-                exp_config=exp_config,
-                video_config=video_config,
-                model_config=model_config,
-            )
+    # Run
+    typer.run(run_hr_ppo)

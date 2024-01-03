@@ -2,12 +2,15 @@ import numpy as np
 import wandb
 from pyvirtualdisplay import Display
 
+from utils.render import make_video
+
 def evaluate_policy(
     model,
     env,
-    n_steps_per_episode,
-    n_eval_episodes,
+    n_steps_per_episode=80,
+    n_eval_episodes=1,
     eval_files=None,
+    eval_modes=['expert', 'policy'],
     deterministic = True,
     render = False,
     video_caption = None,
@@ -20,8 +23,8 @@ def evaluate_policy(
 
     Args:
     -----
-    model: The RL agent you want to evaluate. This can be any object
-        that implements a `predict` method, such as an RL algorithm (``BaseAlgorithm``)
+    model: The IL/RL policy to evaluate. This can be any object that implements 
+        a `predict` method, such as an RL algorithm (``BaseAlgorithm``)
         or policy (``BasePolicy``).
     env: The gym environment or ``VecEnv`` environment.
     n_eval_episodes: Number of different traffic scenes in which to evaluate the agent
@@ -39,19 +42,25 @@ def evaluate_policy(
         if verbose == 1:
             print(f"Evaluating policy on {traffic_scene}...")
 
-        for episode_i in range(n_eval_episodes):
+        for eval_mode in eval_modes:
             # Reset env
             observations = env.reset(filename=traffic_scene)
             num_agents_controlled = len(env.agent_ids)
             curr_rewards = np.zeros(num_agents_controlled)
             frames = []
             
-            for step_j in range(n_steps_per_episode):
+            for timestep in range(n_steps_per_episode):
+                
+                if eval_mode == 'policy':
+                    # Predict actions
+                    actions, _ = model.predict(
+                        observations,
+                        deterministic=deterministic,
+                    )
+                elif eval_mode == 'expert':
+                    actions = None
 
-                actions, _ = model.predict(
-                    observations,
-                    deterministic=deterministic,
-                )
+                # Step environment
                 new_observations, rewards, dones, infos = env.step(actions)
 
                 for agent_idx, agent_id in enumerate(env.agent_ids):
@@ -62,7 +71,7 @@ def evaluate_policy(
 
                 # Render
                 if render:
-                    if step_j % video_config.logging.render_interval == 0:
+                    if timestep % video_config.logging.render_interval == 0:
                         if video_config.logging.where_am_i == "headless_machine":
                             with Display() as disp:
                                 render_scene = env.env.scenario.getImage(**video_config.render)
@@ -71,9 +80,9 @@ def evaluate_policy(
                             render_scene = env.scenario.getImage(**video_config)
                             frames.append(render_scene.T)
                 
-                if sum(dones) == env.num_agents or step_j == (n_steps_per_episode-1):
-                    episode_rewards[episode_i] = curr_rewards.sum() / env.num_agents
-                    episode_lengths[episode_i] = step_j
+                if sum(dones) == env.num_agents or timestep == (n_steps_per_episode-1):
+                    episode_rewards = curr_rewards.sum() / env.num_agents
+                    episode_lengths = timestep
                     break
 
             # Log video to wandb
@@ -84,7 +93,7 @@ def evaluate_policy(
                     {
                         video_key: wandb.Video(movie_frames, 
                         fps=video_config.logging.fps, 
-                        caption=f'{video_caption} | norm_ep_return = {episode_rewards[episode_i]:.2f}'),
+                        caption=f'{video_caption}_mode_:{eval_mode}'),
                     },
                 )
 

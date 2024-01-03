@@ -31,10 +31,11 @@ class LateFusionAttn(nn.Module):
         self,
         feature_dim: int,
         env_config: Box,
-        arch_ego_state: List[int] = [10],
-        arch_road_objects: List[int] = [64],
-        arch_road_graph: List[int] = [128, 64],
-        arch_shared: List[int] = [64],
+        arch_ego_state: List[int] = [8],
+        arch_road_objects: List[int] = [32],
+        arch_road_graph: List[int] = [32],
+        arch_stop_sign: List[int] = [4],
+        arch_shared: List[int] = [128],
         act_func: str = "tanh", 
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 64,
@@ -49,6 +50,19 @@ class LateFusionAttn(nn.Module):
         self.act_func = nn.Tanh() if act_func == "tanh" else nn.ReLU()
         self.dropout = dropout
 
+        # Define original object dimensions
+        self.ro_feat, self.ro_max = 13, self.config.scenario.max_visible_objects
+        self.rg_feat, self.rg_max = 13, self.config.scenario.max_visible_road_points
+        self.tl_feat, self.tl_max = 12, self.config.scenario.max_visible_traffic_lights
+        self.ss_feat, self.ss_max = 3, self.config.scenario.max_visible_stop_signs
+
+        shared_input_dim = (
+            arch_ego_state[-1] \
+            +  self.ro_max * arch_road_objects[-1] \
+            +  self.rg_max * arch_road_graph[-1] \
+            +  self.ss_max * arch_stop_sign[-1]
+        )
+
         # IMPORTANT:Save output dimensions, used to create the distributions
         self.latent_dim_pi = last_layer_dim_pi
         self.latent_dim_vf = last_layer_dim_vf
@@ -59,50 +73,48 @@ class LateFusionAttn(nn.Module):
         # # # # # POLICY NETWORK # # # # #
         # EGO STATE
         self.policy_net_ego_state = self._build_ego_state_net(arch_ego_state)
-        
+        # STOP SIGNS
+        self.policy_net_stop_signs = self._build_stop_sign_net(arch_stop_sign)
         # ROAD OBJECTS
-        # (1) Embedding (2) Attention (3) Layernorm
         self.policy_net_road_objects = self._build_road_objects_net(arch_road_objects)
-        self.policy_net_ro_attn = nn.MultiheadAttention(embed_dim=arch_road_objects[-1], num_heads=1, batch_first=True)
+        #self.policy_net_ro_attn = nn.MultiheadAttention(embed_dim=arch_road_objects[-1], num_heads=1, batch_first=True)
         # Flatten the road objects
-        self.policy_net_ro_norm1 = nn.LayerNorm(arch_road_graph[-1])
-        
+        #self.policy_net_ro_norm1 = nn.LayerNorm(arch_road_graph[-1])
         # ROAD GRAPH
-        # (1) Embedding (2) Attention (3) Layernorm
         self.policy_net_road_graph = self._build_road_graph_net(arch_road_graph)
-        self.policy_net_rg_attn = nn.MultiheadAttention(embed_dim=arch_road_graph[-1], num_heads=1, batch_first=True)
-        self.policy_net_rg_norm1 = nn.LayerNorm(arch_road_graph[-1])
-
-        # Shared output layer
-        self.policy_out_net = self._build_out_net(
-            input_dim=arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1],
-            output_dim=self.latent_dim_pi,
-            net_arch=arch_shared,
+        #self.policy_net_rg_attn = nn.MultiheadAttention(embed_dim=arch_road_graph[-1], num_heads=1, batch_first=True)
+        #self.policy_net_rg_norm1 = nn.LayerNorm(arch_road_graph[-1])
+        
+        # Fuse and output layer
+        self.policy_out_net = nn.Sequential(
+            nn.Linear(shared_input_dim, self.latent_dim_pi),
+            nn.LayerNorm(self.latent_dim_pi),
+            self.act_func,
         )
 
         # # # # # VALUE NETWORK # # # # #
         # EGO STATE
         self.val_net_ego_state = self._build_ego_state_net(arch_ego_state)
-
+        # STOP SIGNS
+        self.val_net_stop_signs = self._build_stop_sign_net(arch_stop_sign)
         # ROAD OBJECTS
-        # (1) Embedding (2) Attention (3) Layernorm
         self.val_net_road_objects = self._build_road_objects_net(arch_road_objects)
-        self.val_net_ro_attn = nn.MultiheadAttention(embed_dim=arch_road_objects[-1], num_heads=1, batch_first=True)
-        self.val_net_ro_norm1 = nn.LayerNorm(arch_road_objects[-1])
-        
+        #self.val_net_ro_attn = nn.MultiheadAttention(embed_dim=arch_road_objects[-1], num_heads=1, batch_first=True)
+        # Flatten the road objects
+        #self.val_net_ro_norm1 = nn.LayerNorm(arch_road_graph[-1])
         # ROAD GRAPH
-        # (1) Embedding (2) Attention (3) Layernorm
+        
         self.val_net_road_graph = self._build_road_graph_net(arch_road_graph)
-        self.val_net_rg_attn = nn.MultiheadAttention(embed_dim=arch_road_graph[-1], num_heads=1, batch_first=True)
-        self.val_net_rg_norm1 = nn.LayerNorm(arch_road_graph[-1])
-
-        # Shared output layer
-        self.val_out_net =  self._build_out_net(
-            input_dim=arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1],
-            output_dim=self.latent_dim_pi,
-            net_arch=arch_shared,
+        #self.val_net_rg_attn = nn.MultiheadAttention(embed_dim=arch_road_graph[-1], num_heads=1, batch_first=True)
+        #self.val_net_rg_norm1 = nn.LayerNorm(arch_road_graph[-1])
+        
+        # Fuse and output layer
+        self.val_out_net = nn.Sequential(
+            nn.Linear(shared_input_dim, self.latent_dim_pi),
+            nn.LayerNorm(self.latent_dim_pi),
+            self.act_func,
         )
-    
+        
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
@@ -123,51 +135,72 @@ class LateFusionAttn(nn.Module):
         ego_state = self.policy_net_ego_state(ego_state)
         road_objects = self.policy_net_road_objects(road_objects)
         road_points = self.policy_net_road_graph(road_points)
+        stop_signs = self.policy_net_stop_signs(stop_signs)
 
-        # Attention 
-        road_objects, _ = self.policy_net_ro_attn(road_objects, road_objects, road_objects)
-        road_points, _ = self.policy_net_rg_attn(road_points, road_points, road_points)
+        # Attention
+        # road_objects, _ = self.policy_net_ro_attn(road_objects, road_objects, road_objects)
+        # road_points, _ = self.policy_net_rg_attn(road_points, road_points, road_points)
 
-        # Max pool
+        # # Layer norm
+        # road_objects = self.policy_net_ro_norm1(road_objects)
+        # road_points = self.policy_net_rg_norm1(road_points)
 
-
-        # Layer norm
-        road_objects = self.policy_net_ro_norm1(road_objects)
-        road_points = self.policy_net_rg_norm1(road_points)
+        # Flatten: (N, E) -> (N * E)
+        road_objects = road_objects.flatten(start_dim=1)
+        road_points = road_points.flatten(start_dim=1)
+        stop_signs = stop_signs.flatten(start_dim=1)
 
         # Merge and FFN 
-        policy_out = self.policy_out_net(torch.cat((ego_state, road_objects, road_points), dim=1))
+        policy_out = self.policy_out_net(torch.cat((ego_state, road_objects, road_points, stop_signs), dim=1))
         
         return policy_out
 
     def forward_critic(self, features: torch.Tensor) -> torch.Tensor:
         """Forward step for the value network."""
-        # Unflatten the obs to get the ego state and the visible state items
-        ego_state, road_objects, road_points = self._unflatten_obs(features)    
+         # Unflatten the obs to get the ego state and the visible state items
+        ego_state, road_objects, stop_signs, road_points = self._unflatten_obs(features)    
         
         # Embeddings
         ego_state = self.val_net_ego_state(ego_state)
         road_objects = self.val_net_road_objects(road_objects)
         road_points = self.val_net_road_graph(road_points)
+        stop_signs = self.val_net_stop_signs(stop_signs)
 
-        # Attention 
-        road_objects, _ = self.val_net_ro_attn(road_objects, road_objects, road_objects)
-        road_points, _ = self.val_net_rg_attn(road_points, road_points, road_points)
-        
-        # Layer norm
-        road_objects = self.val_net_ro_norm1(road_objects)
-        road_points = self.val_net_rg_norm1(road_points)
+        # Attention
+        # road_objects, _ = self.policy_net_ro_attn(road_objects, road_objects, road_objects)
+        # road_points, _ = self.policy_net_rg_attn(road_points, road_points, road_points)
+
+        # # Layer norm
+        # road_objects = self.policy_net_ro_norm1(road_objects)
+        # road_points = self.policy_net_rg_norm1(road_points)
+
+        # Flatten: (N, E) -> (N * E)
+        road_objects = road_objects.flatten(start_dim=1)
+        road_points = road_points.flatten(start_dim=1)
+        stop_signs = stop_signs.flatten(start_dim=1)
 
         # Merge and FFN 
-        val_out = self.val_out_net(torch.cat((ego_state, road_objects, road_points), dim=1))
+        val_out = self.policy_out_net(torch.cat((ego_state, road_objects, road_points, stop_signs), dim=1))
         
         return val_out
-        
 
     def _build_ego_state_net(self, net_arch: List[int]):
         """Create ego state network architecture."""
         net_layers = []
         prev_dim = self.input_dim_ego
+        for layer_dim in net_arch:
+            net_layers.append(nn.Linear(prev_dim, layer_dim))
+            net_layers.append(nn.Dropout(self.dropout))
+            net_layers.append(nn.LayerNorm(layer_dim))
+            net_layers.append(self.act_func)
+            prev_dim = layer_dim
+        net = nn.Sequential(*net_layers)
+        return net
+    
+    def _build_stop_sign_net(self, net_arch: List[int]):
+        """Create traffic objects network architecture."""
+        net_layers = []
+        prev_dim = self.input_dim_stop_signs
         for layer_dim in net_arch:
             net_layers.append(nn.Linear(prev_dim, layer_dim))
             net_layers.append(nn.Dropout(self.dropout))
@@ -215,7 +248,10 @@ class LateFusionAttn(nn.Module):
             prev_dim = layer_dim
         # Add final layer
         net_layers.append(nn.Linear(prev_dim, output_dim))
-        net = nn.Sequential(*net_layers)
+        net_layers.append(nn.LayerNorm(output_dim))
+        net_layers.append(self.act_func)
+
+        net = nn.Sequential(*net_layers)    
         return net
     
     def _unflatten_obs(self, obs_flat):
@@ -230,26 +266,21 @@ class LateFusionAttn(nn.Module):
             road_objects (torch.Tensor): road objects tensor
             road_points (torch.Tensor): road points tensor
         """
-        # Define original object dimensions
-        M_RO, N_RO = 13, self.config.scenario.max_visible_objects
-        M_RP, N_RP = 13, self.config.scenario.max_visible_road_points
-        M_TL, N_TL = 12, self.config.scenario.max_visible_traffic_lights
-        M_SS, N_SS = 3, self.config.scenario.max_visible_stop_signs
 
         # Get ego and visible state
         ego_state, vis_state = obs_flat[:, :self.input_dim_ego], obs_flat[:, self.input_dim_ego:]
 
         # Visible state object order: road_objects, road_points, traffic_lights, stop_signs
         # Find the ends of each section
-        ROAD_OBJECTS_END = M_RO * N_RO
-        ROAD_POINTS_END = ROAD_OBJECTS_END + (M_RP * N_RP)
-        TL_END = ROAD_POINTS_END + (M_TL * N_TL)
-        STOP_SIGN_END = TL_END + (M_SS * N_SS)
+        ROAD_OBJECTS_END = self.ro_feat * self.ro_max
+        ROAD_POINTS_END = ROAD_OBJECTS_END + (self.rg_feat * self.rg_max)
+        TL_END = ROAD_POINTS_END + (self.tl_feat * self.tl_max)
+        STOP_SIGN_END = TL_END + (self.ss_feat * self.ss_max)
         
         # Unflatten and reshape to (batch_size, num_objects, object_dim)
-        road_objects = (vis_state[:, :ROAD_OBJECTS_END]).reshape(-1, M_RO, N_RO)
-        road_points = (vis_state[:, ROAD_OBJECTS_END:ROAD_POINTS_END]).reshape(-1, M_RP, N_RP)
-        stop_signs = (vis_state[:, TL_END:STOP_SIGN_END]).reshape(-1, N_SS, M_SS)    
+        road_objects = (vis_state[:, :ROAD_OBJECTS_END]).reshape(-1, self.ro_max, self.ro_feat)
+        road_points = (vis_state[:, ROAD_OBJECTS_END:ROAD_POINTS_END]).reshape(-1, self.rg_max, self.rg_feat)
+        stop_signs = (vis_state[:, TL_END:STOP_SIGN_END]).reshape(-1, self.ss_max, self.ss_feat)    
         
         # Ommit traffic lights for now
         traffic_lights = (vis_state[:, ROAD_POINTS_END:TL_END])
@@ -259,9 +290,9 @@ class LateFusionAttn(nn.Module):
     def _get_obs_input_dims(self):
         """Get the input dimensions for the ego state, road objects, and road graph."""
         ego_state_dim = 10
-        road_objects_dim = 16
-        stop_sign_dim = 4
-        road_graph_dim = 500 
+        road_objects_dim = 13
+        stop_sign_dim = 3
+        road_graph_dim = 13 
         return ego_state_dim, road_objects_dim, stop_sign_dim, road_graph_dim
 
 
