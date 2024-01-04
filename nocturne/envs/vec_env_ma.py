@@ -41,8 +41,9 @@ class MultiAgentAsVecEnv(VecEnv):
         self.episode_lengths = []
         self.rewards = []  # Log reward per step
         self.dead_agent_ids = []  # Log dead agents per step
-        self.frac_collided = []  # Log fraction of agents that collided
-        self.frac_goal_achieved = []  # Log fraction of agents that achieved their goal
+        self.num_agents_collided = 0  # Keep track of how many agents collided
+        self.total_agents_in_rollout = 0 # Log total number of agents in rollout
+        self.num_agents_goal_achieved = 0 # Keep track of how many agents reached their goal
         self.agents_in_scene = []
         self.filename = None # If provided, always use the same file 
 
@@ -118,13 +119,13 @@ class MultiAgentAsVecEnv(VecEnv):
         # Reset episode if ALL agents are done
         if done_dict["__all__"]:
             for agent_id in self.agent_ids:
-                # Store total number of collisions and goal achievements across rollout
                 self.ep_collisions += self.last_info_dicts[agent_id]["collided"] * 1
                 self.ep_goal_achived += self.last_info_dicts[agent_id]["goal_achieved"] * 1
 
             # Store the fraction of agents that collided in episode
-            self.frac_collided.append(self.ep_collisions / len(self.agent_ids))
-            self.frac_goal_achieved.append(self.ep_goal_achived / len(self.agent_ids))
+            self.num_agents_collided += self.ep_collisions
+            self.num_agents_goal_achieved += self.ep_goal_achived
+            self.total_agents_in_rollout += len(self.agent_ids)
 
             # Save final observation where user can get it, then reset
             for idx in range(len(self.agent_ids)):

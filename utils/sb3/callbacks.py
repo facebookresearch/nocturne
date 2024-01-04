@@ -87,9 +87,9 @@ class CustomMultiAgentCallback(BaseCallback):
         batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
 
         # Obtain the average ratio of agents that collided / achieved goal in the episode
-        self.avg_frac_collided = np.mean(self.locals["env"].frac_collided)
-        self.avg_frac_goal_achieved = np.mean(self.locals["env"].frac_goal_achieved)
-
+        self.avg_frac_collided = self.locals["env"].num_agents_collided / self.locals["env"].total_agents_in_rollout
+        self.avg_frac_goal_achieved = self.locals["env"].num_agents_goal_achieved / self.locals["env"].total_agents_in_rollout
+    
         # Log
         if self.exp_config.track_wandb:
             agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
