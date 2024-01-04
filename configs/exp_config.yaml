@@ -1,5 +1,5 @@
 project: scaling_ppo
-group: speed_target
+group: arch_improv
 env_id: Nocturne
 seed: 42
 track_wandb: true

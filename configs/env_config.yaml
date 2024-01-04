@@ -69,8 +69,8 @@ rew_cfg:
                                # goal instead of a reward for being close
   goal_achieved_bonus: 80
   position_target: true # If True, goal is only achieved if you're within this tolerance on distance from goal
-  position_target_tolerance: 1.0
-  speed_target: true # If True, goal is only achieved if you're within this tolerance on final agent speed at goal position
+  position_target_tolerance: 2.0 # euclidean distance to target
+  speed_target: false # If True, goal is only achieved if you're within this tolerance on final agent speed at goal position
   speed_target_tolerance: 1.0
   heading_target: false # If True, goal is only achieved if you're within this tolerance on final agent heading at goal position
   heading_target_tolerance: 0.3
@@ -79,7 +79,7 @@ rew_cfg:
   goal_speed_scaling: 40.0
 
 # # # # State normalization settings # # # # 
-normalize_state: true 
+normalize_state: true s
 # Ego feature names + max values in each category
 ego_state_feat_min: -30
 ego_state_feat_max:
