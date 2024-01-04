@@ -144,12 +144,7 @@ if __name__ == "__main__":
             "last_layer_dim_vf": 64,
         }
     )
-
-    env_config.rew_cfg.speed_target = False        
-    env_config.num_files = 1000
-    env_config.rew_cfg.position_target_tolerance = 2.0
-
-
+    
     # Train
     train(
         env_config=env_config,
