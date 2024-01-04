@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 import torch
+from traitlets import Callable
 import typer
 from box import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -13,6 +14,8 @@ import wandb
 
 # Import networks
 from networks.mlp_late_fusion import LateFusionMLP, LateFusionMLPPolicy
+# Permutation equivariant network
+from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy 
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -160,7 +163,7 @@ def run_hr_ppo(
             reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
             env=env,
             n_steps=exp_config.ppo.n_steps,
-            policy=LateFusionMLPPolicy,
+            policy=LateFusionPolicy,
             ent_coef=exp_config.ppo.ent_coef,
             vf_coef=exp_config.ppo.vf_coef,
             seed=exp_config.seed,  # Seed for the pseudo random generators
@@ -169,7 +172,7 @@ def run_hr_ppo(
       
             device=exp_config.ppo.device,
             env_config=env_config,
-            mlp_class=LateFusionMLP,
+            mlp_class=LateFusionNet,
             mlp_config=model_config,
         )
 
@@ -178,6 +181,9 @@ def run_hr_ppo(
         params = sum(np.prod(p.size()) for p in policy_params)
         exp_config.n_policy_params = params
         logging.info(f"Policy | trainable params: {params:,} \n")
+
+        # Architecture
+        logging.info(f"Policy | arch: \n {model.policy}")
 
         # Learn
         model.learn(

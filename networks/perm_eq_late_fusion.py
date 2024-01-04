@@ -23,7 +23,7 @@ class LateFusionNet(nn.Module):
         arch_ego_state: List[int] = [10],
         arch_road_objects: List[int] = [64, 32],
         arch_road_graph: List[int] = [64, 32],
-        arch_shared_net: List[int] = [128, 64],
+        arch_shared_net: List[int] = [256, 128, 64],
         arch_stop_signs: List[int] = [3],
         act_func: str = "tanh", 
         dropout: float = 0.0,
@@ -39,7 +39,7 @@ class LateFusionNet(nn.Module):
         self.tl_input_dim = obj_dims[4]
 
         self.config = env_config
-        self._get_obj_dims()
+        self._set_obj_dims()
 
         # Network architectures 
         self.arch_ego_state = arch_ego_state
@@ -60,7 +60,7 @@ class LateFusionNet(nn.Module):
         #     self.ss_max * arch_stop_signs[-1]
         # )
 
-        # If max pooling
+        # If using max pool
         self.shared_net_input_dim = (
             arch_ego_state[-1] +
             arch_road_objects[-1] +
@@ -220,19 +220,19 @@ class LateFusionNet(nn.Module):
         # Unflatten and reshape to (batch_size, num_objects, object_dim)
         road_objects = (vis_state[:, :ro_end_idx]).reshape(-1, self.ro_max, self.ro_input_dim)
         road_graph = (vis_state[:, ro_end_idx:rg_end_idx]).reshape(-1, self.rg_max, self.rg_input_dim,)
-        traffic_lights = (vis_state[:, rg_end_idx:tl_end_idx])    
-        stop_signs = (vis_state[:, tl_end_idx:ss_end_idx]).reshape(-1, self.ss_max, self.ss_input_dim)    
-            
+        
         # Traffic lights are empty (omitted)
+        traffic_lights = (vis_state[:, rg_end_idx:tl_end_idx])    
+        stop_signs = (vis_state[:, tl_end_idx:ss_end_idx]).reshape(-1, self.ss_max, self.ss_input_dim)        
+        
         return ego_state, road_objects, road_graph, stop_signs
     
-    def _get_obj_dims(self):
+    def _set_obj_dims(self):
         # Define original object dimensions
         self.ro_max = self.config.scenario.max_visible_objects
         self.rg_max = self.config.scenario.max_visible_road_points
         self.ss_max = self.config.scenario.max_visible_stop_signs
         self.tl_max = self.config.scenario.max_visible_traffic_lights
-
 
 class LateFusionPolicy(ActorCriticPolicy):
     def __init__(
@@ -329,6 +329,5 @@ if __name__ == "__main__":
     )
     # See architecture
     # print(model.policy)
-
 
     model.learn(5000)

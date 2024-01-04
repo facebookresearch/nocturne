@@ -14,7 +14,8 @@ from typing import Callable
 
 # Import networks
 from networks.mlp_late_fusion import LateFusionMLP, LateFusionMLPPolicy
-from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy # New network
+# Permutation equivariant network
+from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy 
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -152,6 +153,8 @@ if __name__ == "__main__":
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
     video_config = load_config("video_config")
+
+    env_config.num_files = 10
 
     # Define model architecture
     model_config = None

@@ -216,6 +216,7 @@ class CustomMultiAgentCallback(BaseCallback):
                     "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
                     "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
                     "arch_shared_net": self.locals["self"].policy.mlp_extractor.arch_shared_net,
+                    "arch_stop_signs": self.locals["self"].policy.mlp_extractor.arch_stop_signs,
                     "act_func": self.locals["self"].policy.mlp_extractor.act_func, # Activation function used
                     "dropout": self.locals["self"].policy.mlp_extractor.dropout, # Dropout probability
                 },
