@@ -11,7 +11,6 @@ from utils.config import load_config
 from utils.sb3.ma_ppo import MultiAgentPPO
 from torch.nn import functional as F
 
-
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 logging.getLogger(__name__)

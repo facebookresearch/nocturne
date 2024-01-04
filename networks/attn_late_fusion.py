@@ -1,4 +1,3 @@
-# Multi-agent as vectorized environment
 import torch
 from torch import nn
 
@@ -10,7 +9,6 @@ from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 from gymnasium import spaces
 
 from utils.sb3.reg_ppo import RegularizedPPO
-
 
 class LateFusionAttn(nn.Module):
     """
@@ -34,18 +32,18 @@ class LateFusionAttn(nn.Module):
         arch_ego_state: List[int] = [10],
         arch_road_objects: List[int] = [64],
         arch_road_graph: List[int] = [128, 64],
-        arch_shared: List[int] = [64],
+        arch_shared_net: List[int] = [64],
         act_func: str = "tanh", 
+        dropout: float = 0.0,
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 64,
-        dropout: float = 0.0,
     ):
         super().__init__()
         self.config = env_config
         self.arch_ego_state = arch_ego_state
         self.arch_road_objects = arch_road_objects
         self.arch_road_graph = arch_road_graph
-        self.arch_shared = arch_shared  
+        self.arch_shared_net = arch_shared_net  
         self.act_func = nn.Tanh() if act_func == "tanh" else nn.ReLU()
         self.dropout = dropout
 
@@ -77,7 +75,7 @@ class LateFusionAttn(nn.Module):
         self.policy_out_net = self._build_out_net(
             input_dim=arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1],
             output_dim=self.latent_dim_pi,
-            net_arch=arch_shared,
+            net_arch=arch_shared_net,
         )
 
         # # # # # VALUE NETWORK # # # # #
@@ -100,7 +98,7 @@ class LateFusionAttn(nn.Module):
         self.val_out_net =  self._build_out_net(
             input_dim=arch_ego_state[-1] + arch_road_objects[-1] + arch_road_graph[-1],
             output_dim=self.latent_dim_pi,
-            net_arch=arch_shared,
+            net_arch=arch_shared_net,
         )
     
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -127,9 +125,6 @@ class LateFusionAttn(nn.Module):
         # Attention 
         road_objects, _ = self.policy_net_ro_attn(road_objects, road_objects, road_objects)
         road_points, _ = self.policy_net_rg_attn(road_points, road_points, road_points)
-
-        # Max pool
-
 
         # Layer norm
         road_objects = self.policy_net_ro_norm1(road_objects)
@@ -271,11 +266,17 @@ class LateFusionAttnPolicy(ActorCriticPolicy):
         observation_space: spaces.Space,
         action_space: spaces.Space,
         lr_schedule: Callable[[float], float],
+        env_config: Box,
+        mlp_class: Type[LateFusionAttn] = LateFusionAttn,
+        mlp_config: Optional[Box] = None,
         *args,
         **kwargs,
     ):
         # Disable orthogonal initialization
         kwargs["ortho_init"] = False
+        self.env_config = env_config
+        self.mlp_class = mlp_class
+        self.mlp_config = mlp_config if mlp_config is not None else Box({})
         super().__init__(
             observation_space,
             action_space,
@@ -287,9 +288,10 @@ class LateFusionAttnPolicy(ActorCriticPolicy):
 
     def _build_mlp_extractor(self) -> None:
         # Build the network architecture
-        self.mlp_extractor = LateFusionAttn(
+        self.mlp_extractor = self.mlp_class(
             self.features_dim, 
-            env_config
+            self.env_config,
+            **self.mlp_config,
         )
 
 if __name__ == "__main__":
@@ -302,24 +304,39 @@ if __name__ == "__main__":
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     obs = env.reset()
     obs = torch.Tensor(obs)[:2]
 
+    # Define model architecture
+    model_config = Box(
+        {
+            "arch_ego_state": [8],
+            "arch_road_objects": [64],
+            "arch_road_graph": [128, 64],
+            "arch_shared_net": [],
+            "act_func": "tanh",
+            "dropout": 0.0,
+            "last_layer_dim_pi": 64,
+            "last_layer_dim_vf": 64,
+        }
+    )
+
     # Test
+    # Set up PPO
     model = RegularizedPPO(
-        reg_policy=None,
-        reg_weight=None, # Regularization weight; lambda
+        reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
         policy=LateFusionAttnPolicy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
         seed=exp_config.seed,  # Seed for the pseudo random generators
-        verbose=1,
-        device='cuda',
+        verbose=exp_config.verbose,
+        env_config=env_config,
+        mlp_class=LateFusionAttn,
+        mlp_config=model_config,
     )
     # print(model.policy)
     model.learn(5000)

@@ -29,10 +29,10 @@ ppo:
   policy: MlpPolicy
   n_steps: 4096
   ent_coef: 0.005 # Default in SB3 is 0
-  vf_coef: 0.5 # Default in SB3 is 0.5
+  vf_coef: 0.5 # Default in SB3 is 0.5d
 
 learn:
-  total_timesteps: 5_000_000
+  total_timesteps: 8_000_000
   progress_bar: false
 
 # human-regularized RL

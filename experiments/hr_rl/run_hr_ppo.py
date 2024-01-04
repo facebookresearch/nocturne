@@ -10,8 +10,11 @@ from stable_baselines3.common.policies import ActorCriticPolicy
 
 import wandb
 
+from typing import Callable
+
 # Import networks
 from networks.mlp_late_fusion import LateFusionMLP, LateFusionMLPPolicy
+from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy # New network
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -27,6 +30,25 @@ from utils.sb3.reg_ppo import RegularizedPPO
 from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
+
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
 
 def train(env_config, exp_config, video_config, model_config):  # pylint: disable=redefined-outer-name
     """Train RL agent using PPO."""
@@ -93,11 +115,12 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
 
         # Set up PPO
         model = RegularizedPPO(
+            #learning_rate=linear_schedule(1e-4),
             reg_policy=human_policy,
             reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
             env=env,
             n_steps=exp_config.ppo.n_steps,
-            policy=LateFusionMLPPolicy,
+            policy=LateFusionPolicy,
             ent_coef=exp_config.ppo.ent_coef,
             vf_coef=exp_config.ppo.vf_coef,
             seed=exp_config.seed,  # Seed for the pseudo random generators
@@ -105,7 +128,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
             tensorboard_log=f"runs/{run_id}" if run_id is not None else None,
             device=exp_config.ppo.device,
             env_config=env_config,
-            mlp_class=LateFusionMLP,
+            mlp_class=LateFusionNet,
             mlp_config=model_config,
         )
 
@@ -116,14 +139,13 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         logging.info(f"Policy | trainable params: {params:,} \n")
 
         # Architecture
-        #logging.info(f"Policy | arch: \n {model.policy}")
+        logging.info(f"Policy | arch: \n {model.policy}")
 
         # Learn
         model.learn(
             **exp_config.learn,
             callback=custom_callback,
         )
-
 
 if __name__ == "__main__":
     # Load environment and experiment configurations
@@ -132,19 +154,20 @@ if __name__ == "__main__":
     video_config = load_config("video_config")
 
     # Define model architecture
-    model_config = Box(
-        {
-            "arch_ego_state": [8],
-            "arch_road_objects": [64],
-            "arch_road_graph": [128, 64],
-            "arch_shared_net": [128],
-            "act_func": "tanh",
-            "dropout": 0.0,
-            "last_layer_dim_pi": 64,
-            "last_layer_dim_vf": 64,
-        }
-    )
-    
+    model_config = None
+    # model_config = Box(
+    #     {
+    #         "arch_ego_state": [8],
+    #         "arch_road_objects": [64],
+    #         "arch_road_graph": [128, 64],
+    #         "arch_shared_net": [128],
+    #         "act_func": "tanh",
+    #         "dropout": 0.0,
+    #         "last_layer_dim_pi": 64,
+    #         "last_layer_dim_vf": 64,
+    #     }
+    # )
+
     # Train
     train(
         env_config=env_config,

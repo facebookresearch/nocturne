@@ -178,6 +178,31 @@ class MultiAgentAsVecEnv(VecEnv):
         img = self.env.render()
         return img
 
+    @property
+    def ego_state_feat(self) -> int:
+        """The dimension of the ego state."""
+        return self.env.ego_state_feat
+    
+    @property
+    def road_obj_feat(self) -> int:
+        """The dimension of the road objects."""
+        return self.env.road_obj_feat
+    
+    @property
+    def road_graph_feat(self) -> int:
+        """The dimension of the road points."""
+        return self.env.road_graph_feat
+    
+    @property
+    def stop_sign_feat(self) -> int:
+        """The dimension of the stop signs."""
+        return self.env.stop_sign_feat
+
+    @property
+    def tl_feat(self) -> int:
+        """The dimension of the traffic lights."""
+        return self.env.tl_feat
+
     def seed(self, seed=None):
         """Set the random seeds for all environments."""
         if seed is None:
