@@ -710,11 +710,25 @@ if __name__ == "__main__":
     # Load environment variables and config
     env_config = load_config("env_config")
 
+    env_config.subscriber.use_observations = False
+    env_config.normalize_state = False
+
     # Initialize an environment
     env = BaseEnv(config=env_config)
 
+    avg_init_dist_to_goal = 0
+    N = 100
+    for i in range(N):
+        ego_states = env.reset()
+        for agent_id in ego_states.keys():
+            print(f"init_dist_to_goal: {ego_states[agent_id][3]:.2f}")
+
+            avg_init_dist_to_goal += ego_states[agent_id][3]
+    
+    print(f'AVG init dist to goal: {avg_init_dist_to_goal / N:.2f}')
+
     # Reset
-    obs_dict = env.reset(filename='tfrecord-00421-of-01000_364.json')
+    obs_dict = env.reset()
 
     # Get info
     agent_ids = [agent_id for agent_id in obs_dict.keys()]

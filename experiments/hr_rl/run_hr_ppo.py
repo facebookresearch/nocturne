@@ -145,22 +145,15 @@ if __name__ == "__main__":
         }
     )
 
-    num_files_list = [100]
-    speed_targets = [False, True]
-    
-    for speed_target in speed_targets:
-        env_config.rew_cfg.speed_target = speed_target
-        for num_scenes in num_files_list:
+    env_config.rew_cfg.speed_target = False        
+    env_config.num_files = 1000
+    env_config.rew_cfg.position_target_tolerance = 2.0
 
-            # Turn of speed target
-            env_config.rew_cfg.speed_target = False
-            
-            env_config.num_files = num_scenes
 
-            # Train
-            train(
-                env_config=env_config,
-                exp_config=exp_config,
-                video_config=video_config,
-                model_config=model_config,
-            )
+    # Train
+    train(
+        env_config=env_config,
+        exp_config=exp_config,
+        video_config=video_config,
+        model_config=model_config,
+    )
