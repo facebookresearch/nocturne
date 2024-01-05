@@ -25,6 +25,8 @@ from utils.sb3.callbacks import CustomMultiAgentCallback
 
 # Custom PPO class that supports multi-agent control
 from utils.sb3.reg_ppo import RegularizedPPO
+from utils.sb3.ma_ppo import MultiAgentPPO
+
 from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
@@ -141,15 +143,15 @@ def run_hr_ppo(
                 )
 
         # Load human reference policy
-        saved_variables = torch.load(exp_config.human_policy_path, map_location=exp_config.ppo.device)
-        human_policy = ActorCriticPolicy(**saved_variables["data"])
-        human_policy.load_state_dict(saved_variables["state_dict"])
-        human_policy.to(exp_config.ppo.device)
+        # saved_variables = torch.load(exp_config.human_policy_path, map_location=exp_config.ppo.device)
+        # human_policy = ActorCriticPolicy(**saved_variables["data"])
+        # human_policy.load_state_dict(saved_variables["state_dict"])
+        # human_policy.to(exp_config.ppo.device)
 
         # Set up PPO
-        model = RegularizedPPO(
-            reg_policy=human_policy,
-            reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
+        model = MultiAgentPPO(
+            # reg_policy=human_policy,
+            # reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
             env=env,
             n_steps=exp_config.ppo.n_steps,
             policy=LateFusionMLPPolicy,

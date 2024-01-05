@@ -2,7 +2,8 @@ project: scaling_ppo
 group: effect_of_human_reg
 env_id: Nocturne
 seed: 42
-track_wandb: true
+track_wandb: false
+num_envs: 1
 wandb_init_videos: []
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
