@@ -23,12 +23,11 @@ from utils.config import load_config
 
 _MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
 
-logging.getLogger(__name__)
+logging.getLogger('__name__')
 
 ActType = TypeVar("ActType")  # pylint: disable=invalid-name
 ObsType = TypeVar("ObsType")  # pylint: disable=invalid-name
 RenderType = TypeVar("RenderType")  # pylint: disable=invalid-name
-
 
 class CollisionType(Enum):
     """Enum for collision types."""
@@ -71,6 +70,8 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             "padding": padding,
         }
         self.seed(self.config.seed)
+        self.count_invalid = 0
+        self.count_total = 0
 
         # Load the list of valid files
         with open(self.config.data_path / "valid_files.json", encoding="utf-8") as file:
@@ -419,8 +420,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         self.done_ids = []
 
-        logging.debug("Scene: %s | Controlling vehicles: %s", self.file, [veh.id for veh in self.controlled_vehicles])
-
         return obs_dict
 
     def get_observation(self, veh_obj: Vehicle) -> np.ndarray:
@@ -434,6 +433,8 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         -------
             np.ndarray: Observation for the vehicle.
         """
+        self.count_total += 1
+        
         cur_position = []
         if self.config.subscriber.use_current_position:
             cur_position = _position_as_array(veh_obj.getPosition())
@@ -447,21 +448,26 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         ego_state = []
         if self.config.subscriber.use_ego_state:
             ego_state = self.scenario.ego_state(veh_obj)
-            logging.debug(f'\n t = {self.step_num} ---')
-            logging.debug(f'ego_before: {ego_state.min():3f} | {ego_state.max():.3f}')
+            
             if self.config.normalize_state:
                 ego_state = self.normalize_ego_state_by_cat(ego_state)
-                logging.debug(f'ego_after: {ego_state.min():.3f} | {ego_state.max():.3f}')
+                tmp = self.scenario.ego_state(veh_obj)
+                if ego_state.max() > 1.5:
+                    self.count_invalid += 1
+                    logging.debug(f'-- veh_id: {veh_obj.id} in scene: {self.file} --')
+                    logging.debug(f'ego_before_norm (speed): {tmp[2]:.2f} (dist_to_goal): {tmp[3]:.2f}')
+                    logging.debug(f'ego_after_norm (speed) : {ego_state[2]:.2f} (dist_to_goal): {ego_state[3]:.2f} \n')
                 
         visible_state = []
         if self.config.subscriber.use_observations:
             visible_state = self.scenario.flattened_visible_state(
                     veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
                 )
-            logging.debug(f'visible_before: {visible_state.min():.3f} | {visible_state.max():.3f}')
             if self.config.normalize_state:
                 visible_state = self.normalize_obs_by_cat(visible_state)
-                logging.debug(f'visible_after: {visible_state.min():.3f} | {visible_state.max():.3f}')
+
+                if visible_state.max() > 1.5:
+                    logging.debug(f'visible_after: {visible_state.min():.3f} | {visible_state.max():.3f}')
 
         # Concatenate
         obs = np.concatenate((ego_state, visible_state, cur_position))
@@ -510,16 +516,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def normalize_ego_state_by_cat(self, state):
         """Divide every feature in the ego state by the maximum value of that feature."""
         return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
-    
-    def normalize_ego_state(self, state):
-        """Normalization to get features between 0 and 1."""
-        min_ego_feat = self.config.ego_state_feat_min
-        max_ego_feat = np.array(list(self.config.ego_state_feat_max.values()),dtype=object).max()
-        return (state - min_ego_feat) / (max_ego_feat - min_ego_feat)
-
-    def normalize_obs(self, state):
-        """Normalization to get features between 0 and 1."""
-        return (state - self.config.vis_obs_min) / (self.config.vis_obs_max - self.config.vis_obs_min)
 
     def normalize_obs_by_cat(self, state):
         """Divide all visible state elements by the maximum value across the visible state."""
@@ -720,25 +716,16 @@ def _position_as_array(position: Vector2D) -> np.ndarray:
 
 
 if __name__ == "__main__":
+    
+    logging.basicConfig(level=logging.DEBUG)
+    
     # Load environment variables and config
     env_config = load_config("env_config")
 
-    env_config.subscriber.use_observations = False
-    env_config.normalize_state = False
+    env_config.num_files = 1000
 
     # Initialize an environment
     env = BaseEnv(config=env_config)
-
-    avg_init_dist_to_goal = 0
-    N = 100
-    for i in range(N):
-        ego_states = env.reset()
-        for agent_id in ego_states.keys():
-            print(f"init_dist_to_goal: {ego_states[agent_id][3]:.2f}")
-
-            avg_init_dist_to_goal += ego_states[agent_id][3]
-    
-    print(f'AVG init dist to goal: {avg_init_dist_to_goal / N:.2f}')
 
     # Reset
     obs_dict = env.reset()
@@ -748,7 +735,8 @@ if __name__ == "__main__":
     veh_objects = {agent.id: agent for agent in env.controlled_vehicles}
     dead_agent_ids = []
 
-    for step in range(80):
+    num_total = 50_000
+    for step in range(num_total):
         # Sample actions
         action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
 
@@ -756,13 +744,7 @@ if __name__ == "__main__":
         for obj in env.controlled_vehicles:
             obj.expert_control = True
 
-        obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
-
-        print(f'step: {step}, done: {done_dict[37]}, info:\n {info_dict[37]}')
-
-        expert_action = env.scenario.expert_action(veh_objects[37], step)
-        print(f'act = {expert_action} \n')
-        
+        obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)        
         # Update dead agents
         for agent_id, is_done in done_dict.items():
             if is_done and agent_id not in dead_agent_ids:
@@ -772,6 +754,8 @@ if __name__ == "__main__":
         if done_dict["__all__"]:
             obs_dict = env.reset()
             dead_agent_ids = []
+
+    print(f'{env.count_invalid} / {env.count_total} invalid = {(env.count_invalid/env.count_total)*100}')
 
     # Close environment
     env.close()
