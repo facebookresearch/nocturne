@@ -12,7 +12,7 @@ from gymnasium import spaces
 
 from utils.sb3.reg_ppo import RegularizedPPO
 
-class LateFusionNet(nn.Module):
+class LateFusionNetAttn(nn.Module):
     """Processes the env observation using a late fusion architecture."""
 
     def __init__(
@@ -53,7 +53,7 @@ class LateFusionNet(nn.Module):
         # Save output dimensions, used to create the action distribution & value
         self.latent_dim_pi = last_layer_dim_pi
         self.latent_dim_vf = last_layer_dim_vf
-
+       
         # If using max pool across object dim
         self.shared_net_input_dim = (
             arch_ego_state[-1] +
@@ -72,9 +72,19 @@ class LateFusionNet(nn.Module):
             input_dim=self.ro_input_dim,
             net_arch=self.arch_road_objects, 
         )
+        self.actor_ro_attn = nn.MultiheadAttention(
+            embed_dim=arch_road_objects[-1], 
+            num_heads=1, 
+            batch_first=True
+        )
         self.actor_rg_net = self._build_network(
             input_dim=self.rg_input_dim,
             net_arch=self.arch_road_graph, 
+        )
+        self.actor_rg_attn = nn.MultiheadAttention(
+            embed_dim=arch_road_objects[-1], 
+            num_heads=1, 
+            batch_first=True,
         )
         self.actor_ss_net = self._build_network(
             input_dim=self.ss_input_dim,
@@ -89,7 +99,9 @@ class LateFusionNet(nn.Module):
         # Value network
         self.val_ego_state_net = copy.deepcopy(self.actor_ego_state_net) 
         self.val_ro_net = copy.deepcopy(self.actor_ro_net)
+        self.val_ro_attn = copy.deepcopy(self.actor_ro_attn)
         self.val_rg_net = copy.deepcopy(self.actor_rg_net)
+        self.val_rg_attn = copy.deepcopy(self.actor_rg_attn)
         self.val_ss_net = copy.deepcopy(self.actor_ss_net)
         self.val_out_net = self._build_out_network(
             input_dim=self.shared_net_input_dim,
@@ -148,6 +160,10 @@ class LateFusionNet(nn.Module):
         stop_signs = self.actor_ss_net(stop_signs)
         road_graph = self.actor_rg_net(road_graph)
 
+        # Attention layer
+        road_objects, _ = self.actor_ro_attn(road_objects, road_objects, road_objects)
+        road_graph, _ = self.actor_rg_attn(road_graph, road_graph, road_graph)
+
         # Max pooling across the object dimension
         # (M, E) -> (1, E) (max pool across features)
         road_objects = F.max_pool1d(road_objects.permute(0, 2, 1), kernel_size=self.ro_max).squeeze(-1)
@@ -155,9 +171,9 @@ class LateFusionNet(nn.Module):
         road_graph = F.max_pool1d(road_graph.permute(0, 2, 1), kernel_size=self.rg_max).squeeze(-1)
 
         # Concatenate processed ego state and observation and pass through the output layer
-        out = self.actor_out_net(torch.cat((ego_state, road_objects, road_graph, stop_signs), dim=1))
+        fused = torch.cat((ego_state, road_objects, road_graph, stop_signs), dim=1)
         
-        return out
+        return self.actor_out_net(fused)
 
     def forward_critic(self, features: torch.Tensor) -> torch.Tensor:
         """Forward step for the value network."""
@@ -170,6 +186,10 @@ class LateFusionNet(nn.Module):
         stop_signs = self.val_ss_net(stop_signs)
         road_graph = self.val_rg_net(road_graph)
 
+        # Attention layer
+        road_objects, _ = self.val_ro_attn(road_objects, road_objects, road_objects)
+        road_graph, _ = self.val_rg_attn(road_graph, road_graph, road_graph)
+
         # Max pooling across the object dimension
         # (M, E) -> (1, E) (max pool across features)
         road_objects = F.max_pool1d(road_objects.permute(0, 2, 1), kernel_size=self.ro_max).squeeze(-1)
@@ -177,9 +197,10 @@ class LateFusionNet(nn.Module):
         road_graph = F.max_pool1d(road_graph.permute(0, 2, 1), kernel_size=self.rg_max).squeeze(-1)
 
         # Concatenate processed ego state and observation and pass through the output layer
-        out = self.val_out_net(torch.cat((ego_state, road_objects, road_graph, stop_signs), dim=1))
+        fused = torch.cat((ego_state, road_objects, road_graph, stop_signs), dim=1)
 
-        return out
+        return self.val_out_net(fused)
+
 
     def _unpack_obs(self, obs_flat):
         """
@@ -218,14 +239,14 @@ class LateFusionNet(nn.Module):
         self.ss_max = self.config.scenario.max_visible_stop_signs
         self.tl_max = self.config.scenario.max_visible_traffic_lights
 
-class LateFusionPolicy(ActorCriticPolicy):
+class LateFusionAttnPolicy(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: spaces.Space,
         action_space: spaces.Space,
         lr_schedule: Callable[[float], float],
         env_config: Box,
-        mlp_class: Type[LateFusionNet] = LateFusionNet,
+        mlp_class: Type[LateFusionNetAttn] = LateFusionNetAttn,
         mlp_config: Optional[Box] = None,
         *args,
         **kwargs,
@@ -301,14 +322,14 @@ if __name__ == "__main__":
         reg_weight=None, # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
-        policy=LateFusionPolicy,
+        policy=LateFusionAttnPolicy,
         ent_coef=exp_config.ppo.ent_coef,
         vf_coef=exp_config.ppo.vf_coef,
         seed=exp_config.seed,  # Seed for the pseudo random generators
         verbose=1,
         device='cuda',
         env_config=env_config,
-        mlp_class=LateFusionNet,
+        mlp_class=LateFusionNetAttn,
         mlp_config=model_config,
     )
     # See architecture

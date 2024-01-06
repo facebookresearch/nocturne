@@ -19,7 +19,7 @@ ma_callback:
   log_indiv_metrics: false
   log_agent_actions: false
   save_model: true
-  model_save_freq: 2 # In iterations (one iter ~ (num_agents x n_steps))
+  model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
   record_n_scenes: 10 # Number of different scenes to render
   video_save_freq: 500 # Make a video every k iterations (100 iters ~ 1M steps)
