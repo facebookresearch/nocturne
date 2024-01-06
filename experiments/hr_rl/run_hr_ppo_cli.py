@@ -151,11 +151,13 @@ def run_hr_ppo(
                     n_steps=None,
                 )
 
-        # Load human reference policy
-        saved_variables = torch.load(exp_config.human_policy_path, map_location=exp_config.ppo.device)
-        human_policy = ActorCriticPolicy(**saved_variables["data"])
-        human_policy.load_state_dict(saved_variables["state_dict"])
-        human_policy.to(exp_config.ppo.device)
+        human_policy = None
+        # Load human reference policy if regularization is used
+        if exp_config.reg_weight > 0.0:
+            saved_variables = torch.load(exp_config.human_policy_path, map_location=exp_config.ppo.device)
+            human_policy = ActorCriticPolicy(**saved_variables["data"])
+            human_policy.load_state_dict(saved_variables["state_dict"])
+            human_policy.to(exp_config.ppo.device)
 
         # Set up PPO
         model = RegularizedPPO(

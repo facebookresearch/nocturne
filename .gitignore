@@ -70,12 +70,9 @@ nocturne/_version.py
 # temporary files
 temp/
 
-# Waymo data
+# Waymo dataset
 data/
 data_full/
-data_all/
-data_10/
-data_lp/
 
 # Logging output
 logs/

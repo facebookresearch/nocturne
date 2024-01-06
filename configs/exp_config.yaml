@@ -7,7 +7,6 @@ wandb_init_videos: []
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
 verbose: 0
-train_on_single_scene: false
 psr: false # Prioritized scene replay
 
 wandb:
@@ -26,6 +25,7 @@ ma_callback:
   video_deterministic: true
 
 ppo:
+  learning_rate: 1e-4
   policy: MlpPolicy
   n_steps: 4096
   ent_coef: 0.005 # Default in SB3 is 0
@@ -37,7 +37,7 @@ learn:
 
 # human-regularized RL
 reg_weight: 0.0
-human_policy_path: models/il/human_policy_10_scenes_2023_12_29.pt
+human_policy_path: "add_path_to_trained_il_policy"
 
 # Model arch
 model_config:

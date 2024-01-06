@@ -27,7 +27,6 @@ def train(env_config, exp_config, video_config):
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
     # Set up wandb
     RUN_ID = None
