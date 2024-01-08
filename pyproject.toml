@@ -110,11 +110,12 @@ target-version = "py310"
 extend-include = ["*.ipynb"]
 # Errors to ignore
 extend-ignore = [
-  "COM812",
-  "PLR0912",
-  "PLR0913",
-  "PLR0915",
-  "S101"
+  "COM812",  # Allow commas after multiline items
+  "G004",  # Allow f-strings in logging
+  "PLR0912",  # Allow too-many branches
+  "PLR0913",  # Allow too-many-arguments
+  "PLR0915",  # Allow too-many-statements
+  "S101"  # Allow asserts
 ]
 
 [tool.ruff.lint]
