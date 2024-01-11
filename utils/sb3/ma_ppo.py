@@ -232,6 +232,3 @@ if __name__ == "__main__":
     SAVE_DIR = "./models/rl/policy_65548"
 
     model = MultiAgentPPO.load(SAVE_DIR)
-    
-    
-    

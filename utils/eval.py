@@ -1,37 +1,39 @@
-import os
+import glob
+import logging
 import math
+import os
+
 import numpy as np
 import pandas as pd
-import logging
-from tqdm import tqdm
 import torch
-import wandb
-import glob
-from utils.config import load_config
-import torch
-from utils.policies import load_policy
 from stable_baselines3.common.policies import ActorCriticPolicy
-from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy 
+from tqdm import tqdm
+
+import wandb
+from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy
 from nocturne.envs.base_env import BaseEnv
+from utils.config import load_config
+from utils.policies import load_policy
+
 
 class EvaluatePolicy:
     """Evaluate a policy on a set of traffic scenes."""
-    
+
     def __init__(
-        self, 
-        env_config, 
-        exp_config, 
-        policy, 
-        eval_files=None, 
-        baselines=['random', 'expert'], 
-        reg_coef=None, 
-        log_to_wandb=True, 
-        run=None, 
-        deterministic=True, 
-        with_replacement=True, 
+        self,
+        env_config,
+        exp_config,
+        policy,
+        eval_files=None,
+        baselines=["random", "expert"],
+        reg_coef=None,
+        log_to_wandb=True,
+        run=None,
+        deterministic=True,
+        with_replacement=True,
         return_trajectories=False,
-        file_limit=1000
-        ):
+        file_limit=1000,
+    ):
         self.env_config = env_config
         self.exp_config = exp_config
         self.policy = policy
@@ -39,7 +41,7 @@ class EvaluatePolicy:
         self.baselines = baselines
         self.reg_coef = reg_coef
         self.log_to_wandb = log_to_wandb
-        self.run = run # Wandb run object
+        self.run = run  # Wandb run object
         self.deterministic = deterministic
         self.with_replacement = with_replacement
         self.return_trajectories = return_trajectories
@@ -50,10 +52,10 @@ class EvaluatePolicy:
     def _get_scores(self):
         """Evaluate policy across a set of traffic scenes."""
 
-        logging.info(f'\n Evaluating policy on {len(self.eval_files)} files...')
+        logging.info(f"\n Evaluating policy on {len(self.eval_files)} files...")
 
         # Create tables
-        df_eval = pd.DataFrame(  
+        df_eval = pd.DataFrame(
             columns=[
                 "run_id",
                 "reg_coef",
@@ -75,7 +77,7 @@ class EvaluatePolicy:
                 "traffic_scene",
                 "timestep",
                 "agent_id",
-                "policy_pos_x", 
+                "policy_pos_x",
                 "policy_pos_y",
                 "policy_speed",
                 "policy_act",
@@ -85,77 +87,94 @@ class EvaluatePolicy:
                 "expert_act",
             ]
         )
-            
-        for file in tqdm(self.eval_files):
 
+        for file in tqdm(self.eval_files):
             logging.debug(f"Evaluating policy on {file}...")
-            
+
             # Step through scene in expert control mode to obtain ground truth
-            expert_actions, expert_pos, expert_speed, expert_gr, expert_edge_cr, expert_veh_cr = self._step_through_scene(
-                file, mode="expert", 
+            (
+                expert_actions,
+                expert_pos,
+                expert_speed,
+                expert_gr,
+                expert_edge_cr,
+                expert_veh_cr,
+            ) = self._step_through_scene(
+                file,
+                mode="expert",
             )
 
             # Step through scene in policy control mode to obtain policy info
-            policy_actions, policy_pos, policy_speed, policy_gr, policy_edge_cr, policy_veh_cr = self._step_through_scene(
-                file, mode="policy"
-            )
+            (
+                policy_actions,
+                policy_pos,
+                policy_speed,
+                policy_gr,
+                policy_edge_cr,
+                policy_veh_cr,
+            ) = self._step_through_scene(file, mode="policy")
 
-            # Filter out invalid steps 
+            # Filter out invalid steps
             nonnan_ids = ~np.isnan(expert_actions)
 
             # Compute metrics
-            action_accuracies = self.get_action_accuracy(
-                policy_actions, expert_actions, nonnan_ids
-            )
+            action_accuracies = self.get_action_accuracy(policy_actions, expert_actions, nonnan_ids)
 
             position_rmse = self.get_pos_rmse(
-                policy_pos, expert_pos, 
+                policy_pos,
+                expert_pos,
             )
 
             speed_agent_mae = self.get_speed_mae(
-                policy_speed, expert_speed,
+                policy_speed,
+                expert_speed,
             )
 
             abs_diff_accel, abs_diff_steer = self.get_action_val_diff(
-                policy_actions, expert_actions,
+                policy_actions,
+                expert_actions,
             )
-        
+
             # Violations of the 3-second rule
-            #violations_matrix, num_violations = self.get_veh_to_veh_distances(policy_pos, policy_speed)  
+            # violations_matrix, num_violations = self.get_veh_to_veh_distances(policy_pos, policy_speed)
 
             # Store metrics
-            scene_perf = pd.DataFrame({
-                "run_id": self.run.id if self.log_to_wandb else None,
-                "reg_coef": np.repeat(self.reg_coef, len(self.agent_names)),
-                "traffic_scene": file,
-                "agent_id": self.agent_names,
-                "act_acc": action_accuracies,
-                "accel_val_mae": abs_diff_accel,
-                "steer_val_mae": abs_diff_steer,
-                "pos_rmse": position_rmse,
-                "speed_mae": speed_agent_mae,
-                "goal_rate": policy_gr,
-                "veh_edge_cr": policy_edge_cr,
-                "veh_veh_cr": policy_veh_cr,
-            })
+            scene_perf = pd.DataFrame(
+                {
+                    "run_id": self.run.id if self.log_to_wandb else None,
+                    "reg_coef": np.repeat(self.reg_coef, len(self.agent_names)),
+                    "traffic_scene": file,
+                    "agent_id": self.agent_names,
+                    "act_acc": action_accuracies,
+                    "accel_val_mae": abs_diff_accel,
+                    "steer_val_mae": abs_diff_steer,
+                    "pos_rmse": position_rmse,
+                    "speed_mae": speed_agent_mae,
+                    "goal_rate": policy_gr,
+                    "veh_edge_cr": policy_edge_cr,
+                    "veh_veh_cr": policy_veh_cr,
+                }
+            )
             df_eval = pd.concat([df_eval, scene_perf], ignore_index=True)
-            
+
             if self.return_trajectories:
-                scene_trajs = pd.DataFrame({
-                    "traffic_scene": file,  
-                    "timestep": np.tile(list(range(self.env_config.episode_length)), self.num_agents), 
-                    "agent_id": np.repeat(list(range(self.num_agents)), self.env_config.episode_length),
-                    "policy_pos_x": policy_pos[:, :, 0].flatten(), # num_agents * 80
-                    "policy_pos_y": policy_pos[:, :, 1].flatten(),
-                    "policy_speed": policy_speed.flatten(),
-                    "policy_act": policy_actions.flatten(),
-                    "expert_pos_x": expert_pos[:, :, 0].flatten(),
-                    "expert_pos_y": expert_pos[:, :, 1].flatten(),
-                    "expert_act": expert_actions.flatten(),
-                    "expert_speed": expert_speed.flatten(),
-                })
+                scene_trajs = pd.DataFrame(
+                    {
+                        "traffic_scene": file,
+                        "timestep": np.tile(list(range(self.env_config.episode_length)), self.num_agents),
+                        "agent_id": np.repeat(list(range(self.num_agents)), self.env_config.episode_length),
+                        "policy_pos_x": policy_pos[:, :, 0].flatten(),  # num_agents * 80
+                        "policy_pos_y": policy_pos[:, :, 1].flatten(),
+                        "policy_speed": policy_speed.flatten(),
+                        "policy_act": policy_actions.flatten(),
+                        "expert_pos_x": expert_pos[:, :, 0].flatten(),
+                        "expert_pos_y": expert_pos[:, :, 1].flatten(),
+                        "expert_act": expert_actions.flatten(),
+                        "expert_speed": expert_speed.flatten(),
+                    }
+                )
                 df_trajs = pd.concat([df_trajs, scene_trajs], ignore_index=True)
-           
+
         if self.log_to_wandb:
             wandb.Table(dataframe=df_eval)
             self.run.log({"human_metrics": df_eval})
@@ -166,7 +185,6 @@ class EvaluatePolicy:
                 return df_eval, df_trajs
             else:
                 return df_eval
-
 
     def _step_through_scene(self, filename: str, mode: str):
         """Step through traffic scene.
@@ -182,38 +200,41 @@ class EvaluatePolicy:
         # Make sure the agent ids are in the same order
         agent_ids = np.sort([veh.id for veh in self.env.controlled_vehicles])
         self.agent_names = agent_ids
-        agent_id_to_idx_dict = {agent_id: idx for idx, agent_id in enumerate(agent_ids)} 
+        agent_id_to_idx_dict = {agent_id: idx for idx, agent_id in enumerate(agent_ids)}
         last_info_dicts = {agent_id: {} for agent_id in agent_ids}
         dead_agent_ids = []
-        
+
         # Storage
         action_indices = np.full(fill_value=np.nan, shape=(self.num_agents, num_steps))
         agent_positions = np.full(fill_value=np.nan, shape=(self.num_agents, num_steps, 2))
         agent_speed = np.full(fill_value=np.nan, shape=(self.num_agents, num_steps))
-        goal_achieved, veh_edge_collision, veh_veh_collision = np.zeros(self.num_agents), np.zeros(self.num_agents), np.zeros(self.num_agents)
+        goal_achieved, veh_edge_collision, veh_veh_collision = (
+            np.zeros(self.num_agents),
+            np.zeros(self.num_agents),
+            np.zeros(self.num_agents),
+        )
 
         # Set control mode
         if mode == "expert":
-            logging.debug(f'EXPERT MODE')
+            logging.debug(f"EXPERT MODE")
             for obj in self.env.controlled_vehicles:
                 obj.expert_control = True
         if mode == "policy":
-            logging.debug(f'POLICY MODE')
+            logging.debug(f"POLICY MODE")
             for obj in self.env.controlled_vehicles:
                 obj.expert_control = False
-        
-        logging.debug(f'agent_ids: {agent_ids}')
-        
+
+        logging.debug(f"agent_ids: {agent_ids}")
+
         # Step through scene
-        for timestep in range(num_steps):   
-            
-            logging.debug(f'-- t = {timestep} --')
-            
+        for timestep in range(num_steps):
+            logging.debug(f"-- t = {timestep} --")
+
             # Get actions
             if mode == "expert":
                 for veh_obj in self.env.controlled_vehicles:
                     if veh_obj.id not in dead_agent_ids:
-                        # Map actions to nearest grid indices and joint action 
+                        # Map actions to nearest grid indices and joint action
                         expert_action = self.env.scenario.expert_action(veh_obj, timestep)
                         if expert_action is not None:
                             expert_accel, expert_steering, _ = expert_action.numpy()
@@ -228,23 +249,22 @@ class EvaluatePolicy:
                             action_indices[veh_idx, timestep] = action_idx
                         else:
                             # Skip None actions (these are invalid)
-                            logging.debug(f'veh {veh_obj.id} at t = {timestep} returns None action!')
-                            continue                        
+                            logging.debug(f"veh {veh_obj.id} at t = {timestep} returns None action!")
+                            continue
 
-                action_dict = {} 
+                action_dict = {}
 
             elif mode == "policy" and self.policy is not None:
-
                 observations = self._obs_dict_to_tensor(obs_dict)
 
                 actions, _ = self.policy.predict(
                     observations,
                     deterministic=self.deterministic,
                 )
-                
-                logging.debug(f'actions: {actions}')
-                
-                #self.policy.get_distribution(observations).distribution.probs
+
+                logging.debug(f"actions: {actions}")
+
+                # self.policy.get_distribution(observations).distribution.probs
                 action_dict = dict(zip(obs_dict.keys(), actions))
 
                 for veh_obj in self.env.controlled_vehicles:
@@ -256,19 +276,19 @@ class EvaluatePolicy:
 
             elif mode == "random":
                 actions = np.random.randint(0, self.env.num_actions, size=(self.num_agents,))
-                    
+
             # Step env
             obs_dict, rew_dict, done_dict, info_dict = self.env.step(action_dict)
 
             # Update dead agents based on most recent done_dict
             for agent_id, is_done in done_dict.items():
                 if is_done and agent_id not in dead_agent_ids:
-                    if agent_id != "__all__": 
+                    if agent_id != "__all__":
                         dead_agent_ids.append(agent_id)
-                    
-                        logging.debug(f'Agent {agent_id} is done at timestep {timestep}!')
+
+                        logging.debug(f"Agent {agent_id} is done at timestep {timestep}!")
                         logging.debug(f'Goal achieved: {info_dict[agent_id]["goal_achieved"]}')
-                        
+
                         # Store agents' last info dict
                         last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
@@ -281,9 +301,9 @@ class EvaluatePolicy:
                 break
 
         return (
-            action_indices, 
-            agent_positions, 
-            agent_speed, 
+            action_indices,
+            agent_positions,
+            agent_speed,
             goal_achieved,
             veh_edge_collision,
             veh_veh_collision,
@@ -296,7 +316,7 @@ class EvaluatePolicy:
             expert_actions: (num_agents, num_steps_per_episode) the expert actions of the agents.
             nonnan_ids: (num_agents, num_steps_per_episode) the indices of non-nan actions.
         """
-        # Filter out invalid actions 
+        # Filter out invalid actions
         nonnan_ids = np.logical_not(
             np.logical_or(
                 np.isnan(pred_actions),
@@ -327,8 +347,8 @@ class EvaluatePolicy:
             arr[agent_idx, 0] = abs_accel_diff
             arr[agent_idx, 1] = abs_steer_diff
 
-        return arr[:, 0], arr[:, 1] # abs_diff_accel, abs_diff_steer
-    
+        return arr[:, 0], arr[:, 1]  # abs_diff_accel, abs_diff_steer
+
     def get_action_accuracy(self, pred_actions, expert_actions, nonnan_ids):
         """Get accuracy of agent actions.
         Args:
@@ -340,12 +360,13 @@ class EvaluatePolicy:
         arr = np.zeros(num_agents)
         for agent_idx in range(num_agents):
             not_nan = nonnan_ids[agent_idx, :]
-            arr[agent_idx] = (expert_actions[agent_idx, :][not_nan] == pred_actions[agent_idx, :][not_nan]).sum() / not_nan.shape[0]
+            arr[agent_idx] = (
+                expert_actions[agent_idx, :][not_nan] == pred_actions[agent_idx, :][not_nan]
+            ).sum() / not_nan.shape[0]
         return arr
 
     def get_pos_rmse(self, pred_actions, expert_actions):
-        
-        # Filter out invalid actions 
+        # Filter out invalid actions
         nonnan_ids = np.logical_not(
             np.logical_or(
                 np.isnan(pred_actions),
@@ -356,11 +377,13 @@ class EvaluatePolicy:
         arr = np.zeros(num_agents)
         for agent_idx in range(num_agents):
             not_nan = nonnan_ids[agent_idx, :]
-            arr[agent_idx] = (np.sqrt(np.linalg.norm(pred_actions[agent_idx, :][not_nan] - expert_actions[agent_idx, :][not_nan]))).mean()
+            arr[agent_idx] = (
+                np.sqrt(np.linalg.norm(pred_actions[agent_idx, :][not_nan] - expert_actions[agent_idx, :][not_nan]))
+            ).mean()
         return arr
-    
+
     def get_speed_mae(self, pred_actions, expert_actions):
-        # Filter out invalid actions 
+        # Filter out invalid actions
         nonnan_ids = np.logical_not(
             np.logical_or(
                 np.isnan(pred_actions),
@@ -371,13 +394,15 @@ class EvaluatePolicy:
         arr = np.zeros(num_agents)
         for agent_idx in range(num_agents):
             not_nan = nonnan_ids[agent_idx, :]
-            arr[agent_idx] = (np.abs(pred_actions[agent_idx, :][not_nan] - expert_actions[agent_idx, :][not_nan])).mean()
+            arr[agent_idx] = (
+                np.abs(pred_actions[agent_idx, :][not_nan] - expert_actions[agent_idx, :][not_nan])
+            ).mean()
         return arr
 
     def get_veh_to_veh_distances(self, positions, velocities, time_gap_in_sec=3):
-        """Calculate distances between vehicles at each time step and track 
-            whether the 3-second rule is violated. Rule of thumb for safe driving: 
-            allow at least 3 seconds between you and the car in front of you. 
+        """Calculate distances between vehicles at each time step and track
+        whether the 3-second rule is violated. Rule of thumb for safe driving:
+        allow at least 3 seconds between you and the car in front of you.
         """
         num_steps = 80
 
@@ -389,12 +414,17 @@ class EvaluatePolicy:
             for veh_i in range(num_vehicles):
                 for veh_j in range(num_vehicles):
                     if veh_i == veh_j or np.isnan(positions[:, step]).any():
-                        continue # Skip nans
+                        continue  # Skip nans
                     else:
                         # Compute distance from veh_i to to the other vehicles
                         # One step is 0.1 seconds, speed is in mph
-                        distance_between_veh_ij = math.sqrt((positions[veh_i, step][0] - positions[veh_j, step][0])**2 + (positions[veh_i, step][1] - positions[veh_j, step][1])**2)
-                        safe_distance = velocities[veh_i, step] * (time_gap_in_sec / 3600) # Convert time gap from seconds to hours
+                        distance_between_veh_ij = math.sqrt(
+                            (positions[veh_i, step][0] - positions[veh_j, step][0]) ** 2
+                            + (positions[veh_i, step][1] - positions[veh_j, step][1]) ** 2
+                        )
+                        safe_distance = velocities[veh_i, step] * (
+                            time_gap_in_sec / 3600
+                        )  # Convert time gap from seconds to hours
 
                         # Store
                         safe_distances_per_step[veh_i, veh_j, step] = safe_distance
@@ -405,8 +435,8 @@ class EvaluatePolicy:
 
         # Aggregate
         distance_violations_matrix = (veh_distances_per_step < safe_distances_per_step).sum(axis=2)
-                
-        return distance_violations_matrix, distance_violations_matrix.sum()     
+
+        return distance_violations_matrix, distance_violations_matrix.sum()
 
     def _find_closest_index(self, action_grid, action):
         """Find the nearest value in the action grid for a given expert action."""
@@ -431,7 +461,6 @@ class EvaluatePolicy:
 
 
 if __name__ == "__main__":
-    
     logging.basicConfig()
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -446,26 +475,26 @@ if __name__ == "__main__":
 
     # Load trained model from artifact dir
     HR_RL_BASE_PATH = f"./models/hr_rl/S{MAX_FILES}"
-    policy_name =  'nocturne-hr-ppo-01_08_06_34_0.0_S100'
-    
+    policy_name = "nocturne-hr-ppo-01_08_06_34_0.0_S100"
+
     checkpoint = torch.load(f"{HR_RL_BASE_PATH}/{policy_name}.pt")
     policy = LateFusionPolicy(
-        observation_space=checkpoint['data']['observation_space'],
-        action_space=checkpoint['data']['action_space'],
-        lr_schedule=checkpoint['data']['lr_schedule'],
-        use_sde=checkpoint['data']['use_sde'],
+        observation_space=checkpoint["data"]["observation_space"],
+        action_space=checkpoint["data"]["action_space"],
+        lr_schedule=checkpoint["data"]["lr_schedule"],
+        use_sde=checkpoint["data"]["use_sde"],
         env_config=env_config,
         mlp_class=LateFusionNet,
-        mlp_config=checkpoint['model_config'],
+        mlp_config=checkpoint["model_config"],
     )
-    policy.load_state_dict(checkpoint['state_dict'])
+    policy.load_state_dict(checkpoint["state_dict"])
     policy.eval()
-    
+
     print(f'Trained policy has a goal_rate of {checkpoint["train"]["goal_rate"]}')
 
     # Evaluate policy
     evaluator = EvaluatePolicy(
-        env_config=env_config, 
+        env_config=env_config,
         exp_config=exp_config,
         policy=policy,
         eval_files=train_eval_files,
