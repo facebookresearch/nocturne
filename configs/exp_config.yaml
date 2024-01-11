@@ -1,5 +1,5 @@
-project: scaling_ppo
-group: arch_improv
+project: hr_rl_exp
+group: eval_test
 env_id: Nocturne
 seed: 42
 track_wandb: true
@@ -14,15 +14,13 @@ wandb:
   save_code: false
 
 ma_callback:
-  log_human_metrics: false
-  log_indiv_metrics: false
-  log_agent_actions: false
   save_model: true
-  model_save_freq: 500 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
+  model_save_freq: 20 # In iterations (one iter ~ (num_agents x n_steps))
   record_n_scenes: 10 # Number of different scenes to render
-  video_save_freq: 500 # Make a video every k iterations (100 iters ~ 1M steps)
+  video_save_freq: 250 # Make a video every k iterations (100 iters ~ 1M steps)
   video_deterministic: true
+  eval_freq: 1
 
 ppo:
   learning_rate: 1e-4
@@ -32,17 +30,17 @@ ppo:
   vf_coef: 0.5 # Default in SB3 is 0.5d
 
 learn:
-  total_timesteps: 8_000_000
+  total_timesteps: 2_000_000
   progress_bar: false
 
 # human-regularized RL
 reg_weight: 0.0
-human_policy_path: "add_path_to_trained_il_policy"
+human_policy_path: models/il/S100/human_policy_S100_2024_01_02.pt
 
 # Model arch
 model_config:
-  arch_ro: ""
-  arch_rg: ""
-  arch_shared: ""
-  act_func: ""
+  arch_ro: ''
+  arch_rg: ''
+  arch_shared: ''
+  act_func: ''
   dropout": 0.0

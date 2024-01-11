@@ -28,28 +28,30 @@ class MultiAgentAsVecEnv(VecEnv):
 
     def __init__(self, config, num_envs, psr=False):
         # Create Nocturne env
-        self.env = BaseEnv(config)        
+        self.env = BaseEnv(config)
 
         # Make action and observation spaces compatible with SB3 (requires gymnasium)
         self.action_space = gym.spaces.Discrete(self.env.action_space.n)
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
         self.num_envs = num_envs  # The maximum number of agents allowed in the environmen
-        self.psr = psr # Whether to use PSR or not
+        self.psr = psr  # Whether to use PSR or not
 
-        self.psr_dict = self.init_scene_dict() if psr else None # Initialize dict to keep track of the average reward obtained in each scene
+        self.psr_dict = (
+            self.init_scene_dict() if psr else None
+        )  # Initialize dict to keep track of the average reward obtained in each scene
         self.n_episodes = 0
         self.episode_lengths = []
         self.rewards = []  # Log reward per step
         self.dead_agent_ids = []  # Log dead agents per step
         self.num_agents_collided = 0  # Keep track of how many agents collided
-        self.total_agents_in_rollout = 0 # Log total number of agents in rollout
-        self.num_agents_goal_achieved = 0 # Keep track of how many agents reached their goal
+        self.total_agents_in_rollout = 0  # Log total number of agents in rollout
+        self.num_agents_goal_achieved = 0  # Keep track of how many agents reached their goal
         self.agents_in_scene = []
-        self.filename = None # If provided, always use the same file 
+        self.filename = None  # If provided, always use the same file
 
     def _reset_seeds(self) -> None:
         """Reset all environments' seeds."""
-        self._seeds = None  
+        self._seeds = None
 
     def reset(self, seed=None):
         """Reset environment and return initial observations."""
@@ -100,14 +102,14 @@ class MultiAgentAsVecEnv(VecEnv):
         self.buf_dones = np.full(fill_value=np.nan, shape=(self.num_envs,))
         self.buf_rews = np.full_like(self.buf_dones, fill_value=np.nan)
         self.buf_infos = [{} for _ in range(self.num_envs)]
-        
+
         # Override NaN placeholder for each agent that is alive
         for idx, key in enumerate(self.agent_ids):
             if key in next_obses_dict:
                 self.buf_rews[idx] = rew_dict[key]
                 self.buf_dones[idx] = done_dict[key] * 1
                 self.buf_infos[idx] = info_dict[key]
-                obs[idx, :] = next_obses_dict[key] 
+                obs[idx, :] = next_obses_dict[key]
 
         # Save step reward obtained across all agents
         self.rewards.append(sum(rew_dict.values()))
@@ -116,7 +118,7 @@ class MultiAgentAsVecEnv(VecEnv):
         # Store observation
         self._save_obs(obs)
 
-        # Reset episode if ALL agents are done
+        # Reset episode if ALL agents are done or we reach the max number of steps
         if done_dict["__all__"]:
             for agent_id in self.agent_ids:
                 self.ep_collisions += self.last_info_dicts[agent_id]["collided"] * 1
@@ -160,9 +162,9 @@ class MultiAgentAsVecEnv(VecEnv):
         """Create a dictionary of scenes and the average normalized reward obtained in each scene."""
         psr_dict = {}
         for scene_name in self.env.files:
-            psr_dict[scene_name] = {"count": 0, "prob": 1/len(self.env.files), "reward": 0, "goal_rate": 0}
+            psr_dict[scene_name] = {"count": 0, "prob": 1 / len(self.env.files), "reward": 0, "goal_rate": 0}
         return psr_dict
-    
+
     def reset_scene_dict(self):
         for scene_name in self.psr_dict.keys():
             self.psr_dict[scene_name]["count"] = 0
@@ -173,6 +175,7 @@ class MultiAgentAsVecEnv(VecEnv):
     def step_num(self) -> List[int]:
         """The episodic timestep."""
         return self.env.step_num
+
     @property
     def render(self) -> List[int]:
         """The episodic timestep."""
@@ -183,17 +186,17 @@ class MultiAgentAsVecEnv(VecEnv):
     def ego_state_feat(self) -> int:
         """The dimension of the ego state."""
         return self.env.ego_state_feat
-    
+
     @property
     def road_obj_feat(self) -> int:
         """The dimension of the road objects."""
         return self.env.road_obj_feat
-    
+
     @property
     def road_graph_feat(self) -> int:
         """The dimension of the road points."""
         return self.env.road_graph_feat
-    
+
     @property
     def stop_sign_feat(self) -> int:
         """The dimension of the stop signs."""

@@ -11,6 +11,7 @@ from utils.config import load_config
 import torch
 from utils.policies import load_policy
 from stable_baselines3.common.policies import ActorCriticPolicy
+from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy 
 from nocturne.envs.base_env import BaseEnv
 
 class EvaluatePolicy:
@@ -206,6 +207,8 @@ class EvaluatePolicy:
         # Step through scene
         for timestep in range(num_steps):   
             
+            logging.debug(f'-- t = {timestep} --')
+            
             # Get actions
             if mode == "expert":
                 for veh_obj in self.env.controlled_vehicles:
@@ -238,7 +241,10 @@ class EvaluatePolicy:
                     observations,
                     deterministic=self.deterministic,
                 )
-
+                
+                logging.debug(f'actions: {actions}')
+                
+                #self.policy.get_distribution(observations).distribution.probs
                 action_dict = dict(zip(obs_dict.keys(), actions))
 
                 for veh_obj in self.env.controlled_vehicles:
@@ -257,10 +263,14 @@ class EvaluatePolicy:
             # Update dead agents based on most recent done_dict
             for agent_id, is_done in done_dict.items():
                 if is_done and agent_id not in dead_agent_ids:
-                    dead_agent_ids.append(agent_id)
-            
-                    # Store agents' last info dict
-                    last_info_dicts[agent_id] = info_dict[agent_id].copy()
+                    if agent_id != "__all__": 
+                        dead_agent_ids.append(agent_id)
+                    
+                        logging.debug(f'Agent {agent_id} is done at timestep {timestep}!')
+                        logging.debug(f'Goal achieved: {info_dict[agent_id]["goal_achieved"]}')
+                        
+                        # Store agents' last info dict
+                        last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
             if done_dict["__all__"]:
                 for agent_id in agent_ids:
@@ -421,32 +431,48 @@ class EvaluatePolicy:
 
 
 if __name__ == "__main__":
+    
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.DEBUG)
 
     env_config = load_config("env_config")
     exp_config = load_config("exp_config")
 
-    MAX_FILES = 50
+    MAX_FILES = 100
 
     # Train
     train_file_paths = glob.glob(f"{env_config.data_path}" + "/tfrecord*")
-    train_eval_files = [os.path.basename(file) for file in train_file_paths][:MAX_FILES]
+    train_eval_files = sorted([os.path.basename(file) for file in train_file_paths])[:MAX_FILES]
 
-    # Load human reference policy
-    human_policy = load_policy(
-        data_path="./models/il",
-        file_name="human_policy_2_scenes_2023_11_22",   
+    # Load trained model from artifact dir
+    HR_RL_BASE_PATH = f"./models/hr_rl/S{MAX_FILES}"
+    policy_name =  'nocturne-hr-ppo-01_08_06_34_0.0_S100'
+    
+    checkpoint = torch.load(f"{HR_RL_BASE_PATH}/{policy_name}.pt")
+    policy = LateFusionPolicy(
+        observation_space=checkpoint['data']['observation_space'],
+        action_space=checkpoint['data']['action_space'],
+        lr_schedule=checkpoint['data']['lr_schedule'],
+        use_sde=checkpoint['data']['use_sde'],
+        env_config=env_config,
+        mlp_class=LateFusionNet,
+        mlp_config=checkpoint['model_config'],
     )
+    policy.load_state_dict(checkpoint['state_dict'])
+    policy.eval()
+    
+    print(f'Trained policy has a goal_rate of {checkpoint["train"]["goal_rate"]}')
 
     # Evaluate policy
     evaluator = EvaluatePolicy(
         env_config=env_config, 
         exp_config=exp_config,
-        policy=human_policy,
+        policy=policy,
         eval_files=train_eval_files,
         log_to_wandb=False,
-        deterministic=True,
+        deterministic=False,
         reg_coef=0.0,
         return_trajectories=True,
     )
 
-    df_il_res_2, df_il_trajs_2 = evaluator._get_scores()
+    df_res, df_trajs = evaluator._get_scores()

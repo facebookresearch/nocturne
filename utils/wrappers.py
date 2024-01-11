@@ -39,6 +39,9 @@ class LightNocturneEnvWrapper:
         for agent_id, is_done in done_dict.items():
             if is_done and agent_id not in self.dead_agent_ids:
                 self.dead_agent_ids.append(agent_id)
+                
+                # Store agents' last info dict
+                self.last_info_dicts[agent_id] = info_dict[agent_id].copy()
 
         # Convert dicts to arrays
         for idx, key in enumerate(self.agent_ids):
@@ -49,10 +52,7 @@ class LightNocturneEnvWrapper:
                 infos.append(info_dict[key])
             else:
                 infos.append([None])
-            
-
         return obs, rews, dones, infos
-
 
     def reset(self, filename=None):
         obs_dict = self.env.reset(filename)
@@ -68,6 +68,8 @@ class LightNocturneEnvWrapper:
             obs.append(obs_dict[agent_id])
 
         self.map_agent_id_to_idx = {agent_id: idx for idx, agent_id in enumerate(self.agent_ids)}
+        # Make dict for storing the last info set for each agent
+        self.last_info_dicts = {agent_id: {} for agent_id in self.agent_ids}
 
         return np.array(obs)
 

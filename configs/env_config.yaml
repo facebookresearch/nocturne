@@ -10,7 +10,7 @@ warmup_period: 10 # In the RL setting we use a warmup of 10 steps
 # How many files of the total dataset to use. -1 indicates to use all of them
 num_files: 10
 fix_file_order: true # If true, always select the SAME files (when creating the environent), if false, pick files at random
-sample_file_method: "random" # ALTERNATIVES: "no_replacement" (SUPPORTED) / "score-based" (TODO: @Daphne)
+sample_file_method: random   # ALTERNATIVES: "no_replacement"
 dt: 0.1
 sims_per_step: 10
 img_as_state: false
@@ -18,7 +18,7 @@ discretize_actions: true
 include_head_angle: false # Whether to include the head tilt/angle as part of a vehicle's action
 accel_discretization: 5
 accel_lower_bound: -3
-accel_upper_bound: 3 
+accel_upper_bound: 3
 steering_lower_bound: -0.7 # steer right
 steering_upper_bound: 0.7 # steer left
 steering_discretization: 5
@@ -78,7 +78,7 @@ rew_cfg:
   # sense as the episodes are 9 seconds long, i.e. we'd have to go more than 40 m/s to get there
   goal_speed_scaling: 40.0
 
-# # # # State normalization settings # # # # 
+# # # # State normalization settings # # # #
 normalize_state: true
 # Ego feature names + max values in each category
 ego_state_feat_min: -30
@@ -86,7 +86,7 @@ ego_state_feat_max:
   veh_len: 16
   veh_width: 4
   speed: 100
-  target_dist: 300 
+  target_dist: 300
   target_azimuth: 3.14
   target_heading: 3.14
   rel_target_speed_dist: 40
@@ -97,7 +97,7 @@ ego_state_feat_max:
 vis_obs_max: 100 # The maximum value across visible state elements
 vis_obs_min: -10 # The minimum value across visible state elements
 
-# # # # Agent settings # # # # 
+# # # # Agent settings # # # #
 subscriber:
   view_angle: 3.14 # the distance which the cone extends before agents are not visible; set to pi rad to correct for missing head angle
   view_dist: 80

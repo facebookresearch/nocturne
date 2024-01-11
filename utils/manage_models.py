@@ -8,8 +8,10 @@ if __name__ == "__main__":
     ROOT = "models/hr_rl"
 
     entity = "daphnecor"
-    project = "scaling_ppo"
-    collection_name = "nocturne-hr-ppo-01_02_11_16"
+    project = "hr_rl_exp"
+    run_id = "01_08_06_29"
+    
+    collection_name = f"nocturne-hr-ppo-{run_id}"
     
     # Always initialize a W&B run to start tracking
     wandb.init()
