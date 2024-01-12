@@ -1,13 +1,12 @@
 import logging
 import os
-
+import wandb
 import numpy as np
 import torch
 import torch.nn as nn
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy
 
-import wandb
 from nocturne.envs.base_env import BaseEnv
 from utils.render import make_video
 
@@ -102,8 +101,8 @@ class CustomMultiAgentCallback(BaseCallback):
         self.logger.record("rollout/obs_max", np.max(observations[valid_obs_mask]))
 
         # Evaluate policy on train and test dataset
-        if self.iteration % self.exp_config.ma_callback.eval_freq == 0:
-            self._evaluate_policy(policy=self.model, dataset="valid", name="valid_det", det_mode=True)
+        # if self.iteration % self.exp_config.ma_callback.eval_freq == 0:
+        #     self._evaluate_policy(policy=self.model, dataset="valid", name="valid_det", det_mode=True)
 
         # Render
         if self.exp_config.ma_callback.save_video:
@@ -134,7 +133,7 @@ class CustomMultiAgentCallback(BaseCallback):
         """
         # Save model to wandb
         if self.model_base_path is not None:
-            self.save_model()
+            self._save_model()
 
         # Render
         if self.exp_config.ma_callback.save_video:

@@ -8,8 +8,10 @@ import torch
 import typer
 from box import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
-
+from random import randint
+from time import sleep
 import wandb
+import os
 
 # Permutation equivariant network
 from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy
@@ -26,6 +28,8 @@ from utils.sb3.callbacks import CustomMultiAgentCallback
 # Custom PPO class that supports multi-agent control
 from utils.sb3.reg_ppo import RegularizedPPO
 from utils.string_utils import datetime_to_str
+
+os.environ["WANDB__SERVICE_WAIT"] = "200"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,35 +50,31 @@ def run_hr_ppo(
     sweep_name: str = exp_config.group,
     steer_disc: int = 5,
     accel_disc: int = 5,
-    ent_coef: float = 0.0,
+    ent_coef: float = 0.001,
     vf_coef: float = 0.5,
     seed: int = 42,
     mini_batch_size: int = 256,
-    lr: float = 1e-4,
+    lr: float = 3e-4,
     arch_road_objects: str = "large",
     arch_road_graph: str = "medium",
     arch_shared_net: str = "small",
     activation_fn: str = "tanh",
-    speed_target: bool = True,
-    position_target_tolerance: float = 1.0,
-    speed_target_tolerance: float = 1.0,
+    position_target_tolerance: float = 2.0,
     dropout: float = 0.0,
-    total_timesteps: int = 1_000_000,
-    num_files: int = 10,
+    total_timesteps: int = 5_000_000,
+    num_files: int = 1000,
     reg_weight: float = 0.0,
 ) -> None:
     """Train RL agent using PPO with CLI arguments."""
     # ==== Overwrite default settings ==== #
     # Environment
-    exp_config.ppo.learing_rate = lr
+    exp_config.ppo.learning_rate = lr
     exp_config.ppo.batch_size = mini_batch_size
     exp_config.seed = seed
     env_config.steer_disc = steer_disc
     env_config.accel_disc = accel_disc
     env_config.num_files = num_files
-    env_config.rew_cfg.speed_target = speed_target
     env_config.rew_cfg.position_target_tolerance = position_target_tolerance
-    env_config.rew_cfg.speed_target_tolerance = speed_target_tolerance
 
     # Experiment
     exp_config.seed = seed
@@ -109,7 +109,9 @@ def run_hr_ppo(
         num_envs=env_config.max_num_vehicles,
     )
 
-    # Set up run
+    # Set up run_id
+    # Sleep for a random number of seconds so two runs never have the same run_id
+    sleep(randint(2, 15))
     datetime_ = datetime_to_str(dt=datetime.now())
     run_id = f"{datetime_}" if exp_config.track_wandb else None
 
@@ -130,7 +132,7 @@ def run_hr_ppo(
     exp_config.ppo.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     logging.info(f"Created env. Max # agents = {env_config.max_num_vehicles}.")
-    logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files} | using {exp_config.ppo.device}")
+    logging.info(f"Learning in {len(env.env.files)} scene(s) using {exp_config.ppo.device}")
 
     logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
     logging.info(f"Action_space\n: {env.env.idx_to_actions}")
@@ -169,7 +171,7 @@ def run_hr_ppo(
     # Set up PPO
     model = RegularizedPPO(
         learning_rate=lr,
-        reg_policy=human_policy,
+        reg_policy=human_policy, 
         reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
@@ -192,7 +194,7 @@ def run_hr_ppo(
     logging.info(f"Policy | trainable params: {params:,} \n")
 
     # Architecture
-    logging.info(f"Policy | arch: \n {model.policy}")
+    #logging.info(f"Policy | arch: \n {model.policy}")
 
     # Learn
     model.learn(
