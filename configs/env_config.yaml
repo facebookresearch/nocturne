@@ -22,7 +22,7 @@ accel_upper_bound: 3
 steering_lower_bound: -0.7 # steer right
 steering_upper_bound: 0.7 # steer left
 steering_discretization: 5
-max_num_vehicles: 20
+max_num_vehicles: 20 # Maximum number of vehicles in the scene we control
 randomize_goals: false
 scenario:
   # initial timestep of the scenario (which ranges from timesteps 0 to 90)

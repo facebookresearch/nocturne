@@ -153,28 +153,10 @@ if __name__ == "__main__":
     exp_config = load_config("exp_config")
     video_config = load_config("video_config")
 
-    env_config.num_files = 100
-
-    for lam in [0.0, 0.005, 0.01]:
-        # Define model architecture
-        model_config = None
-        # model_config = Box(
-        #     {
-        #         "arch_ego_state": [8],
-        #         "arch_road_objects": [64],
-        #         "arch_road_graph": [128, 64],
-        #         "arch_shared_net": [128],
-        #         "act_func": "tanh",
-        #         "dropout": 0.0,
-        #         "last_layer_dim_pi": 64,
-        #         "last_layer_dim_vf": 64,
-        #     }
-        # )
-
-        # Train
-        train(
-            env_config=env_config,
-            exp_config=exp_config,
-            video_config=video_config,
-            model_config=model_config,
-        )
+    # Train
+    train(
+        env_config=env_config,
+        exp_config=exp_config,
+        video_config=video_config,
+        model_config=None,
+    )
