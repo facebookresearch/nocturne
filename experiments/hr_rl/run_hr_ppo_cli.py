@@ -64,6 +64,7 @@ def run_hr_ppo(
     total_timesteps: int = 5_000_000,
     num_files: int = 1000,
     reg_weight: float = 0.0,
+    num_controlled_veh: int = 20
 ) -> None:
     """Train RL agent using PPO with CLI arguments."""
     # ==== Overwrite default settings ==== #
@@ -75,6 +76,12 @@ def run_hr_ppo(
     env_config.accel_disc = accel_disc
     env_config.num_files = num_files
     env_config.rew_cfg.position_target_tolerance = position_target_tolerance
+    
+    # Set the number of vehicles to control per scene
+    # If set to 1 we're doing single-agent RL (during training)
+    env_config.max_num_vehicles = num_controlled_veh
+    if env_config.max_num_vehicles == 1:
+        exp_config.ppo.n_steps = int(4096 * 5)
 
     # Experiment
     exp_config.seed = seed
