@@ -94,7 +94,7 @@ ego_state_feat_max:
   curr_steering: 3
   curr_head_angle: 0.00001 # Not used at the moment
 
-vis_obs_max: 100 # The maximum value across visible state elements
+vis_obs_max: 500 # The maximum value across visible state elements
 vis_obs_min: -10 # The minimum value across visible state elements
 
 # # # # Agent settings # # # #
