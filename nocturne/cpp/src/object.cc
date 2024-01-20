@@ -106,18 +106,18 @@ void Object::SetActionFromKeyboard() {
   }
 }
 
-// Kinematic Bicycle Model
-// https://www.coursera.org/lecture/intro-self-driving-cars/lesson-2-the-kinematic-bicycle-model-Bi8yE
+// Kinematic Bicycle Model from Waymax
+// https://github.com/waymo-research/waymax/blob/main/waymax/dynamics/bicycle_model.py
 void Object::KinematicBicycleStep(float dt) {
-  const float v =
-      ClipSpeed(speed_ + 0.5f * acceleration_ * dt);  // Average speed
-  const float tan_delta = std::tan(steering_);
-  // Assume center of mass lies at the middle of length, then l / L == 0.5.
-  const float beta = std::atan(0.5f * tan_delta);
-  const geometry::Vector2D d = geometry::PolarToVector2D(v, heading_ + beta);
-  const float w = v * std::cos(beta) * tan_delta / length_;
-  position_ += d * dt;
-  heading_ = geometry::utils::AngleAdd(heading_, w * dt);
+  // Forward dynamics:
+  //     new_x = x + vel_x * t + 1/2 * accel * cos(yaw) * t ** 2
+  //     new_y = y + vel_y * t + 1/2 * accel * sin(yaw) * t ** 2
+  //     new_yaw = yaw + steering * (speed * t + 1/2 * accel * t ** 2)
+  //     new_vel = vel + accel * t
+  geometry::Vector2D vel = Velocity();
+  geometry::Vector2D rot = geometry::Vector2D(std::cos(heading_), std::sin(heading_));
+  position_ = position_ + vel * dt + 0.5 * acceleration_ * rot * (float)pow(dt, 2);
+  heading_ = geometry::utils::AngleAdd(heading_, (float)(steering_ * (speed_ * dt + 0.5 * acceleration_ * pow(dt, 2))));
   speed_ = ClipSpeed(speed_ + acceleration_ * dt);
 }
 
