@@ -1,11 +1,11 @@
-import numpy as np
 import gymnasium as gym
+import numpy as np
 
 from nocturne.envs.base_env import BaseEnv
 from utils.config import load_config
 
 
-class LightNocturneEnvWrapper: 
+class LightNocturneEnvWrapper:
     """A minimal wrapper around the Nocturne BaseEnv."""
 
     def __init__(self, config):
@@ -15,7 +15,7 @@ class LightNocturneEnvWrapper:
         # Make action and observation spaces compatible with SB3 (requires gymnasium)
         self.action_space = gym.spaces.Discrete(self.env.action_space.n)
         self.observation_space = gym.spaces.Box(-np.inf, np.inf, self.env.observation_space.shape, np.float32)
-    
+
     def step(self, actions=None):
         """If actions is None, vehicles are stepped in expert control mode."""
 
@@ -24,10 +24,11 @@ class LightNocturneEnvWrapper:
 
         if actions is not None:
             agent_actions = {
-                agent_id: actions[idx] for idx, agent_id in enumerate(self.agent_ids) 
+                agent_id: actions[idx]
+                for idx, agent_id in enumerate(self.agent_ids)
                 if agent_id not in self.dead_agent_ids
             }
-        else: # Set in expert control mode
+        else:  # Set in expert control mode
             for veh_obj in self.env.controlled_vehicles:
                 veh_obj.expert_control = True
             agent_actions = {}
@@ -40,19 +41,19 @@ class LightNocturneEnvWrapper:
             if is_done and agent_id not in self.dead_agent_ids:
                 self.dead_agent_ids.append(agent_id)
 
+                # Store agents' last info dict
+                self.last_info_dicts[agent_id] = info_dict[agent_id].copy()
+
         # Convert dicts to arrays
         for idx, key in enumerate(self.agent_ids):
             if key in next_obses_dict:
                 obs[idx, :] = next_obses_dict[key]
-                rews[idx] = rew_dict[key] 
+                rews[idx] = rew_dict[key]
                 dones[idx] = done_dict[key] * 1
                 infos.append(info_dict[key])
             else:
                 infos.append([None])
-            
-
         return obs, rews, dones, infos
-
 
     def reset(self, filename=None):
         obs_dict = self.env.reset(filename)
@@ -68,6 +69,8 @@ class LightNocturneEnvWrapper:
             obs.append(obs_dict[agent_id])
 
         self.map_agent_id_to_idx = {agent_id: idx for idx, agent_id in enumerate(self.agent_ids)}
+        # Make dict for storing the last info set for each agent
+        self.last_info_dicts = {agent_id: {} for agent_id in self.agent_ids}
 
         return np.array(obs)
 
@@ -76,10 +79,7 @@ class LightNocturneEnvWrapper:
         self.env.close()
 
 
-
-
 if __name__ == "__main__":
-
     env_config = load_config("env_config")
 
     env = LightNocturneEnvWrapper(env_config)

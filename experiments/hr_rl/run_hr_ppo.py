@@ -2,20 +2,16 @@
 import logging
 from contextlib import nullcontext
 from datetime import datetime
+from typing import Callable
 
 import numpy as np
 import torch
-from box import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 import wandb
 
-from typing import Callable
-
-# Import networks
-from networks.mlp_late_fusion import LateFusionMLP, LateFusionMLPPolicy
 # Permutation equivariant network
-from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy 
+from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy
 
 # Multi-agent as vectorized environment
 from nocturne.envs.vec_env_ma import MultiAgentAsVecEnv
@@ -32,6 +28,7 @@ from utils.string_utils import datetime_to_str
 
 logging.basicConfig(level=logging.INFO)
 
+
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
     """
     Linear learning rate schedule.
@@ -40,6 +37,7 @@ def linear_schedule(initial_value: float) -> Callable[[float], float]:
     :return: schedule that computes
       current learning rate depending on remaining progress
     """
+
     def func(progress_remaining: float) -> float:
         """
         Progress will decrease from 1 (beginning) to 0.
@@ -50,6 +48,7 @@ def linear_schedule(initial_value: float) -> Callable[[float], float]:
         return progress_remaining * initial_value
 
     return func
+
 
 def train(env_config, exp_config, video_config, model_config):  # pylint: disable=redefined-outer-name
     """Train RL agent using PPO."""
@@ -84,7 +83,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         logging.info(f"Learning in {len(env.env.files)} scene(s): {env.env.files} | using {exp_config.ppo.device}")
         logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
         logging.info(f"Action_space\n: {env.env.idx_to_actions}")
-        
+
         if exp_config.reg_weight > 0.0:
             logging.info(f"Regularization weight: {exp_config.reg_weight} with policy: {exp_config.human_policy_path}")
 
@@ -107,7 +106,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
                     model=model,
                     n_steps=None,
                 )
-        
+
         human_policy = None
         # Load human reference policy if regularization is used
         if exp_config.reg_weight > 0.0:
@@ -118,7 +117,7 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
 
         # Set up PPO
         model = RegularizedPPO(
-            learning_rate=linear_schedule(1e-4),
+            learning_rate=linear_schedule(float(exp_config.ppo.learning_rate)),
             reg_policy=human_policy,
             reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
             env=env,
@@ -141,14 +140,12 @@ def train(env_config, exp_config, video_config, model_config):  # pylint: disabl
         exp_config.n_policy_params = params
         logging.info(f"Policy | trainable params: {params:,} \n")
 
-        # Architecture
-        logging.info(f"Policy | arch: \n {model.policy}")
-
         # Learn
         model.learn(
             **exp_config.learn,
             callback=custom_callback,
         )
+
 
 if __name__ == "__main__":
     # Load environment and experiment configurations
@@ -156,27 +153,10 @@ if __name__ == "__main__":
     exp_config = load_config("exp_config")
     video_config = load_config("video_config")
 
-    env_config.num_files = 10
-
-    # Define model architecture
-    model_config = None
-    # model_config = Box(
-    #     {
-    #         "arch_ego_state": [8],
-    #         "arch_road_objects": [64],
-    #         "arch_road_graph": [128, 64],
-    #         "arch_shared_net": [128],
-    #         "act_func": "tanh",
-    #         "dropout": 0.0,
-    #         "last_layer_dim_pi": 64,
-    #         "last_layer_dim_vf": 64,
-    #     }
-    # )
-
     # Train
     train(
         env_config=env_config,
         exp_config=exp_config,
         video_config=video_config,
-        model_config=model_config,
+        model_config=None,
     )
