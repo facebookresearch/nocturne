@@ -554,25 +554,19 @@ std::optional<Action> Scenario::ExpertAction(const Object& obj,
     return std::nullopt;
   }
 
-  // compute acceleration
+  // Calculate acceleration.
   // a_t = (v_{t+1} - v_t) / dt
-  const float acceleration =
+  const float accel =
       (cur_speeds[timestamp + 1] - cur_speeds[timestamp]) / expert_dt_;
-
-  // compute steering
-  // cf Object::KinematicBicycleStep
-  // w = (h_{t+1} - h_t) / dt = v * tan(steering) * cos(beta) / length
-  // -> solve for steering s_t, we get s_t = atan(2C / sqrt(4 - C^2)) + k * pi
-  // with C = 2 * length * (h_{t+1} - h_t) / (dt * (v_t + v_{t+1}))
-  const float w = geometry::utils::AngleSub(cur_headings[timestamp + 1],
-                                            cur_headings[timestamp]) /
-                  expert_dt_;
-  const float C = 2.0f * obj.length() * w /
-                  (cur_speeds[timestamp + 1] + cur_speeds[timestamp]);
-  const float steering = std::atan(2.0f * C / std::sqrt(4 - C * C));
-
+  const float delta_yaw = geometry::utils::AngleSub(cur_headings[timestamp + 1],
+                                            cur_headings[timestamp]);
+  // Calculate steering.
+  float steering = delta_yaw / (cur_speeds[timestamp] * expert_dt_ + 0.5 * accel * pow(expert_dt_, 2));
+  if (cur_speeds[timestamp] < 0.6) {
+    steering = 0.0;
+  }
   // return action
-  return std::make_optional<Action>(acceleration, steering, 0.0);
+  return std::make_optional<Action>(accel, steering, 0.0);
 }
 
 std::optional<geometry::Vector2D> Scenario::ExpertPosShift(
