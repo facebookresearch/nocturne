@@ -2,6 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+#include <iostream>
 #include "scenario.h"
 
 #include <algorithm>
@@ -569,8 +570,10 @@ std::optional<Action> Scenario::ExpertAction(const Object& obj,
                   expert_dt_;
   const float C = 2.0f * obj.length() * w /
                   (cur_speeds[timestamp + 1] + cur_speeds[timestamp]);
-  const float steering = std::atan(2.0f * C / std::sqrt(4 - C * C));
-
+  float steering = 0.0;
+  if (cur_speeds[timestamp] > 0.6f) {
+    steering = std::atan(2.0f * C / std::sqrt(4 - C * C));
+  }
   // return action
   return std::make_optional<Action>(acceleration, steering, 0.0);
 }
