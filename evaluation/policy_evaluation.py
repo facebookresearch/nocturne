@@ -1,3 +1,4 @@
+"""Evaluate a policy on a set of scenes."""
 import logging
 
 import numpy as np
@@ -22,19 +23,23 @@ def evaluate_policy(
 ):
     """Evaluate a policy on a set of scenes.
 
-    Args:
+    Args
+    ----
         env_config (Box): Environment configurations.
         mode (str): Mode of evaluation. Either "expert_replay" or "policy".
         scene_path_mapping (dict, optional): Dictionary with scene information. Defaults to None.
         policy (optional): Learned policy. Defaults to None.
         num_scenes (int, optional): Number of traffic scenes to use for evaluation. Defaults to 100.
         controlled_agents (int, optional): Number of agents to control with the provided policy. Defaults to 1.
-        deterministic (bool, optional): Whether to evaluate the policy in deterministic or stochastic mode. Defaults to True.
+        deterministic (bool, optional): Whether to evaluate the policy in deterministic or stochastic mode. Defaults to
+            True.
 
-    Raises:
+    Raises
+    ------
         ValueError: If scene is not found in scene_path_mapping.
 
-    Returns:
+    Returns
+    -------
         df: performance per scene.
     """
     # Set the number of vehicles to control per scene
@@ -127,10 +132,12 @@ def evaluate_policy(
                         action_dict[veh_obj.id] = expert_action_idx
 
                         logging.debug(
-                            f"true_exp_acc = {expert_action.acceleration:.4f}; true_exp_steer = {expert_action.steering:.4f}"
+                            f"true_exp_acc = {expert_action.acceleration:.4f}; "
+                            f"true_exp_steer = {expert_action.steering:.4f}"
                         )
                         logging.debug(
-                            f"disc_exp_acc = {env.accel_grid[acc_grid_idx]:.4f}; disc_exp_steer = {env.steering_grid[ste_grid_idx]:.4f} \n"
+                            f"disc_exp_acc = {env.accel_grid[acc_grid_idx]:.4f}; "
+                            f"disc_exp_steer = {env.steering_grid[ste_grid_idx]:.4f} \n"
                         )
 
             # Take a step

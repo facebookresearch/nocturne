@@ -1,7 +1,6 @@
 """Train HR-PPO agent with CLI arguments."""
 import logging
 import os
-from contextlib import nullcontext
 from datetime import datetime
 from random import randint
 from time import sleep
@@ -145,7 +144,8 @@ def run_hr_ppo(
     logging.info(f"--- obs_space: {env.observation_space.shape[0]} ---")
     logging.info(f"Action_space\n: {env.env.idx_to_actions}")
     logging.info(
-        f"Pos target tol: {env_config.rew_cfg.position_target_tolerance} | Speed target: {env_config.rew_cfg.speed_target} - tol: {env_config.rew_cfg.speed_target_tolerance}"
+        f"Pos target tol: {env_config.rew_cfg.position_target_tolerance} | "
+        f"Speed target: {env_config.rew_cfg.speed_target} - tol: {env_config.rew_cfg.speed_target_tolerance}"
     )
 
     # Initialize custom callback
