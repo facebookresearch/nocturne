@@ -110,4 +110,3 @@ subscriber:
 
 # Path to folder with traffic scene(s) from which to create an environment
 data_path: ./data_full/train
-val_data_path: ./data_full/valid
