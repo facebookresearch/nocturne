@@ -79,3 +79,7 @@ logs/
 
 # Trained models
 models/
+
+# Figures and results
+figures/
+results/
