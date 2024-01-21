@@ -1,21 +1,25 @@
-import numpy as np
-import torch
-from tqdm import tqdm
-import pandas as pd
-from nocturne.envs.base_env import BaseEnv
-from utils.config import load_config
 import logging
 
+import numpy as np
+import pandas as pd
+import torch
+from tqdm import tqdm
+
+from nocturne.envs.base_env import BaseEnv
+from utils.config import load_config
+
+
 def evaluate_policy(
-    env_config, 
-    mode, 
+    env_config,
+    mode,
     num_scenes=100,
-    max_iters=100, 
-    scene_path_mapping=None, 
-    policy=None, 
-    controlled_agents=1, 
+    num_iters=100,
+    eval_traffic_scenes=None,
+    scene_path_mapping=None,
+    policy=None,
+    controlled_agents=1,
     deterministic=True,
-):  
+):
     """Evaluate a policy on a set of scenes.
 
     Args:
@@ -33,13 +37,9 @@ def evaluate_policy(
     Returns:
         df: performance per scene.
     """
-    
-    MAX_ACCEL = 0
-    MAX_STEERING = 0
-    
     # Set the number of vehicles to control per scene
     env_config.max_num_vehicles = controlled_agents
-    
+
     # Set which files to use
     env_config.num_files = num_scenes
 
@@ -49,31 +49,28 @@ def evaluate_policy(
     # Storage
     df = pd.DataFrame(
         columns=[
-            'scene_id',
-            'veh_id',
-            'goal_rate', 
-            'off_road', 
-            'veh_veh_collision', 
+            "scene_id",
+            "veh_id",
+            "goal_rate",
+            "off_road",
+            "veh_veh_collision",
         ],
     )
 
     # Run
     obs_dict = env.reset()
     agent_ids = [veh_id for veh_id in obs_dict.keys()]
+    veh_id_to_idx = {veh_id: idx for idx, veh_id in enumerate(agent_ids)}
     dead_agent_ids = []
     last_info_dicts = {agent_id: {} for agent_id in agent_ids}
-    total_off_road = 0
-    total_coll = 0
-    total_goal_achieved = 0
+    goal_achieved = np.zeros(len(agent_ids))
+    off_road = np.zeros(len(agent_ids))
+    veh_veh_coll = np.zeros(len(agent_ids))
 
-    for episode in tqdm(range(max_iters)):
-        
-        logging.debug(f'scene: {env.file} -- veh_id = {agent_ids[0]} --')
-        
-        frames = []
-        
+    for episode in tqdm(range(num_iters)):
+        logging.debug(f"scene: {env.file} -- veh_id = {agent_ids} --")
+
         for time_step in range(env_config.episode_length):
-            
             # Get actions
             action_dict = {}
 
@@ -86,65 +83,55 @@ def evaluate_policy(
                     action, _ = policy.predict(obs, deterministic=deterministic)
                     action_dict[agent_id] = int(action)
 
+            elif mode == "policy" and policy is None:
+                raise ValueError("Policy is not given. Please provide a policy.")
+
             if mode == "expert_replay":
                 # Use expert actions
                 for veh_obj in env.controlled_vehicles:
                     veh_obj.expert_control = True
-                    
-                    expert_action = env.scenario.expert_action(veh_obj, time_step)
-                    
-                    if expert_action is not None:
-                        if expert_action.acceleration > MAX_ACCEL:
-                            MAX_ACCEL = expert_action.acceleration
-                            #print(f'MAX_ACCEL: {MAX_ACCEL:3f}')
-                        if expert_action.steering > MAX_STEERING:
-                            MAX_STEERING = expert_action.steering
-                            #print(f'MAX_STEERING: {MAX_STEERING:3f} \n')  
-            
+
             if mode == "cont_expert_act_replay":  # Use continuous expert actions
                 for veh_obj in env.controlled_vehicles:
                     veh_obj.expert_control = False
-                    
+
                     # Get (continuous) expert action
                     expert_action = env.scenario.expert_action(veh_obj, time_step)
-                    
+
                     action_dict[veh_obj.id] = expert_action
-                    
-            if mode == "disc_expert_act_replay":  # Use discretized expert actions            
+
+            if mode == "disc_expert_act_replay":  # Use discretized expert actions
                 # Get expert actions and discretize
                 for veh_obj in env.controlled_vehicles:
-                    veh_obj.expert_control = True
-                    
+                    veh_obj.expert_control = False
+
                     # Get (continuous) expert action
                     expert_action = env.scenario.expert_action(veh_obj, time_step)
-                                
+
                     # Discretize expert action
                     if expert_action is None:
-                        logging.info(f'None at {time_step} for veh {veh_obj.id} in {env.file} \n')
-                    
+                        logging.info(f"None at {time_step} for veh {veh_obj.id} in {env.file} \n")
+
                     elif expert_action is not None:
                         expert_accel, expert_steering, _ = expert_action.numpy()
-                        
+
                         # Map actions to nearest grid indices and joint action
                         acc_grid_idx = np.argmin(np.abs(env.accel_grid - expert_accel))
                         ste_grid_idx = np.argmin(np.abs(env.steering_grid - expert_steering))
-    
+
                         expert_action_idx = env.actions_to_idx[
-                            env.accel_grid[acc_grid_idx], 
+                            env.accel_grid[acc_grid_idx],
                             env.steering_grid[ste_grid_idx],
                         ][0]
-                        
+
                         action_dict[veh_obj.id] = expert_action_idx
-                                            
-                        logging.debug(f'true_exp_acc = {expert_action.acceleration:.4f}; true_exp_steer = {expert_action.steering:.4f}')
-                        logging.debug(f'disc_exp_acc = {env.accel_grid[acc_grid_idx]:.4f}; disc_exp_steer = {env.steering_grid[ste_grid_idx]:.4f} \n')
-                        
-                for veh_obj in env.controlled_vehicles:
-                    veh_obj.expert_control = True
-                        
-                # Turn off expert control
-                for veh_obj in env.controlled_vehicles:
-                    veh_obj.expert_control = False
+
+                        logging.debug(
+                            f"true_exp_acc = {expert_action.acceleration:.4f}; true_exp_steer = {expert_action.steering:.4f}"
+                        )
+                        logging.debug(
+                            f"disc_exp_acc = {env.accel_grid[acc_grid_idx]:.4f}; disc_exp_steer = {env.steering_grid[ste_grid_idx]:.4f} \n"
+                        )
 
             # Take a step
             obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
@@ -158,66 +145,71 @@ def evaluate_policy(
             if done_dict["__all__"]:
                 # Update df
                 for agent_id in agent_ids:
-                    total_coll += last_info_dicts[agent_id]["veh_veh_collision"] * 1
-                    total_off_road += last_info_dicts[agent_id]["veh_edge_collision"] * 1
-                    total_goal_achieved += last_info_dicts[agent_id]["goal_achieved"] * 1
-                                
+                    agend_idx = veh_id_to_idx[agent_id]
+                    veh_veh_coll[agend_idx] += last_info_dicts[agent_id]["veh_veh_collision"] * 1
+                    off_road[agend_idx] += last_info_dicts[agent_id]["veh_edge_collision"] * 1
+                    goal_achieved[agend_idx] += last_info_dicts[agent_id]["goal_achieved"] * 1
+
                 if scene_path_mapping is not None:
                     if env.file in scene_path_mapping.keys():
                         df_scene_i = pd.DataFrame(
-                            {   
-                                'scene_id': env.file,
-                                'veh_id': agent_ids[0],
-                                'goal_rate': total_goal_achieved, 
-                                'off_road': total_off_road, 
-                                'veh_veh_collision': total_coll, 
-                                'num_total_vehs' : scene_path_mapping[env.file]["num_agents"],
-                                'num_controlled_vehs': len(agent_ids),
-                                'num_int_paths': scene_path_mapping[env.file]["intersecting_paths"],
+                            {
+                                "scene_id": env.file,
+                                "veh_id": agent_ids,
+                                "goal_rate": goal_achieved,
+                                "off_road": off_road,
+                                "veh_veh_collision": veh_veh_coll,
+                                "num_total_vehs": scene_path_mapping[env.file]["num_agents"],
+                                "num_controlled_vehs": len(agent_ids),
+                                "num_int_paths": scene_path_mapping[env.file]["intersecting_paths"],
                             },
-                        index=[0]) 
+                            index=list(range(len(agent_ids))),
+                        )
                     else:
                         raise ValueError(f"Scene {env.file} not found in scene_path_mapping")
-                                
+
                 else:
                     df_scene_i = pd.DataFrame(
-                        {   
-                            'scene_id': env.file,
-                            'goal_rate': total_goal_achieved, 
-                            'off_road': total_off_road, 
-                            'veh_veh_collision': total_coll, 
+                        {
+                            "scene_id": env.file,
+                            "veh_id": agent_ids,
+                            "goal_rate": goal_achieved,
+                            "off_road": off_road,
+                            "veh_veh_collision": veh_veh_coll,
                         },
-                    index=[0])  
-                 
+                        index=list(range(len(agent_ids))),
+                    )
+
                 # Append to df
                 df = pd.concat([df, df_scene_i], ignore_index=True)
-        
+
                 # Reset
                 obs_dict = env.reset()
                 agent_ids = [veh_id for veh_id in obs_dict.keys()]
+                veh_id_to_idx = {veh_id: idx for idx, veh_id in enumerate(agent_ids)}
                 dead_agent_ids = []
                 last_info_dicts = {agent_id: {} for agent_id in agent_ids}
-                total_off_road = 0
-                total_coll = 0
-                total_goal_achieved = 0
-                
-                break # Continue to next scene
+                goal_achieved = np.zeros(len(agent_ids))
+                off_road = np.zeros(len(agent_ids))
+                veh_veh_coll = np.zeros(len(agent_ids))
+
+                break  # Proceed to next scene
 
     return df
 
 
 if __name__ == "__main__":
-    
     # Global setting
     logger = logging.getLogger()
     logging.basicConfig(format="%(message)s")
-    logger.setLevel('INFO')
-    
+    logger.setLevel("INFO")
+
     env_config = load_config("env_config")
-    
+
     df_disc_expert_replay = evaluate_policy(
         env_config=env_config,
-        mode='disc_expert_replay',
+        mode="disc_expert_replay",
         num_scenes=100,
         max_iters=100,
+        controlled_agents=2,
     )
