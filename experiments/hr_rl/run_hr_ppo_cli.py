@@ -1,17 +1,18 @@
 """Train HR-PPO agent with CLI arguments."""
 import logging
+import os
 from contextlib import nullcontext
 from datetime import datetime
+from random import randint
+from time import sleep
 
 import numpy as np
 import torch
 import typer
 from box import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
-from random import randint
-from time import sleep
+
 import wandb
-import os
 
 # Permutation equivariant network
 from networks.perm_eq_late_fusion import LateFusionNet, LateFusionPolicy
@@ -64,6 +65,7 @@ def run_hr_ppo(
     total_timesteps: int = 5_000_000,
     num_files: int = 1000,
     reg_weight: float = 0.0,
+    num_controlled_veh: int = 20,
 ) -> None:
     """Train RL agent using PPO with CLI arguments."""
     # ==== Overwrite default settings ==== #
@@ -75,6 +77,12 @@ def run_hr_ppo(
     env_config.accel_disc = accel_disc
     env_config.num_files = num_files
     env_config.rew_cfg.position_target_tolerance = position_target_tolerance
+
+    # Set the number of vehicles to control per scene
+    # If set to 1 we're doing single-agent RL (during training)
+    env_config.max_num_vehicles = num_controlled_veh
+    if env_config.max_num_vehicles == 1:
+        exp_config.ppo.n_steps = int(4096 * 5)
 
     # Experiment
     exp_config.seed = seed
@@ -171,7 +179,7 @@ def run_hr_ppo(
     # Set up PPO
     model = RegularizedPPO(
         learning_rate=lr,
-        reg_policy=human_policy, 
+        reg_policy=human_policy,
         reg_weight=exp_config.reg_weight,  # Regularization weight; lambda
         env=env,
         n_steps=exp_config.ppo.n_steps,
@@ -194,7 +202,7 @@ def run_hr_ppo(
     logging.info(f"Policy | trainable params: {params:,} \n")
 
     # Architecture
-    #logging.info(f"Policy | arch: \n {model.policy}")
+    # logging.info(f"Policy | arch: \n {model.policy}")
 
     # Learn
     model.learn(
