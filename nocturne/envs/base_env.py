@@ -52,7 +52,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     ) -> None:
         """Initialize a Nocturne environment.
 
-        Args
+        Args:
         ----
             config (dict): configuration file for the environment.
 
@@ -111,7 +111,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def apply_actions(self, action_dict: Dict[int, ActType]) -> None:
         """Apply a dict of actions to the vehicle objects.
 
-        Args
+        Args:
         ----
             action_dict (Dict[int, ActType]): Dictionary of actions to apply to the vehicles.
         """
@@ -126,16 +126,16 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     ) -> Tuple[Dict[int, ObsType], Dict[int, float], Dict[int, bool], Dict[int, Dict[str, Union[bool, str]]]]:
         """Run one timestep of the environment's dynamics.
 
-        Args
+        Args:
         ----
             action_dict (Dict[int, ActType]): Dictionary of actions to apply to the vehicles.
 
-        Raises
+        Raises:
         ------
             ValueError: If the action is not of a supported type or if the vehicle collision type is unknown.
 
 
-        Returns
+        Returns:
         -------
             Dict[int, ObsType]: Dictionary with observation for each vehicle.
             Dict[int, float]: Dictionary with reward for each vehicle.
@@ -186,11 +186,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             info_dict[veh_id]["collided"] = False
             info_dict[veh_id]["veh_veh_collision"] = False
             info_dict[veh_id]["veh_edge_collision"] = False
-            
+
             # Get current vehicle position and goal position
             obj_pos = veh_obj.position
             goal_pos = self.veh_goal_positions[veh_id]
-            
+
             ############################################
             #   Compute rewards
             ############################################
@@ -300,12 +300,13 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         psr_dict=None,
     ) -> Dict[int, ObsType]:
         """Reset the environment.
-        Args
+
+        Args:
         ----
         filename: If provided, reset env to this traffic scene.
         psr_dict: If provided, reset env to a scene sampled with given probabilities.
 
-        Returns
+        Returns:
         -------
             Dict[int, ObsType]: Dictionary of observations for each vehicle.
         """
@@ -428,10 +429,10 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             raise ValueError(f"No controllable vehicles in any of the {len(self.files)} scenes.")
 
         # Set goal positions for controlled vehicles
-        self.veh_goal_positions = {}  
+        self.veh_goal_positions = {}
         for veh_obj in self.controlled_vehicles:
             self.veh_goal_positions[veh_obj.getID()] = veh_obj.target_position
-        
+
         # construct the observations and goal normalizers
         obs_dict = {}
         self.goal_dist_normalizers = {}
@@ -464,7 +465,6 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 # from the ego frame
                 self.render_vehicle = veh_obj
                 max_goal_dist = dist
-                
 
         self.done_ids = []
         # Sanity check: Check if any vehicle is at an invalid position
@@ -476,18 +476,17 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 self.invalid_samples += 1
 
         self.total_samples += len(obs_dict.keys())
-        
 
         return obs_dict
 
     def get_observation(self, veh_obj: Vehicle) -> np.ndarray:
         """Return the observation for a particular vehicle.
 
-        Args
+        Args:
         ----
             veh_obj (Vehicle): Vehicle object to get the observation for.
 
-        Returns
+        Returns:
         -------
             np.ndarray: Observation for the vehicle.
         """
@@ -522,9 +521,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         return obs
 
     def _get_obs_space_dim(self, config, base=0):
-        """
-        Calculate observation dimension based on the configs.
-        """
+        """Calculate observation dimension based on the configs."""
         # Set dimensions (fixed values)
         self.road_obj_feat = 13
         self.road_graph_feat = 13
@@ -565,11 +562,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def render(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the environment.
 
-        Args
+        Args:
         ----
             mode (Optional[bool]): Render mode.
 
-        Returns
+        Returns:
         -------
             Optional[RenderType]: Rendered image.
         """
@@ -582,11 +579,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def render_ego(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the ego vehicles.
 
-        Args
+        Args:
         ----
             mode (Optional[bool]): Render mode.
 
-        Returns
+        Returns:
         -------
             Optional[RenderType]: Rendered image.
         """
@@ -603,11 +600,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def render_features(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the features.
 
-        Args
+        Args:
         ----
             mode (Optional[bool]): Render mode.
 
-        Returns
+        Returns:
         -------
             Optional[RenderType]: Rendered image.
         """
@@ -624,7 +621,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     def seed(self, seed: Optional[int] = None) -> None:
         """Seed the environment.
 
-        Args
+        Args:
         ----
             seed (Optional[int]): Seed to use.
         """
@@ -692,12 +689,12 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 def _angle_sub(current_angle: float, target_angle: float) -> float:
     """Subtract two angles to find the minimum angle between them.
 
-    Args
+    Args:
     ----
         current_angle (float): Current angle.
         target_angle (float): Target angle.
 
-    Returns
+    Returns:
     -------
         float: Minimum angle between the two angles.
     """
@@ -716,7 +713,7 @@ def _apply_action_to_vehicle(
 ) -> None:
     """Apply an action to a vehicle.
 
-    Args
+    Args:
     ----
         veh_obj (Vehicle): Vehicle object to apply the action to.
         action (ActType): Action to apply to the vehicle.
@@ -725,7 +722,7 @@ def _apply_action_to_vehicle(
     -------------
         idx_to_actions (Optional[Dict[int, Tuple[float, float]]]): Dictionary of actions to apply to the vehicle.
 
-    Raises
+    Raises:
     ------
         NotImplementedError: If the action type is not supported.
     """
@@ -749,11 +746,11 @@ def _apply_action_to_vehicle(
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.
 
-    Args
+    Args:
     ----
         position (Vector2D): Position to convert.
 
-    Returns
+    Returns:
     -------
         np.ndarray: Position as an array.
     """
