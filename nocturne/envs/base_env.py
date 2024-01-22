@@ -91,7 +91,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             raise ValueError("Data path does not contain scenes.")
 
         # Set observation space
-        obs_dim = self._get_obs_space_dim(self.config)
+        obs_dim = self._get_obs_space_dim()
         self.observation_space = Box(
             low=-np.inf,
             high=np.inf,
@@ -189,7 +189,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
             # Get current vehicle position and goal position
             obj_pos = veh_obj.position
-            goal_pos = self.veh_goal_positions[veh_id]
+            goal_pos = veh_obj.target_position
 
             ############################################
             #   Compute rewards
@@ -315,8 +315,9 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
+
         for _ in range(_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE):
-            # Sample new traffic scene
+            # RESET TO NEW TRAFFIC SCENE
             if filename is not None:
                 # Reset to a specific scene name
                 self.file = filename
@@ -429,11 +430,9 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             raise ValueError(f"No controllable vehicles in any of the {len(self.files)} scenes.")
 
         # Set goal positions for controlled vehicles
-        self.veh_goal_positions = {}
-        for veh_obj in self.controlled_vehicles:
-            self.veh_goal_positions[veh_obj.getID()] = veh_obj.target_position
+        self._set_goal_positions()
 
-        # construct the observations and goal normalizers
+        # Construct the observations and goal normalizers
         obs_dict = {}
         self.goal_dist_normalizers = {}
         max_goal_dist = -np.inf
@@ -441,7 +440,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             veh_id = veh_obj.getID()
             # store normalizers for each vehicle
             obj_pos = _position_as_array(veh_obj.getPosition())
-            goal_pos = _position_as_array(self.veh_goal_positions[veh_id])
+            goal_pos = _position_as_array(veh_obj.getGoalPosition())
             dist = np.linalg.norm(obj_pos - goal_pos)
             self.goal_dist_normalizers[veh_id] = dist
             # compute the obs
@@ -520,7 +519,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         return obs
 
-    def _get_obs_space_dim(self, config, base=0):
+    def _get_obs_space_dim(self, base=0):
         """Calculate observation dimension based on the configs."""
         # Set dimensions (fixed values)
         self.road_obj_feat = 13
@@ -551,6 +550,38 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         return (obs_space_dim,)
 
+    def _set_goal_positions(self) -> None:
+        """Set the goal positions for the controlled vehicles."""
+        for veh_obj in self.controlled_vehicles:
+            # Set the goal position to a random position on the expert trajectory
+            if self.config.target_positions.randomize_goals:
+                # Create list with intermediate goal positions
+                goal_positions = [
+                    self.scenario.expert_position(veh_obj, goal_time_step)
+                    for goal_time_step in self.config.target_positions.time_steps_list
+                ]
+                # Add original goal position
+                goal_positions += [veh_obj.target_position]
+
+                # Remove invalid goal positions (experts are done at different steps)
+                goal_positions = [
+                    goal_pos for goal_pos in goal_positions if goal_pos.x != self.config.scenario.invalid_position
+                ]
+
+                # Sample random position
+                rand_goal_pos = random.choice(goal_positions)
+
+                logging.debug(f"def_goal_pos: {veh_obj.target_position}")
+
+                # Set vehicle goal position
+                veh_obj.setGoalPosition(rand_goal_pos)
+
+                logging.debug(f"new_goal_pos: {veh_obj.target_position} \n")
+
+            else:  # Keep the standard goal positions at the end of the expert trajectory
+                veh_obj.setGoalPosition(veh_obj.target_position)
+                logging.debug(f"goal_pos: {veh_obj.target_position} \n")
+
     def normalize_ego_state_by_cat(self, state):
         """Divide every feature in the ego state by the maximum value of that feature."""
         return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
@@ -559,7 +590,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         """Divide all visible state elements by the maximum value across the visible state."""
         return state / self.config.vis_obs_max
 
-    def render(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
+    def render(self) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the environment.
 
         Args:
@@ -576,7 +607,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             **self._render_settings,
         )
 
-    def render_ego(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
+    def render_ego(self) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the ego vehicles.
 
         Args:
@@ -597,7 +628,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             **self._render_settings,
         )
 
-    def render_features(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
+    def render_features(self) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the features.
 
         Args:
@@ -672,16 +703,16 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         # OBS FLAT ORDER: road_objects, road_points, traffic_lights, stop_signs
         # Find the ends of each section
-        ROAD_OBJECTS_END = 13 * self.config.scenario.max_visible_objects
-        ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
-        TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
-        STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
+        road_objects_end = 13 * self.config.scenario.max_visible_objects
+        road_points_end = road_objects_end + (13 * self.config.scenario.max_visible_road_points)
+        tl_end = road_points_end + (12 * self.config.scenario.max_visible_traffic_lights)
+        stop_sign_end = tl_end + (3 * self.config.scenario.max_visible_stop_signs)
 
         # Unflatten
-        road_objects = obs_flat[:ROAD_OBJECTS_END]
-        road_points = obs_flat[ROAD_OBJECTS_END:ROAD_POINTS_END]
-        traffic_lights = obs_flat[ROAD_POINTS_END:TL_END]
-        stop_signs = obs_flat[TL_END:STOP_SIGN_END]
+        road_objects = obs_flat[:road_objects_end]
+        road_points = obs_flat[road_objects_end:road_points_end]
+        traffic_lights = obs_flat[road_points_end:tl_end]
+        stop_signs = obs_flat[tl_end:stop_sign_end]
 
         return road_objects, road_points, traffic_lights, stop_signs
 
@@ -773,7 +804,7 @@ if __name__ == "__main__":
     dead_agent_ids = []
 
     num_total = 10_000
-    for step in range(num_total):
+    for _ in range(num_total):
         # Sample actions
         action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
 
