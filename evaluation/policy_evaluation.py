@@ -14,39 +14,47 @@ def evaluate_policy(
     env_config,
     mode,
     controlled_agents,
-    num_scenes=100,
-    num_iters=100,
-    eval_traffic_scenes=None,
+    data_path,
+    select_from_k_scenes=100,
+    num_episodes=100,
     scene_path_mapping=None,
     policy=None,
     deterministic=True,
 ):
     """Evaluate a policy on a set of scenes.
 
-    Args
+    Args:
     ----
-        env_config (Box): Environment configurations.
-        mode (str): Mode of evaluation. Either "expert_replay" or "policy".
-        scene_path_mapping (dict, optional): Dictionary with scene information. Defaults to None.
-        policy (optional): Learned policy. Defaults to None.
-        num_scenes (int, optional): Number of traffic scenes to use for evaluation. Defaults to 100.
-        controlled_agents (int, optional): Number of agents to control with the provided policy. Defaults to 1.
-        deterministic (bool, optional): Whether to evaluate the policy in deterministic or stochastic mode. Defaults to
-            True.
+        env_config: Environment configuration.
+        mode: Mode of evaluation. Can be one of the following:
+            - policy: Evaluate a policy.
+            - expert_replay: Replay expert actions.
+            - cont_expert_act_replay: Replay continuous expert actions.
+            - disc_expert_act_replay: Replay discretized expert actions.
+        controlled_agents: Number of agents to control.
+        data_path: Path to data.
+        select_from_k_scenes: Number of scenes to select from.
+        num_episodes: Number of episodes to run; how many times to reset the environment.
+        scene_path_mapping (optional): Mapping from scene to dict with the number of intersecting paths of that scene.
+        policy (optional): Policy to evaluate.
+        deterministic (optional): Whether to use a deterministic policy.
 
-    Raises
+    Raises:
     ------
-        ValueError: If scene is not found in scene_path_mapping.
+        ValueError: If scene_path_mapping is provided, if scene is not found in scene_path_mapping.
 
-    Returns
+    Returns:
     -------
-        df: performance per scene.
+        df: performance per scene and vehicle id.
     """
     # Set the number of vehicles to control per scene
     env_config.max_num_vehicles = controlled_agents
 
+    # Set path where to load scenes from
+    env_config.data_path = data_path
+
     # Set which files to use
-    env_config.num_files = num_scenes
+    env_config.num_files = select_from_k_scenes
 
     # Make env
     env = BaseEnv(env_config)
@@ -64,7 +72,7 @@ def evaluate_policy(
 
     # Run
     obs_dict = env.reset()
-    agent_ids = [veh_id for veh_id in obs_dict.keys()]
+    agent_ids = list(obs_dict.keys())
     veh_id_to_idx = {veh_id: idx for idx, veh_id in enumerate(agent_ids)}
     dead_agent_ids = []
     last_info_dicts = {agent_id: {} for agent_id in agent_ids}
@@ -72,7 +80,7 @@ def evaluate_policy(
     off_road = np.zeros(len(agent_ids))
     veh_veh_coll = np.zeros(len(agent_ids))
 
-    for episode in tqdm(range(num_iters)):
+    for _ in tqdm(range(num_episodes)):
         logging.debug(f"scene: {env.file} -- veh_id = {agent_ids} --")
 
         for time_step in range(env_config.episode_length):
@@ -158,7 +166,7 @@ def evaluate_policy(
                     goal_achieved[agend_idx] += last_info_dicts[agent_id]["goal_achieved"] * 1
 
                 if scene_path_mapping is not None:
-                    if env.file in scene_path_mapping.keys():
+                    if env.file in scene_path_mapping:
                         df_scene_i = pd.DataFrame(
                             {
                                 "scene_id": env.file,
@@ -192,7 +200,7 @@ def evaluate_policy(
 
                 # Reset
                 obs_dict = env.reset()
-                agent_ids = [veh_id for veh_id in obs_dict.keys()]
+                agent_ids = list(obs_dict.keys())
                 veh_id_to_idx = {veh_id: idx for idx, veh_id in enumerate(agent_ids)}
                 dead_agent_ids = []
                 last_info_dicts = {agent_id: {} for agent_id in agent_ids}
@@ -215,8 +223,9 @@ if __name__ == "__main__":
 
     df_disc_expert_replay = evaluate_policy(
         env_config=env_config,
+        data_path=env_config.data_path,
         mode="disc_expert_replay",
-        num_scenes=100,
-        max_iters=100,
+        select_from_k_scenes=100,
+        num_episodes=100,
         controlled_agents=2,
     )
