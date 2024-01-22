@@ -1,28 +1,40 @@
 import logging
 from typing import Optional
-from box import Box
 
 import numpy as np
 import torch
-from torch import nn
+from box import Box
 from gymnasium import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.utils import obs_as_tensor, get_schedule_fn
+from stable_baselines3.common.utils import get_schedule_fn, obs_as_tensor
 from stable_baselines3.common.vec_env import VecEnv
+from torch import nn
+
+from networks.perm_eq_late_fusion import LateFusionNet
 
 # Import masked buffer class
 from utils.sb3.masked_buffer import MaskedRolloutBuffer
 
 logging.getLogger(__name__)
 
+# TODO@Daphne: Fix Github Co-pilot chat in VSCode
+
+
 class MultiAgentPPO(PPO):
     """Adapted Proximal Policy Optimization algorithm (PPO) that is compatible with multi-agent environments."""
 
-    def __init__(self, env_config: Box, mlp_class: nn.Module, mlp_config: Optional[Box], *args, **kwargs):
-        self.env_config = env_config
+    def __init__(
+        self,
+        *args,
+        env_config: Optional[Box] = None,  # TODO@Daphne: Fix default env_config is used when not passed
+        mlp_class: nn.Module = LateFusionNet,
+        mlp_config: Optional[Box] = None,
+        **kwargs,
+    ):
+        self.env_config = Box(env_config) if env_config is not None else None
         self.mlp_class = mlp_class
-        self.mlp_config = mlp_config
+        self.mlp_config = Box(mlp_config) if mlp_config is not None else None
         super().__init__(*args, **kwargs)
 
     def collect_rollouts(
@@ -59,15 +71,29 @@ class MultiAgentPPO(PPO):
                 # Create dummy actions, values and log_probs (NaN)
                 actions = torch.full(fill_value=np.nan, size=(self.n_envs,)).to(self.device)
                 log_probs = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32).to(self.device)
-                values = torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32).unsqueeze(dim=1).to(self.device)
+                values = (
+                    torch.full(fill_value=np.nan, size=(self.n_envs,), dtype=torch.float32)
+                    .unsqueeze(dim=1)
+                    .to(self.device)
+                )
 
                 # Get indices of alive agent ids
-                alive_agent_idx = [idx for idx, agent_id in enumerate(env.agent_ids) if agent_id not in env.dead_agent_ids]
+                alive_agent_idx = [
+                    idx for idx, agent_id in enumerate(env.agent_ids) if agent_id not in env.dead_agent_ids
+                ]
                 obs_tensor_alive = obs_tensor[alive_agent_idx, :]
 
                 # Predict actions, vals and log_probs given obs
                 actions_tmp, values_tmp, log_prob_tmp = self.policy(obs_tensor_alive)
-                actions[alive_agent_idx], values[alive_agent_idx], log_probs[alive_agent_idx] = actions_tmp.float(), values_tmp.float(), log_prob_tmp.float()
+                (
+                    actions[alive_agent_idx],
+                    values[alive_agent_idx],
+                    log_probs[alive_agent_idx],
+                ) = (
+                    actions_tmp.float(),
+                    values_tmp.float(),
+                    log_prob_tmp.float(),
+                )
 
             actions = actions.cpu().numpy()
 
@@ -137,8 +163,9 @@ class MultiAgentPPO(PPO):
         callback.on_rollout_end()
 
         # EDIT_3: Reset buffer after each rollout
-        env.frac_collided = []
-        env.frac_goal_achieved = []
+        env.total_agents_in_rollout = 0
+        env.num_agents_collided = 0
+        env.num_agents_goal_achieved = 0
         env.n_episodes = 0
         env.episode_lengths = []
         env.agents_in_scene = []
@@ -170,7 +197,7 @@ class MultiAgentPPO(PPO):
             env_config=self.env_config,
             mlp_class=self.mlp_class,
             mlp_config=self.mlp_config,
-            **self.policy_kwargs
+            **self.policy_kwargs,
         )
         self.policy = self.policy.to(self.device)
 
@@ -178,6 +205,30 @@ class MultiAgentPPO(PPO):
         self.clip_range = get_schedule_fn(self.clip_range)
         if self.clip_range_vf is not None:
             if isinstance(self.clip_range_vf, (float, int)):
-                assert self.clip_range_vf > 0, "`clip_range_vf` must be positive, " "pass `None` to deactivate vf clipping"
+                assert self.clip_range_vf > 0, (
+                    "`clip_range_vf` must be positive, " "pass `None` to deactivate vf clipping"
+                )
 
             self.clip_range_vf = get_schedule_fn(self.clip_range_vf)
+
+
+if __name__ == "__main__":
+    # env_config = load_config("env_config")
+
+    # # Make environment
+    # env = MultiAgentAsVecEnv(
+    #     config=env_config,
+    #     num_envs=env_config.max_num_vehicles,
+    # )
+
+    # model = MultiAgentPPO(
+    #     env=env,
+    #     policy=LateFusionPolicy,
+    #     env_config=env_config,
+    #     mlp_class=LateFusionNet,
+    #     mlp_config=None,  # TODO: Make sure to also save the model config
+    # )
+
+    SAVE_DIR = "./models/rl/policy_65548"
+
+    model = MultiAgentPPO.load(SAVE_DIR)

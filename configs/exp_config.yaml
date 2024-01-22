@@ -1,5 +1,5 @@
-project: scaling_ppo
-group: effect_of_human_reg
+project: hr_rl_exp
+group: S100
 env_id: Nocturne
 seed: 42
 track_wandb: true
@@ -7,7 +7,6 @@ wandb_init_videos: []
 where_am_i: headless_machine   # Change to "headless_machine" when you're on a cluster or desktop
 exp_name: Nocturne
 verbose: 0
-train_on_single_scene: false
 psr: false # Prioritized scene replay
 
 wandb:
@@ -15,34 +14,33 @@ wandb:
   save_code: false
 
 ma_callback:
-  log_human_metrics: false
-  log_indiv_metrics: false
-  log_agent_actions: false
   save_model: true
-  model_save_freq: 300 # In iterations (one iter ~ (num_agents x n_steps))
   save_video: true
+  model_save_freq: 200 # In iterations (one iter ~ (num_agents x n_steps))
   record_n_scenes: 10 # Number of different scenes to render
   video_save_freq: 500 # Make a video every k iterations (100 iters ~ 1M steps)
   video_deterministic: true
+  eval_freq: 500 # Currently disabled
 
 ppo:
+  learning_rate: 3e-4
   policy: MlpPolicy
   n_steps: 4096
-  ent_coef: 0.005 # Default in SB3 is 0
+  ent_coef: 0.001 # Default in SB3 is 0
   vf_coef: 0.5 # Default in SB3 is 0.5
 
 learn:
-  total_timesteps: 10_000_000
+  total_timesteps: 2_000_000
   progress_bar: false
 
 # human-regularized RL
 reg_weight: 0.0
-human_policy_path: models/il/human_policy_10_scenes_2023_12_29.pt
+human_policy_path: models/il/human_policy_S1000_01_12_11_11.pt
 
 # Model arch
 model_config:
-  arch_ro: ""
-  arch_rg: ""
-  arch_shared: ""
-  act_func: ""
+  arch_ro: ''
+  arch_rg: ''
+  arch_shared: ''
+  act_func: ''
   dropout": 0.0

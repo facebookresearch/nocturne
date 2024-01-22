@@ -39,9 +39,6 @@ TEMPLATE_SBATCH = '''
 #SBATCH --cpus-per-task={num_cpus}
 #SBATCH --gres=gpu:{num_gpus}
 
-trial=${{SLURM_ARRAY_TASK_ID}}
-sleep "$(expr $trial \* 2)"
-
 SINGULARITY_IMAGE=hpc/nocturne.sif
 OVERLAY_FILE=hpc/overlay-15GB-500K.ext3
 
@@ -226,30 +223,22 @@ def save_scripts(sbatch_filename, bash_filename, file_path, run_script, fields, 
 
 if __name__ == '__main__':
 
-    SWEEP_NAME = 'first_test_1228'
+    SWEEP_NAME = 'S1000_0112'
 
     # Define SBATCH params
     fields = {
-        'time_h': 12, # Max time per job
+        'time_h': 15, # Max time per job
         'num_gpus': 1, # GPUs per job 
         'max_sim_jobs': 25, # Max jobs at the same time
         'job_name': SWEEP_NAME,
     }
 
-    # Define sweep conf
     params = {
         'sweep_name': [SWEEP_NAME], # Project name
-        'ent_coef' : [0, 0.001],   # Entropy coefficient in the policy loss
-        'vf_coef'  : [0.5], # Value coefficient in the policy loss
-        'seed' : [42], # Random seed
-        'dropout': [0.0, 0.05],
-        'arch_road_objects': ['tiny', 'small'],
-        'arch_road_graph': ['tiny', 'small'],
-        'arch_shared_net': ['tiny', 'small', 'medium'],
-        'activation_fn': ['tanh', 'relu'],
-        'num_files': [10], # Number of traffic scenes to train on 
-        'total_timesteps': [30_000_000], # Total training steps
-    #    'reg_weight': list(np.round(np.arange(0., .5, 0.05), 3)),
+        'lr': [3e-4, 1e-4],
+        'reg_weight': [0.0, 0.001, 0.005, 0.0075, 0.01, 0.02],
+        'num_files': [1000],
+        'total_timesteps': [10_000_000], # Total training steps
     }
 
     save_scripts(

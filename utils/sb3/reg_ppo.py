@@ -11,7 +11,6 @@ from utils.config import load_config
 from utils.sb3.ma_ppo import MultiAgentPPO
 from torch.nn import functional as F
 
-
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 logging.getLogger(__name__)
@@ -91,7 +90,7 @@ class RegularizedPPO(MultiAgentPPO):
                     self.policy.reset_noise(self.batch_size)
 
                 # # # # # # # # # HR_PPO EDIT # # # # # # # # #
-                if self.reg_weight is not None:
+                if self.reg_weight is not None and self.reg_policy is not None:
                     
                     # Get human policy action distributions conditioned on observations
                     reg_policy_action_dist = self.reg_policy.get_distribution(
@@ -155,7 +154,7 @@ class RegularizedPPO(MultiAgentPPO):
                 # # # # # # # # # HR_PPO EDIT # # # # # # # # #
                 loss_ppo = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
 
-                if self.reg_weight is not None:
+                if self.reg_weight is not None and self.reg_policy is not None:
                     loss = (1 - self.reg_weight) * loss_ppo + self.reg_weight * loss_reg
                 else:
                     loss = loss_ppo
@@ -190,7 +189,7 @@ class RegularizedPPO(MultiAgentPPO):
         explained_var = explained_variance(self.rollout_buffer.values.flatten(), self.rollout_buffer.returns.flatten())
 
         # Logs
-        if self.reg_weight is not None:
+        if self.reg_weight is not None and self.reg_policy is not None:
             self.logger.record("regularize/loss_ppo", np.abs(loss_ppo.item()))
             self.logger.record("regularize/loss_kl", loss_reg.item())
             self.logger.record("regularize/loss_kl_weighted", self.reg_weight * loss_reg.item())
@@ -226,7 +225,6 @@ if __name__ == "__main__":
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     # Model class must be defined somewhere

@@ -61,7 +61,6 @@ def run_ppo(
     exp_config.ent_coef = ent_coef
     exp_config.vf_coef = vf_coef
     exp_config.learn.total_timesteps = total_timesteps
-    exp_config.train_on_single_scene = single_scene
     exp_config.policy_arch = policy_arch
     exp_config.policy_size = policy_size
     exp_config.activation_func = activation_fn
@@ -82,7 +81,6 @@ def run_ppo(
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     # Set up wandb

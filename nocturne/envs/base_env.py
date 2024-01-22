@@ -23,7 +23,7 @@ from utils.config import load_config
 
 _MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE = 1_000
 
-logging.getLogger(__name__)
+logging.getLogger("__name__")
 
 ActType = TypeVar("ActType")  # pylint: disable=invalid-name
 ObsType = TypeVar("ObsType")  # pylint: disable=invalid-name
@@ -32,9 +32,11 @@ RenderType = TypeVar("RenderType")  # pylint: disable=invalid-name
 
 class CollisionType(Enum):
     """Enum for collision types."""
+
     NONE = 0
     VEHICLE_VEHICLE = 1
     VEHICLE_EDGE = 2
+
 
 class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
     """Nocturne base Gym environment."""
@@ -81,7 +83,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             else:
                 files = list(self.valid_veh_dict.keys())
                 random.shuffle(files)
-            
+
             # Select files
             if self.config.num_files != -1:
                 self.files = files[: self.config.num_files]
@@ -90,7 +92,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         # Set observation space
         obs_dim = self._get_obs_space_dim(self.config)
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=obs_dim,)
+        self.observation_space = Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=obs_dim,
+        )
 
         # Set action space
         if self.config.discretize_actions:
@@ -98,6 +104,9 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         else:
             self._set_continuous_action_space()
 
+        # Count total and invalid samples
+        self.invalid_samples = 0
+        self.total_samples = 0
 
     def apply_actions(self, action_dict: Dict[int, ActType]) -> None:
         """Apply a dict of actions to the vehicle objects.
@@ -149,6 +158,15 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             veh_id = veh_obj.getID()
             if veh_id in self.done_ids:
                 continue
+
+            # Remove vehicle from the scene if position is invalid (but not collided or goal achieved?)
+            if np.isclose(veh_obj.position.x, self.config.scenario.invalid_position):
+                self.invalid_samples += 1
+                logging.debug(f"(IN STEP) t = {self.step_num} | {self.file}")
+                logging.debug(f"veh_id = {veh_obj.id} | pos: {veh_obj.position.x}")
+                logging.debug(f"controlled_vehs: {[veh.id for veh in self.controlled_vehicles]} \n")
+
+            # Get vehicle observation
             self.context_dict[veh_id].append(self.get_observation(veh_obj))
             if self.config.subscriber.n_frames_stacked > 1:
                 veh_deque = self.context_dict[veh_id]
@@ -269,6 +287,8 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         done_dict["__all__"] = all(done_dict.values())
 
+        self.total_samples += len(obs_dict.keys())
+
         return obs_dict, rew_dict, done_dict, info_dict
 
     def reset(  # pylint: disable=arguments-differ,too-many-locals,too-many-branches,too-many-statements
@@ -292,21 +312,20 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         # we don't want to initialize scenes with 0 actors after satisfying
         # all the conditions on a scene that we have
         for _ in range(_MAX_NUM_TRIES_TO_FIND_VALID_VEHICLE):
-
             # Sample new traffic scene
             if filename is not None:
                 # Reset to a specific scene name
-                self.file = filename 
+                self.file = filename
             elif self.config.sample_file_method == "no_replacement":
                 # Random uniformly without replacement
                 self.file = self.files.pop()
             elif psr_dict is not None:
                 # Prioritized scene replay: sample according to probabilities
-                probs = [item['prob'] for item in psr_dict.values()]
+                probs = [item["prob"] for item in psr_dict.values()]
                 self.file = np.random.choice(self.files, p=probs)
-            else: # Random uniformly with replacement (default)
+            else:  # Random uniformly with replacement (default)
                 self.file = np.random.choice(self.files)
-        
+
             self.simulation = Simulation(str(self.config.data_path / self.file), config=self.config.scenario)
             self.scenario = self.simulation.getScenario()
 
@@ -344,6 +363,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             for veh_obj in self.simulation.getScenario().getObjectsThatMoved():
                 obj_pos = _position_as_array(veh_obj.getPosition())
                 goal_pos = _position_as_array(veh_obj.getGoalPosition())
+
                 ############################################
                 #    Remove vehicles at goal
                 ############################################
@@ -362,20 +382,40 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             temp_vehicles = np.random.permutation(self.scenario.getObjectsThatMoved())
             curr_index = 0
             self.controlled_vehicles = []
+            logging.debug(f"(IN RESET) selecting vehicles to control, current list: {self.controlled_vehicles}")
+
             for vehicle in temp_vehicles:
-                # This vehicle was invalid at the end of the 1 second context
-                # step so we need to remove it
-                if np.isclose(vehicle.position.x, self.config.scenario.invalid_position):
+                logging.debug(f"looking at veh_id {vehicle.id}...")
+
+                # Remove vehicles that have invalid positions
+                veh_at_invalid_pos = np.isclose(
+                    vehicle.position.x,
+                    self.config.scenario.invalid_position,
+                )
+
+                # Exclude vehicles with invalid goal positions
+                veh_has_invalid_goal_pos = np.isclose(
+                    vehicle.getGoalPosition().x, self.config.scenario.invalid_position
+                ) or np.isclose(vehicle.getGoalPosition().y, self.config.scenario.invalid_position)
+
+                if veh_at_invalid_pos or veh_has_invalid_goal_pos:
                     self.scenario.removeVehicle(vehicle)
-                # We don't want to include vehicles that had unachievable goals
-                # as controlled vehicles
-                elif not vehicle.expert_control and curr_index < self.config.max_num_vehicles:
+                    logging.debug(f"veh_id {vehicle.id} is INVALID!")
+
+                # Otherwise the vehicle is valid and we add it to the list of controlled vehicles
+                if (
+                    not vehicle.expert_control
+                    and not veh_at_invalid_pos
+                    and not veh_has_invalid_goal_pos
+                    and curr_index < self.config.max_num_vehicles
+                ):
                     self.controlled_vehicles.append(vehicle)
+                    logging.debug(f"updated self.controlled_vehicles: {[veh.id for veh in self.controlled_vehicles]}")
                     curr_index += 1
                 else:
                     vehicle.expert_control = True
 
-            self.all_vehicle_ids = [veh.getID() for veh in self.controlled_vehicles]
+            self.all_vehicle_ids = {veh.getID(): veh for veh in self.controlled_vehicles}
 
             # check that we have at least one vehicle or if we have just one file, exit anyways
             # or else we might be stuck in an infinite loop
@@ -419,7 +459,15 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
 
         self.done_ids = []
 
-        logging.debug("Scene: %s | Controlling vehicles: %s", self.file, [veh.id for veh in self.controlled_vehicles])
+        # Sanity check: Check if any vehicle is at an invalid position
+        for veh_id in obs_dict.keys():
+            veh_obj = self.all_vehicle_ids[veh_id]
+            if np.isclose(veh_obj.position.x, self.config.scenario.invalid_position):
+                logging.debug(f"obs_dict contains invalid vehicle! veh_id: {veh_id} at t = {self.step_num}")
+                logging.debug(f"obs_max: {obs_dict[veh_id].max()}")
+                self.invalid_samples += 1
+
+        self.total_samples += len(obs_dict.keys())
 
         return obs_dict
 
@@ -441,27 +489,23 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             steer = np.array([veh_obj.steering])
             if self.config.normalize_state:
                 cur_position = cur_position / np.linalg.norm(cur_position)
-            
+
             cur_position = np.concatenate([cur_position, speed, steer])
 
         ego_state = []
         if self.config.subscriber.use_ego_state:
             ego_state = self.scenario.ego_state(veh_obj)
-            logging.debug(f'\n t = {self.step_num} ---')
-            logging.debug(f'ego_before: {ego_state.min():3f} | {ego_state.max():.3f}')
+
             if self.config.normalize_state:
                 ego_state = self.normalize_ego_state_by_cat(ego_state)
-                logging.debug(f'ego_after: {ego_state.min():.3f} | {ego_state.max():.3f}')
-                
+
         visible_state = []
         if self.config.subscriber.use_observations:
             visible_state = self.scenario.flattened_visible_state(
-                    veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
-                )
-            logging.debug(f'visible_before: {visible_state.min():.3f} | {visible_state.max():.3f}')
+                veh_obj, self.config.subscriber.view_dist, self.config.subscriber.view_angle
+            )
             if self.config.normalize_state:
                 visible_state = self.normalize_obs_by_cat(visible_state)
-                logging.debug(f'visible_after: {visible_state.min():.3f} | {visible_state.max():.3f}')
 
         # Concatenate
         obs = np.concatenate((ego_state, visible_state, cur_position))
@@ -472,41 +516,38 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         """
         Calculate observation dimension based on the configs.
         """
+        # Set dimensions (fixed values)
+        self.road_obj_feat = 13
+        self.road_graph_feat = 13
+        self.stop_sign_feat = 3
+        self.tl_feat = 12
+        self.ego_state_feat = 10
+
+        # Compute observation dimension
         obs_space_dim = 0
 
         if self.config.subscriber.use_ego_state:
-            obs_space_dim += 10
+            obs_space_dim += self.ego_state_feat
 
         if self.config.subscriber.use_current_position:
             obs_space_dim += 2
 
         if self.config.subscriber.use_observations:
-            obs_space_dim += (
-                base + 
-                (13 * self.config.scenario.max_visible_objects) + 
-                (13 * self.config.scenario.max_visible_road_points) + 
-                (3  * self.config.scenario.max_visible_stop_signs) + 
-                (12 * self.config.scenario.max_visible_traffic_lights)
-            )
+            self.ro_dim = self.road_obj_feat * self.config.scenario.max_visible_objects
+            self.rg_dim = self.road_graph_feat * self.config.scenario.max_visible_road_points
+            self.tl_dim = self.tl_feat * self.config.scenario.max_visible_traffic_lights
+            self.ss_dim = self.stop_sign_feat * self.config.scenario.max_visible_stop_signs
+
+            obs_space_dim += base + self.ro_dim + self.rg_dim + self.tl_dim + self.ss_dim
 
         # Multiply by memory to get the final dimension
         obs_space_dim = obs_space_dim * self.config.subscriber.n_frames_stacked
-        
+
         return (obs_space_dim,)
 
     def normalize_ego_state_by_cat(self, state):
         """Divide every feature in the ego state by the maximum value of that feature."""
         return state / (np.array([float(val) for val in self.config.ego_state_feat_max.values()]))
-    
-    def normalize_ego_state(self, state):
-        """Normalization to get features between 0 and 1."""
-        min_ego_feat = self.config.ego_state_feat_min
-        max_ego_feat = np.array(list(self.config.ego_state_feat_max.values()),dtype=object).max()
-        return (state - min_ego_feat) / (max_ego_feat - min_ego_feat)
-
-    def normalize_obs(self, state):
-        """Normalization to get features between 0 and 1."""
-        return (state - self.config.vis_obs_min) / (self.config.vis_obs_max - self.config.vis_obs_min)
 
     def normalize_obs_by_cat(self, state):
         """Divide all visible state elements by the maximum value across the visible state."""
@@ -524,8 +565,10 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             Optional[RenderType]: Rendered image.
         """
         return self.scenario.getImage(**self._render_settings)
-    
-        env.scenario.getImage(**video_config.render)
+
+        env.scenario.getImage(
+            **self._render_settings,
+        )
 
     def render_ego(self, mode: Optional[bool] = None) -> Optional[RenderType]:  # pylint: disable=unused-argument
         """Render the ego vehicles.
@@ -619,7 +662,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         self.idx_to_actions = None
 
     def unflatten_obs(self, obs_flat):
-        "Unsqueeeze the flattened object."""
+        "Unsqueeeze the flattened object." ""
 
         # OBS FLAT ORDER: road_objects, road_points, traffic_lights, stop_signs
         # Find the ends of each section
@@ -627,14 +670,15 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         ROAD_POINTS_END = ROAD_OBJECTS_END + (13 * self.config.scenario.max_visible_road_points)
         TL_END = ROAD_POINTS_END + (12 * self.config.scenario.max_visible_traffic_lights)
         STOP_SIGN_END = TL_END + (3 * self.config.scenario.max_visible_stop_signs)
-        
+
         # Unflatten
         road_objects = obs_flat[:ROAD_OBJECTS_END]
         road_points = obs_flat[ROAD_OBJECTS_END:ROAD_POINTS_END]
         traffic_lights = obs_flat[ROAD_POINTS_END:TL_END]
         stop_signs = obs_flat[TL_END:STOP_SIGN_END]
-        
+
         return road_objects, road_points, traffic_lights, stop_signs
+
 
 def _angle_sub(current_angle: float, target_angle: float) -> float:
     """Subtract two angles to find the minimum angle between them.
@@ -692,6 +736,7 @@ def _apply_action_to_vehicle(
         veh_obj.acceleration = accel
         veh_obj.steering = steer
 
+
 def _position_as_array(position: Vector2D) -> np.ndarray:
     """Convert a position to an array.
 
@@ -707,21 +752,21 @@ def _position_as_array(position: Vector2D) -> np.ndarray:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
     # Load environment variables and config
     env_config = load_config("env_config")
-
     # Initialize an environment
     env = BaseEnv(config=env_config)
-
-    # Reset
-    obs_dict = env.reset(filename='tfrecord-00421-of-01000_364.json')
+    obs_dict = env.reset()
 
     # Get info
     agent_ids = [agent_id for agent_id in obs_dict.keys()]
     veh_objects = {agent.id: agent for agent in env.controlled_vehicles}
     dead_agent_ids = []
 
-    for step in range(80):
+    num_total = 10_000
+    for step in range(num_total):
         # Sample actions
         action_dict = {agent_id: env.action_space.sample() for agent_id in agent_ids if agent_id not in dead_agent_ids}
 
@@ -731,11 +776,6 @@ if __name__ == "__main__":
 
         obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
 
-        print(f'step: {step}, done: {done_dict[37]}, info:\n {info_dict[37]}')
-
-        expert_action = env.scenario.expert_action(veh_objects[37], step)
-        print(f'act = {expert_action} \n')
-        
         # Update dead agents
         for agent_id, is_done in done_dict.items():
             if is_done and agent_id not in dead_agent_ids:
@@ -745,6 +785,8 @@ if __name__ == "__main__":
         if done_dict["__all__"]:
             obs_dict = env.reset()
             dead_agent_ids = []
+
+    logging.info(f"INVALID_SAMPLES: {(env.invalid_samples/env.total_samples)*100:.2f}")
 
     # Close environment
     env.close()

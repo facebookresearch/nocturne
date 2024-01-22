@@ -333,7 +333,6 @@ if __name__ == "__main__":
     env = MultiAgentAsVecEnv(
         config=env_config, 
         num_envs=env_config.max_num_vehicles,
-        train_on_single_scene=exp_config.train_on_single_scene,
     )
 
     obs = env.reset()

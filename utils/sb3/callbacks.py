@@ -1,27 +1,26 @@
 import logging
+import os
+import wandb
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
-import os
-
-import wandb
-from utils.eval import EvaluatePolicy
-from utils.render import make_video
 from stable_baselines3.common.policies import ActorCriticPolicy
+
+from nocturne.envs.base_env import BaseEnv
+from utils.render import make_video
 
 
 class CustomMultiAgentCallback(BaseCallback):
     """
-    A custom callback that derives from ``BaseCallback``.
+    Nocturne-compatible custom callback that derives from ``BaseCallback``.
     """
+
     def __init__(
         self,
         env_config,
         exp_config,
         video_config=None,
-        save_video_callbacks=None,
-        training_end_callbacks=None,
         wandb_run=None,
         **kwargs,
     ) -> None:
@@ -29,12 +28,11 @@ class CustomMultiAgentCallback(BaseCallback):
         self.env_config = env_config
         self.exp_config = exp_config
         self.video_config = video_config
-        self.save_video_callbacks = [] if save_video_callbacks is None else save_video_callbacks
-        self.training_end_callbacks = [] if training_end_callbacks is None else training_end_callbacks
         self.iteration = 0
         self.wandb_run = wandb_run
-        self.new_artifact = True
-        self.model_path = None
+        self.model_base_path = os.path.join(wandb.run.dir, "policies")
+        if self.model_base_path is not None:
+            os.makedirs(self.model_base_path, exist_ok=True)
 
     def _on_training_start(self) -> None:
         """
@@ -76,70 +74,37 @@ class CustomMultiAgentCallback(BaseCallback):
         num_agents_per_step = np.array(self.locals["env"].agents_in_scene)
         self.ep_rewards_avg_norm = sum(rewards.sum(axis=1) / num_agents_per_step) / self.n_episodes
 
-        # Obtain the sum of reward per episode (accross all agents)
-        sum_rewards = rewards.sum() / self.n_episodes
-
         # Obtain advantages
         advantages = np.nan_to_num(self.locals["rollout_buffer"].advantages, nan=0)
         self.ep_advantage_avg_norm = sum(advantages.sum(axis=1) / num_agents_per_step) / self.n_episodes
 
-        # Get batch size
-        batch_size = (~np.isnan(self.locals["rollout_buffer"].rewards)).sum()
-
         # Obtain the average ratio of agents that collided / achieved goal in the episode
-        self.avg_frac_collided = np.mean(self.locals["env"].frac_collided)
-        self.avg_frac_goal_achieved = np.mean(self.locals["env"].frac_goal_achieved)
+        self.avg_frac_collided = self.locals["env"].num_agents_collided / self.locals["env"].total_agents_in_rollout
+        self.avg_frac_goal_achieved = (
+            self.locals["env"].num_agents_goal_achieved / self.locals["env"].total_agents_in_rollout
+        )
 
-        # Log
-        if self.exp_config.track_wandb:
-            agent_bins = np.arange(0, self.locals["env"].num_envs + 1, 1)
-            hist = np.histogram(num_agents_per_step, bins=agent_bins)
-            
-            wandb.log({"rollout/dist_agents_in_scene": wandb.Histogram(np_histogram=hist)})
-
-            # Track performance within scene and how often it is sampled
-            if self.env_config.num_files < 5:
-                if self.locals["env"].psr_dict is not None:
-                    for scene_name in self.locals["env"].psr_dict.keys():
-                        scene_psr_dict = self.locals["env"].psr_dict[scene_name]
-                        roll_avg_rew = scene_psr_dict["reward"] / scene_psr_dict["count"]
-                        wandb.log({
-                            f"train/{scene_name}/count": scene_psr_dict["count"],
-                            f"train/{scene_name}/reward": roll_avg_rew,
-                            f"train/{scene_name}/prob": scene_psr_dict["prob"],
-                        })
-                
-        # Log all metrics on the level of individual agents
-        if self.exp_config.ma_callback.log_indiv_metrics and self.env_config.num_files < 2:
-            indiv_rewards = ((rewards.sum(axis=0)) / self.n_episodes)
-            indiv_advantages = ((advantages.sum(axis=0)) / self.n_episodes)
-            for agent_idx in range(len(indiv_rewards)):
-                self.logger.record(f"rollout/ep_rew_agent_{agent_idx}", indiv_rewards[agent_idx])
-                self.logger.record(f"rollout/ep_adv_agent_{agent_idx}", indiv_advantages[agent_idx])
-    
-        # Log aggregate performance measures 
-        self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
-        self.logger.record("rollout/ep_rew_mean_norm", self.ep_rewards_avg_norm)
-        self.logger.record("rollout/ep_rew_sum", sum_rewards)
-        self.logger.record("rollout/ep_len_mean", avg_ep_len)
-        self.logger.record("rollout/perc_goal_achieved", self.avg_frac_goal_achieved)
-        self.logger.record("rollout/perc_collided", self.avg_frac_collided)
-        self.logger.record("rollout/ep_adv_mean_norm", self.ep_advantage_avg_norm)
-        self.logger.record("global_step", self.num_timesteps)
-        self.logger.record("iteration", self.iteration)
-        self.logger.record("num_frames_in_rollout", batch_size)
-        
         # Sanity check: log observation min and max
         observations = self.locals["rollout_buffer"].observations
-        valid_obs_mask = (~np.isnan(self.locals["rollout_buffer"].observations))
-        
+        valid_obs_mask = ~np.isnan(self.locals["rollout_buffer"].observations)
+
+        # Log aggregate performance measures
+        self.logger.record("rollout/avg_num_agents_controlled", np.mean(num_agents_per_step))
+        self.logger.record("rollout/ep_rew_mean_norm", self.ep_rewards_avg_norm)
+        self.logger.record("rollout/ep_len_mean", avg_ep_len)
+        self.logger.record("rollout/perc_goal_achieved", (self.avg_frac_goal_achieved) * 100)
+        self.logger.record("rollout/perc_collided", (self.avg_frac_collided) * 100)
+        self.logger.record("rollout/ep_adv_mean_norm", self.ep_advantage_avg_norm)
+        self.logger.record("rollout/global_step", self.num_timesteps)
+        self.logger.record("rollout/iter", self.iteration)
         self.logger.record("rollout/obs_min", np.min(observations[valid_obs_mask]))
         self.logger.record("rollout/obs_max", np.max(observations[valid_obs_mask]))
-        if self.exp_config.track_wandb:
-            wandb.log({"rollout/obs_dist": wandb.Histogram(np_histogram=np.histogram(observations[valid_obs_mask]))})
-        
-        
-        # Make a video with a random scene
+
+        # Evaluate policy on train and test dataset
+        # if self.iteration % self.exp_config.ma_callback.eval_freq == 0:
+        #     self._evaluate_policy(policy=self.model, dataset="valid", name="valid_det", det_mode=True)
+
+        # Render
         if self.exp_config.ma_callback.save_video:
             if self.iteration % self.exp_config.ma_callback.video_save_freq == 0:
                 logging.info(f"Making video at iter = {self.iteration} | global_step = {self.num_timesteps}")
@@ -167,12 +132,14 @@ class CustomMultiAgentCallback(BaseCallback):
         This event is triggered before exiting the `learn()` method.
         """
         # Save model to wandb
-        self._save_model()
+        if self.model_base_path is not None:
+            self._save_model()
 
+        # Render
         if self.exp_config.ma_callback.save_video:
-            logging.info(f"Making video at last iter = {self.iteration} in deterministic mode | global_step = {self.num_timesteps}")
-            # Set deterministic to True
-            self.exp_config.ma_callback.video_deterministic = True
+            logging.info(
+                f"Making video at last iter = {self.iteration} in deterministic mode | global_step = {self.num_timesteps}"
+            )
             make_video(
                 env_config=self.env_config,
                 exp_config=self.exp_config,
@@ -182,61 +149,85 @@ class CustomMultiAgentCallback(BaseCallback):
                 n_steps=self.num_timesteps,
                 deterministic=self.exp_config.ma_callback.video_deterministic,
             )
-        
-        if self.exp_config.ma_callback.log_human_metrics:
-            evaluator = EvaluatePolicy(
-                env_config=self.env_config, 
-                exp_config=self.exp_config,
-                run=self.wandb_run,
-                policy=self.model,
-            )
-            table = evaluator._get_scores()
 
     def _save_model(self) -> None:
-        """Save model to wandb."""
+        """Save model locally and to wandb."""
 
-        self.model_name = f"nocturne-hr-ppo-{wandb.run.id}"
-        self.model_path = os.path.join(wandb.run.dir, f"{self.model_name}.pt")
-    
-        # Create model artifact
-        model_artifact = wandb.Artifact(
-            name=self.model_name,
-            type="model",
-            metadata={**self.env_config, **self.exp_config},
+        self.path = os.path.join(
+            self.model_base_path,
+            f"policy_L{self.exp_config.reg_weight}_S{self.env_config.num_files}_I{self.iteration}.zip",
         )
+        self.model.save(self.path)
+        wandb.save(self.path, base_path=self.model_base_path)
+        logging.info(f"Saved policy on step {self.num_timesteps} / iter {self.iteration} at: \n {self.path}")
 
-        # Save torch model
-        torch.save(
-            obj={
-                "state_dict": self.locals["self"].policy.state_dict(),
-                "data": self.locals["self"].policy._get_constructor_parameters(),
-                "model_cls": self.locals["self"].policy.__class__,
-                "model_config": {
-                    "arch_ego_state": self.locals["self"].policy.mlp_extractor.arch_ego_state, 
-                    "arch_road_objects": self.locals["self"].policy.mlp_extractor.arch_road_objects, # Network layers
-                    "arch_road_graph": self.locals["self"].policy.mlp_extractor.arch_road_graph,
-                    "arch_shared_net": self.locals["self"].policy.mlp_extractor.arch_shared_net,
-                    "act_func": self.locals["self"].policy.mlp_extractor.act_func, # Activation function used
-                    "dropout": self.locals["self"].policy.mlp_extractor.dropout, # Dropout probability
-                },
-                "train": {
-                    "global_step": self.num_timesteps,
-                    "trained_in_k_scenes": len(self.locals["env"].env.files),
-                    "act_space_dim": self.locals["env"].action_space.n,
-                    "norm_reward": self.ep_rewards_avg_norm,
-                    "coll_rate": self.avg_frac_collided,
-                    "goal_rate": self.avg_frac_goal_achieved,
-                    "reg_weight": self.exp_config.reg_weight,
-                },
-            },
-            f=self.model_path,
-        )
+    def _evaluate_policy(self, policy, dataset="train", name="", det_mode=True, data_folder="data_full", num_files=100):
+        """Evaluate policy in a number of scenes."""
 
-        # Save model artifact
-        model_artifact.add_file(local_path=self.model_path)
-        wandb.save(self.model_path, base_path=wandb.run.dir)
-        self.wandb_run.log_artifact(model_artifact, aliases=[f"lam_{self.exp_config.reg_weight}"])
-        logging.info(f"Saving model checkpoint to {self.model_path} | Global_step: {self.num_timesteps}")
+        env_config = self.env_config.copy()
+
+        total_coll = 0
+        total_goal_achieved = 0
+        total_samples = 0
+        total_eval_episodes = 0
+
+        # Choose dataset
+        if dataset == "train":
+            env_config.data_path = f"./{data_folder}/train"
+        elif dataset == "valid":
+            env_config.data_path = f"./{data_folder}/valid"
+            env_config.num_files = num_files
+
+        # Make environment
+        env = BaseEnv(env_config)
+
+        # Evaluate policy in a number of scenes
+        obs_dict = env.reset()
+
+        agent_ids = [veh_id for veh_id in obs_dict.keys()]
+        dead_agent_ids = []
+        last_info_dicts = {agent_id: {} for agent_id in agent_ids}
+
+        for _ in range(2000):
+            # Get actions
+            action_dict = {}
+            for agent_id in obs_dict:
+                # Get observation
+                obs = torch.from_numpy(obs_dict[agent_id]).unsqueeze(dim=0)
+                # Get action
+                with torch.no_grad():
+                    action, _ = policy.predict(obs, deterministic=det_mode)
+                # Store action
+                action_dict[agent_id] = int(action)
+
+            # Step in the environment
+            obs_dict, rew_dict, done_dict, info_dict = env.step(action_dict)
+
+            for agent_id, is_done in done_dict.items():
+                if is_done and agent_id not in dead_agent_ids:
+                    dead_agent_ids.append(agent_id)
+                    # Store agents' last info dict
+                    last_info_dicts[agent_id] = info_dict[agent_id].copy()
+
+            if done_dict["__all__"]:
+                # Update stats
+                for agent_id in agent_ids:
+                    total_coll += last_info_dicts[agent_id]["collided"] * 1
+                    total_goal_achieved += last_info_dicts[agent_id]["goal_achieved"] * 1
+
+                total_samples += len(agent_ids)  # num episodes x num agents
+                total_eval_episodes += 1
+
+                # Reset
+                obs_dict = env.reset()
+                agent_ids = [veh_id for veh_id in obs_dict.keys()]
+                dead_agent_ids = []
+                last_info_dicts = {agent_id: {} for agent_id in agent_ids}
+
+        self.logger.record(f"eval_{name}_/num_eval_scenes", total_eval_episodes)
+        self.logger.record(f"eval_{name}_/total_samples", total_samples)
+        self.logger.record(f"eval_{name}_/goal_rate", (total_goal_achieved / total_samples) * 100)
+        self.logger.record(f"eval_{name}_/coll_rate", (total_coll / total_samples) * 100)
 
     def _update_sampling_probs(self):
         """Update sampling probabilities for each scene based on the performance of the agent in that scene."""
@@ -245,15 +236,14 @@ class CustomMultiAgentCallback(BaseCallback):
         for scene in self.locals["env"].psr_dict.keys():
             scene_rew = self.locals["env"].psr_dict[scene]["reward"]
             if scene_rew >= 0.9:
-                self.locals["env"].psr_dict[scene]["prob"] = 1e-8 # Assign low probability
-        
+                self.locals["env"].psr_dict[scene]["prob"] = 1e-8  # Assign low probability
+
         # Sampling probability is inversely proportional to the average reward
-        roll_avg_rewards = np.array([item['reward'] for item in self.locals["env"].psr_dict.values()])
+        roll_avg_rewards = np.array([item["reward"] for item in self.locals["env"].psr_dict.values()])
         weighted_scenes = np.exp(-roll_avg_rewards)
-        probs = np.exp(weighted_scenes - np.max(weighted_scenes)) / np.sum(np.exp(weighted_scenes - np.max(weighted_scenes)))
+        probs = np.exp(weighted_scenes - np.max(weighted_scenes)) / np.sum(
+            np.exp(weighted_scenes - np.max(weighted_scenes))
+        )
 
         for idx, scene in enumerate(self.locals["env"].psr_dict.keys()):
             self.locals["env"].psr_dict[scene]["prob"] = probs[idx]
-
-                
-         
