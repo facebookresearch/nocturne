@@ -215,7 +215,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 if rew_cfg.goal_distance_penalty:
                     rew_dict[veh_id] -= (
                         rew_cfg.shaped_goal_distance_scaling
-                        * ((goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id])
+                        * ((goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id] + 1e4)
                         / rew_cfg.reward_scaling
                     )
                 else:
@@ -225,7 +225,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                     # time-step is always less than just acquiring the goal reward once
                     rew_dict[veh_id] += (
                         rew_cfg.shaped_goal_distance_scaling
-                        * (1 - (goal_pos - obj_pos).norm() / self.goal_dist_normalizers[veh_id])
+                        * (1 - (goal_pos - obj_pos).norm() / (self.goal_dist_normalizers[veh_id] + 1e4))
                         / rew_cfg.reward_scaling
                     )
                 # repeat the same thing for speed and heading
