@@ -115,6 +115,17 @@ class Scenario : public sf::Drawable {
   // void removeVehicle(Vehicle* object);
   bool RemoveObject(const Object& object);
 
+  // Return the last timestamp where the object is valid
+  int64_t ExpertLastValid(const Object& object) const {
+    // expert_valid_masks is an array of 0s and 1s
+    // we want to return the last index where the object is valid
+    // so we reverse the array and find the first index where the object is valid
+    // and then subtract that from the size of the array
+    const auto& valid_mask = expert_valid_masks_.at(object.id());
+    auto it = std::find(valid_mask.rbegin(), valid_mask.rend(), true);
+    return valid_mask.size() - std::distance(valid_mask.rbegin(), it);
+  }
+
   // Returns expert position for obj at timestamp.
   geometry::Vector2D ExpertPosition(const Object& obj,
                                     int64_t timestamp) const {

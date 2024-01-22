@@ -72,6 +72,7 @@ void DefineScenario(py::module& m) {
       .def("expert_pos_shift", &Scenario::ExpertPosShift)
       .def("expert_heading_shift", &Scenario::ExpertHeadingShift)
       .def("expert_position", &Scenario::ExpertPosition)
+      .def("expert_last_valid", &Scenario::ExpertLastValid)
 
       // TODO: Deprecate the legacy interfaces below.
       .def("getVehicles", &Scenario::vehicles,
