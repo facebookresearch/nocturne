@@ -186,8 +186,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             info_dict[veh_id]["collided"] = False
             info_dict[veh_id]["veh_veh_collision"] = False
             info_dict[veh_id]["veh_edge_collision"] = False
+            
+            # Get current vehicle position and goal position
             obj_pos = veh_obj.position
-            goal_pos = veh_obj.target_position
+            goal_pos = self.veh_goal_positions[veh_id]
+            
             ############################################
             #   Compute rewards
             ############################################
@@ -424,6 +427,11 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
         else:  # No break in for-loop, i.e., no valid vehicle found in any of the files.
             raise ValueError(f"No controllable vehicles in any of the {len(self.files)} scenes.")
 
+        # Set goal positions for controlled vehicles
+        self.veh_goal_positions = {}  
+        for veh_obj in self.controlled_vehicles:
+            self.veh_goal_positions[veh_obj.getID()] = veh_obj.target_position
+        
         # construct the observations and goal normalizers
         obs_dict = {}
         self.goal_dist_normalizers = {}
@@ -432,7 +440,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
             veh_id = veh_obj.getID()
             # store normalizers for each vehicle
             obj_pos = _position_as_array(veh_obj.getPosition())
-            goal_pos = _position_as_array(veh_obj.getGoalPosition())
+            goal_pos = _position_as_array(self.veh_goal_positions[veh_id])
             dist = np.linalg.norm(obj_pos - goal_pos)
             self.goal_dist_normalizers[veh_id] = dist
             # compute the obs
@@ -456,9 +464,9 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 # from the ego frame
                 self.render_vehicle = veh_obj
                 max_goal_dist = dist
+                
 
         self.done_ids = []
-
         # Sanity check: Check if any vehicle is at an invalid position
         for veh_id in obs_dict.keys():
             veh_obj = self.all_vehicle_ids[veh_id]
@@ -468,6 +476,7 @@ class BaseEnv(Env):  # pylint: disable=too-many-instance-attributes
                 self.invalid_samples += 1
 
         self.total_samples += len(obs_dict.keys())
+        
 
         return obs_dict
 
@@ -752,10 +761,11 @@ def _position_as_array(position: Vector2D) -> np.ndarray:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     # Load environment variables and config
     env_config = load_config("env_config")
+    env_config.max_num_vehicles = 1
     # Initialize an environment
     env = BaseEnv(config=env_config)
     obs_dict = env.reset()
