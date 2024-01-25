@@ -160,3 +160,11 @@ if __name__ == "__main__":
         video_config=video_config,
         model_config=None,
     )
+
+    # Train
+    train(
+        env_config=env_config,
+        exp_config=exp_config,
+        video_config=video_config,
+        model_config=model_config,
+    )
