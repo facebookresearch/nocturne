@@ -25,27 +25,24 @@ class EvaluatePolicy:
         exp_config,
         policy,
         eval_files=None,
-        baselines=["random", "expert"],
         reg_coef=None,
-        log_to_wandb=True,
-        run=None,
         deterministic=True,
         with_replacement=True,
         return_trajectories=False,
+        single_agent=False,
         file_limit=1000,
     ):
         self.env_config = env_config
+        if single_agent:
+            self.env_config.max_num_vehicles = 1
         self.exp_config = exp_config
         self.policy = policy
         self.eval_files = self._get_files(eval_files, file_limit)
-        self.baselines = baselines
         self.reg_coef = reg_coef
-        self.log_to_wandb = log_to_wandb
-        self.run = run  # Wandb run object
         self.deterministic = deterministic
         self.with_replacement = with_replacement
         self.return_trajectories = return_trajectories
-        self.env = BaseEnv(env_config)
+        self.env = BaseEnv(self.env_config)
 
         super(EvaluatePolicy).__init__()
 
@@ -57,7 +54,6 @@ class EvaluatePolicy:
         # Create tables
         df_eval = pd.DataFrame(
             columns=[
-                "run_id",
                 "reg_coef",
                 "traffic_scene",
                 "agent_id",
@@ -67,8 +63,8 @@ class EvaluatePolicy:
                 "pos_rmse",
                 "speed_mae",
                 "goal_rate",
-                "veh_edge_cr",
-                "veh_veh_cr",
+                "off_road",
+                "veh_veh_collision",
             ]
         )
 
@@ -135,13 +131,9 @@ class EvaluatePolicy:
                 expert_actions,
             )
 
-            # Violations of the 3-second rule
-            # violations_matrix, num_violations = self.get_veh_to_veh_distances(policy_pos, policy_speed)
-
             # Store metrics
             scene_perf = pd.DataFrame(
                 {
-                    "run_id": self.run.id if self.log_to_wandb else None,
                     "reg_coef": np.repeat(self.reg_coef, len(self.agent_names)),
                     "traffic_scene": file,
                     "agent_id": self.agent_names,
@@ -151,8 +143,8 @@ class EvaluatePolicy:
                     "pos_rmse": position_rmse,
                     "speed_mae": speed_agent_mae,
                     "goal_rate": policy_gr,
-                    "veh_edge_cr": policy_edge_cr,
-                    "veh_veh_cr": policy_veh_cr,
+                    "off_road": policy_edge_cr,
+                    "veh_veh_collision": policy_veh_cr,
                 }
             )
             df_eval = pd.concat([df_eval, scene_perf], ignore_index=True)
@@ -175,16 +167,10 @@ class EvaluatePolicy:
                 )
                 df_trajs = pd.concat([df_trajs, scene_trajs], ignore_index=True)
 
-        if self.log_to_wandb:
-            wandb.Table(dataframe=df_eval)
-            self.run.log({"human_metrics": df_eval})
-            return df_eval
-
+        if self.return_trajectories:
+            return df_eval, df_trajs
         else:
-            if self.return_trajectories:
-                return df_eval, df_trajs
-            else:
-                return df_eval
+            return df_eval
 
     def _step_through_scene(self, filename: str, mode: str):
         """Step through traffic scene.
@@ -458,50 +444,3 @@ class EvaluatePolicy:
             file_paths = glob.glob(self.env_config.data_path + "/tfrecord*")
             eval_files = [os.path.basename(file) for file in file_paths][:file_limit]
             return eval_files
-
-
-if __name__ == "__main__":
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    env_config = load_config("env_config")
-    exp_config = load_config("exp_config")
-
-    MAX_FILES = 100
-
-    # Train
-    train_file_paths = glob.glob(f"{env_config.data_path}" + "/tfrecord*")
-    train_eval_files = sorted([os.path.basename(file) for file in train_file_paths])[:MAX_FILES]
-
-    # Load trained model from artifact dir
-    HR_RL_BASE_PATH = f"./models/hr_rl/S{MAX_FILES}"
-    policy_name = "nocturne-hr-ppo-01_08_06_34_0.0_S100"
-
-    checkpoint = torch.load(f"{HR_RL_BASE_PATH}/{policy_name}.pt")
-    policy = LateFusionPolicy(
-        observation_space=checkpoint["data"]["observation_space"],
-        action_space=checkpoint["data"]["action_space"],
-        lr_schedule=checkpoint["data"]["lr_schedule"],
-        use_sde=checkpoint["data"]["use_sde"],
-        env_config=env_config,
-        mlp_class=LateFusionNet,
-        mlp_config=checkpoint["model_config"],
-    )
-    policy.load_state_dict(checkpoint["state_dict"])
-    policy.eval()
-
-    print(f'Trained policy has a goal_rate of {checkpoint["train"]["goal_rate"]}')
-
-    # Evaluate policy
-    evaluator = EvaluatePolicy(
-        env_config=env_config,
-        exp_config=exp_config,
-        policy=policy,
-        eval_files=train_eval_files,
-        log_to_wandb=False,
-        deterministic=False,
-        reg_coef=0.0,
-        return_trajectories=True,
-    )
-
-    df_res, df_trajs = evaluator._get_scores()
