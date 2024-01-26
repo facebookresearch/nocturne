@@ -905,7 +905,7 @@ void Scenario::LoadObjects(const json& objects_json) {
     const auto& obj_velocity = obj["velocity"];
     const auto& obj_valid = obj["valid"];
     const int64_t trajectory_length = obj_position.size();
-    const bool is_av = obj["is_av"];
+    const bool is_av = static_cast<bool>(obj["is_av"]);
 
     std::vector<geometry::Vector2D> cur_trajectory;
     std::vector<float> cur_headings;
