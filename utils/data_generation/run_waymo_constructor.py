@@ -15,7 +15,7 @@ PROCESSED_TRAIN_NO_TL = "/scratch/ev2237/waymo_processed/train_no_tl"
 PROCESSED_VALID_NO_TL = "/scratch/ev2237/waymo_processed/valid_no_tl"
 PROCESSED_TRAIN = "/scratch/ev2237/waymo_processed/train_processed"
 PROCESSED_VALID = "/scratch/ev2237/waymo_processed/valid_processed"
-import utils.data_generation.waymo_scenario_construction as waymo
+import waymo_scenario_construction as waymo
 
 
 def convert_files(args, files, output_dir, rank):
@@ -31,13 +31,20 @@ def convert_files(args, files, output_dir, rank):
     cnt = 0
     for file in files:
         inner_count = 0
-        
-        waymo.waymo_to_scenario(os.path.join(output_dir, file),
-                                args.no_tl)
-        inner_count += 1
-        cnt += 1
-        if cnt >= args.num and not args.all_files:
-            break
+        for data in waymo.load_protobuf(str(file)):
+            file_name = os.path.basename(file).split(
+                '.')[1] + f'_{inner_count}.json'
+            # this file is useful for debugging
+            if args.output_txt and cnt == 0 and rank == 0:
+                with open(os.path.basename(file).split('.')[1] + '.txt',
+                          'w') as f:
+                    f.write(str(data))
+            waymo.waymo_to_scenario(os.path.join(output_dir, file_name), data,
+                                    args.no_tl)
+            inner_count += 1
+            cnt += 1
+            if cnt >= args.num and not args.all_files:
+                break
         print(inner_count)
 
 
@@ -49,7 +56,7 @@ def main():
                         type=str,
                         default=os.path.join(
                             TRAIN_DATA_PATH,
-                            'training.tfrecord-00995-of-01000'))
+                            'training.tfrecord-00997-of-01000'))
     parser.add_argument("--num", type=int, default=1)
     parser.add_argument("--output_txt",
                         action='store_true',

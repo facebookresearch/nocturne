@@ -905,6 +905,7 @@ void Scenario::LoadObjects(const json& objects_json) {
     const auto& obj_velocity = obj["velocity"];
     const auto& obj_valid = obj["valid"];
     const int64_t trajectory_length = obj_position.size();
+    const bool is_av = obj["is_av"];
 
     std::vector<geometry::Vector2D> cur_trajectory;
     std::vector<float> cur_headings;
@@ -954,7 +955,7 @@ void Scenario::LoadObjects(const json& objects_json) {
       std::shared_ptr<Vehicle> vehicle = std::make_shared<Vehicle>(
           cur_id, length, width, position, cur_headings[current_time_],
           cur_speeds[current_time_], target_position, target_heading,
-          target_speed);
+          target_speed, is_av);
       vehicles_.push_back(vehicle);
       objects_.push_back(vehicle);
       if (is_moving) {
