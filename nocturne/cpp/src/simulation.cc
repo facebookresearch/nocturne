@@ -14,7 +14,8 @@ void Simulation::Render() {
     constexpr int64_t kWinHeight = 800;
 
     sf::ContextSettings settings;
-    settings.antialiasingLevel = std::min(sf::RenderTexture::getMaximumAntialiasingLevel(), 4u);
+    settings.antialiasingLevel =
+        std::min(sf::RenderTexture::getMaximumAntialiasingLevel(), 4u);
     render_window_ = std::make_unique<sf::RenderWindow>(
         sf::VideoMode(kWinWidth, kWinHeight), "Nocturne", sf::Style::Default,
         settings);
@@ -35,7 +36,7 @@ void Simulation::Render() {
 
     // draw scenario
     render_window_->draw(*scenario_);
-  
+
     // draw frames per seconds on screen
     sf::Time elapsed = clock_.restart();
     float fps = 1.0f / elapsed.asSeconds();

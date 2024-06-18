@@ -28,15 +28,15 @@ def test_rl_env():
     times = []
     _ = env.reset()
     # quick check that rendering works
-    _ = env.scenario.getConeImage(env.scenario.getVehicles()[0],
-                                  80.0,
-                                  120 * (np.pi / 180),
-                                  0.0,
-                                  draw_target_position=False)
+    _ = env.scenario.cone_image(env.scenario.vehicles()[0],
+                                80.0,
+                                120 * (np.pi / 180),
+                                0.0,
+                                draw_target_position=False)
     for _ in range(90):
-        vehs = env.scenario.getObjectsThatMoved()
+        vehs = env.scenario.moving_objects()
         prev_position = {
-            veh.getID(): [veh.position.x, veh.position.y]
+            veh.id: [veh.position.x, veh.position.y]
             for veh in vehs
         }
         t = time.perf_counter()
@@ -45,7 +45,7 @@ def test_rl_env():
              for veh in vehs})
         times.append(time.perf_counter() - t)
         for veh in vehs:
-            if veh in env.scenario.getObjectsThatMoved():
+            if veh in env.scenario.moving_objects():
                 new_position = [veh.position.x, veh.position.y]
                 assert prev_position[veh.getID(
                 )] != new_position, f'veh {veh.getID()} was in position \

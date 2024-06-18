@@ -25,11 +25,12 @@ void DefineSimulation(py::module& m) {
            py::arg("config") =
                std::unordered_map<std::string,
                                   std::variant<bool, int64_t, float>>())
-      .def("reset", &Simulation::Reset)
-      .def("step", &Simulation::Step)
-      .def("render", &Simulation::Render)
+      .def("reset", &Simulation::Reset,
+           py::call_guard<py::gil_scoped_release>())
+      .def("step", &Simulation::Step, py::call_guard<py::gil_scoped_release>())
       .def("scenario", &Simulation::GetScenario,
            py::return_value_policy::reference)
+      .def("render", &Simulation::Render)
       .def("save_screenshot", &Simulation::SaveScreenshot)
 
       // TODO: Deprecate the legacy methods below.

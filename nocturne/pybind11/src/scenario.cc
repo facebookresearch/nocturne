@@ -40,28 +40,44 @@ void DefineScenario(py::module& m) {
       .def("objects", &Scenario::objects, py::return_value_policy::reference)
       .def("moving_objects", &Scenario::moving_objects,
            py::return_value_policy::reference)
-      .def("remove_object", &Scenario::RemoveObject)
       .def("road_lines", &Scenario::road_lines)
-
+      .def("remove_object", &Scenario::RemoveObject,
+           py::call_guard<py::gil_scoped_release>())
       .def("ego_state",
            [](const Scenario& scenario, const Object& src) {
-             return utils::AsNumpyArray(scenario.EgoState(src));
+             NdArray<float> ret;
+             {
+               py::gil_scoped_release release;
+               ret = scenario.EgoState(src);
+             }
+             return utils::AsNumpyArray(std::move(ret));
            })
       .def(
           "visible_state",
           [](const Scenario& scenario, const Object& src, float view_dist,
              float view_angle, float head_angle, bool padding) {
-            return utils::AsNumpyArrayDict(
-                scenario.VisibleState(src, view_dist, view_angle, head_angle, padding));
+            std::unordered_map<std::string, NdArray<float>> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.VisibleState(src, view_dist, view_angle,
+                                          head_angle, padding);
+            }
+            return utils::AsNumpyArrayDict(std::move(ret));
           },
           py::arg("object"), py::arg("view_dist") = 60,
-          py::arg("view_angle") = kHalfPi, py::arg("head_angle") = 0.0, py::arg("padding") = false)
+          py::arg("view_angle") = kHalfPi, py::arg("head_angle") = 0.0,
+          py::arg("padding") = false)
       .def(
           "flattened_visible_state",
           [](const Scenario& scenario, const Object& src, float view_dist,
              float view_angle, float head_angle) {
-            return utils::AsNumpyArray(scenario.FlattenedVisibleState(
-                src, view_dist, view_angle, head_angle));
+            NdArray<float> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.FlattenedVisibleState(src, view_dist, view_angle,
+                                                   head_angle);
+            }
+            return utils::AsNumpyArray(std::move(ret));
           },
           py::arg("object"), py::arg("view_dist") = 60,
           py::arg("view_angle") = kHalfPi, py::arg("head_angle") = 0.0)
@@ -71,6 +87,69 @@ void DefineScenario(py::module& m) {
       .def("expert_action", &Scenario::ExpertAction)
       .def("expert_pos_shift", &Scenario::ExpertPosShift)
       .def("expert_heading_shift", &Scenario::ExpertHeadingShift)
+      .def(
+          "image",
+          [](Scenario& scenario, uint64_t img_height, uint64_t img_width,
+             bool draw_target_positions, float padding, Object* source,
+             uint64_t view_height, uint64_t view_width,
+             bool rotate_with_source) {
+            NdArray<unsigned char> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.Image(img_height, img_width, draw_target_positions,
+                                   padding, source, view_height, view_width,
+                                   rotate_with_source);
+            }
+            return utils::AsNumpyArray<unsigned char>(std::move(ret));
+          },
+          "Return a numpy array of dimension (img_height, img_width, 4) "
+          "representing an image of the scene.",
+          py::arg("img_height") = 1000, py::arg("img_width") = 1000,
+          py::arg("draw_target_positions") = true, py::arg("padding") = 50.0f,
+          py::arg("source") = nullptr, py::arg("view_height") = 200,
+          py::arg("view_width") = 200, py::arg("rotate_with_source") = true)
+      .def(
+          "feature_image",
+          [](Scenario& scenario, const Object& source, float view_dist,
+             float view_angle, float head_angle, uint64_t img_height,
+             uint64_t img_width, float padding, bool draw_target_position) {
+            NdArray<unsigned char> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.EgoVehicleFeaturesImage(
+                  source, view_dist, view_angle, head_angle, img_height,
+                  img_width, padding, draw_target_position);
+            }
+            return utils::AsNumpyArray<unsigned char>(std::move(ret));
+          },
+          "Return a numpy array of dimension (img_height, img_width, 4) "
+          "representing an image of what is returned by getVisibleState(?).",
+          py::arg("source"), py::arg("view_dist") = 120.0f,
+          py::arg("view_angle") = geometry::utils::kPi * 0.8f,
+          py::arg("head_angle") = 0.0f, py::arg("img_height") = 1000,
+          py::arg("img_width") = 1000, py::arg("padding") = 0.0f,
+          py::arg("draw_target_position") = true)
+      .def(
+          "cone_image",
+          [](Scenario& scenario, const Object& source, float view_dist,
+             float view_angle, float head_angle, uint64_t img_height,
+             uint64_t img_width, float padding, bool draw_target_position) {
+            NdArray<unsigned char> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.EgoVehicleConeImage(
+                  source, view_dist, view_angle, head_angle, img_height,
+                  img_width, padding, draw_target_position);
+            }
+            return utils::AsNumpyArray<unsigned char>(std::move(ret));
+          },
+          "Return a numpy array of dimension (img_height, img_width, 4) "
+          "representing a cone of what the agent sees.",
+          py::arg("source"), py::arg("view_dist") = 120.0f,
+          py::arg("view_angle") = geometry::utils::kPi * 0.8f,
+          py::arg("head_angle") = 0.0f, py::arg("img_height") = 1000,
+          py::arg("img_width") = 1000, py::arg("padding") = 0.0f,
+          py::arg("draw_target_position") = true)
 
       // TODO: Deprecate the legacy interfaces below.
       .def("getVehicles", &Scenario::vehicles,
@@ -89,9 +168,14 @@ void DefineScenario(py::module& m) {
              bool draw_target_positions, float padding, Object* source,
              uint64_t view_height, uint64_t view_width,
              bool rotate_with_source) {
-            return utils::AsNumpyArray<unsigned char>(scenario.Image(
-                img_height, img_width, draw_target_positions, padding, source,
-                view_height, view_width, rotate_with_source));
+            NdArray<unsigned char> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.Image(img_height, img_width, draw_target_positions,
+                                   padding, source, view_height, view_width,
+                                   rotate_with_source);
+            }
+            return utils::AsNumpyArray<unsigned char>(std::move(ret));
           },
           "Return a numpy array of dimension (img_height, img_width, 4) "
           "representing an image of the scene.",
@@ -104,10 +188,14 @@ void DefineScenario(py::module& m) {
           [](Scenario& scenario, const Object& source, float view_dist,
              float view_angle, float head_angle, uint64_t img_height,
              uint64_t img_width, float padding, bool draw_target_position) {
-            return utils::AsNumpyArray<unsigned char>(
-                scenario.EgoVehicleFeaturesImage(
-                    source, view_dist, view_angle, head_angle, img_height,
-                    img_width, padding, draw_target_position));
+            NdArray<unsigned char> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.EgoVehicleFeaturesImage(
+                  source, view_dist, view_angle, head_angle, img_height,
+                  img_width, padding, draw_target_position);
+            }
+            return utils::AsNumpyArray<unsigned char>(std::move(ret));
           },
           "Return a numpy array of dimension (img_height, img_width, 4) "
           "representing an image of what is returned by getVisibleState(?).",
@@ -121,10 +209,14 @@ void DefineScenario(py::module& m) {
           [](Scenario& scenario, const Object& source, float view_dist,
              float view_angle, float head_angle, uint64_t img_height,
              uint64_t img_width, float padding, bool draw_target_position) {
-            return utils::AsNumpyArray<unsigned char>(
-                scenario.EgoVehicleConeImage(source, view_dist, view_angle,
-                                             head_angle, img_height, img_width,
-                                             padding, draw_target_position));
+            NdArray<unsigned char> ret;
+            {
+              py::gil_scoped_release release;
+              ret = scenario.EgoVehicleConeImage(
+                  source, view_dist, view_angle, head_angle, img_height,
+                  img_width, padding, draw_target_position);
+            }
+            return utils::AsNumpyArray<unsigned char>(std::move(ret));
           },
           "Return a numpy array of dimension (img_height, img_width, 4) "
           "representing a cone of what the agent sees.",
